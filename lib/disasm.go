@@ -1,0 +1,239 @@
+package lib
+
+import "io"
+import "io/ioutil"
+import "fmt"
+
+func (d *decoder) noArgOpCode(opcode byte) Opcode {
+	switch opcode {
+	case 0x00:
+		return Unknown{opcode}
+	case 0x02:
+		return Return{}
+	case 0x04:
+		return AdditiveInverse{}
+	case 0x06:
+		return Exit{}
+	case 0x08, 0x0A:
+		return Increment{}
+	case 0x0C:
+		return Decrement{}
+	case 0x0E:
+		return And_0xFF{}
+	case 0x10:
+		return MulRandShiftRight8{}
+	case 0x12:
+		return Abs{}
+	case 0x14:
+		return Sign{}
+	case 0x16:
+		return ReadByte{}
+	case 0x18:
+		return Exit{}
+	case 0x1a:
+		return Read{}
+	case 0x1C:
+		return Swap{}
+	case 0x1E:
+		return SignExtend{}
+	case 0x22:
+		return Dup{}
+	case 0x40:
+		return Add{}
+	case 0x42:
+		return Subtract{}
+	case 0x44:
+		return Multiply{}
+	case 0x46:
+		return Divide{}
+	case 0x48:
+		shiftOpcode := d.buf[d.offset]
+		if shiftOpcode != 0x45 {
+			panic("Unexpected opcode after MUL2")
+		}
+		d.offset += 1
+		if d.offset >= len(d.buf) {
+			panic(fmt.Errorf("EOF decoding opcode 0x48"))
+		}
+		arg := d.buf[d.offset]
+		d.offset += 1
+		if d.offset >= len(d.buf) {
+			panic(fmt.Errorf("EOF decoding opcode 0xA2"))
+		}
+		return MultiplyShiftRight{arg}
+	case 0x4A:
+		return IfGreaterThenZero{}
+	case 0x4C:
+		return IfZero{}
+	case 0x4e:
+		return Exit{}
+	case 0x54:
+		return BinaryAnd{}
+	case 0x56:
+		return Drop{}
+	case 0x5C:
+		return PopToD4{}
+	case 0x60:
+		return FetchByteAt{}
+	case 0x68:
+		return FetchAt{}
+	case 0x6A:
+		return Clamp{}
+	case 0x6C:
+		return WriteToA200Plus{}
+	case 0x6E:
+		return FindObject{}
+	case 0x70:
+		return IfNotEqual{}
+	case 0x72:
+		return CountNeighbourObjects{}
+	case 0x74:
+		return MagicNumber{}
+	case 0xF6:
+		return Else{}
+	case 0xF8:
+		return FiAll{}
+	case 0xFA:
+		return Fi{}
+	default:
+		return Unknown{opcode}
+	}
+}
+func (d *decoder) oneArgOpCode(opcode byte) Opcode {
+	if d.offset >= len(d.buf) {
+		panic(fmt.Errorf("EOF decoding opcode"))
+	}
+	arg := d.buf[d.offset]
+	d.offset += 1
+	switch opcode {
+	case 0x80:
+		return Done{arg}
+	case 0x82:
+		return ShiftRight{arg}
+	case 0x84:
+		return ShiftLeft{arg}
+	case 0x86:
+		return ReadByteWithOffset{arg}
+	case 0x88:
+		return Gosub{arg}
+	case 0x8A:
+		panic(fmt.Sprintf("Unexpected opcode AFTER_SIGNED_MUL_SHIFT_RIGHT[%d]", arg))
+		//return AfterSignedMulShiftRight{arg}
+	case 0x90:
+		return AndNum{arg}
+	case 0x92:
+		return OrNum{arg}
+	case 0x94:
+		return XorNum{arg}
+	case 0x96:
+		return GoTo{arg}
+	case 0x98:
+		return RotateRight{arg}
+	case 0x9E:
+		return Label{arg}
+	case 0xA0:
+		return PushSigned{int8(arg)}
+	case 0xA2:
+		if d.offset >= len(d.buf) {
+			panic(fmt.Errorf("EOF decoding opcode 0xA2"))
+		}
+		d.offset += 1
+		return Push2Byte{256*uint16(d.buf[d.offset])+uint16(arg)}
+	case 0xA4:
+		return Push{arg}
+	case 0xA6:
+		return ScnDtaUnitTypeOffset{arg}
+	case 0xC2:
+		return IfSignEq{arg}
+	case 0xC4:
+		return CoordsToMapAddress{arg}
+	case 0xC8:
+		return LoadUnit{arg}
+	case 0xCA:
+		return SaveUnit{arg}
+	case 0xE0:
+		return For{arg}
+	case 0xE2:
+		return IfCmp{arg}
+	case 0xE4:
+		return IfNotBetweenSet{arg}
+	case 0xE6:
+		return Fill{arg}
+	default:
+		return UnknownOneArg{opcode, arg}
+	}
+}
+
+type functionStackChange struct {
+	popped, pushed int
+}
+type scopeType int
+
+const (
+	IF  scopeType = 0
+	FOR scopeType = 1
+)
+
+type decoder struct {
+	buf       []byte
+	offset    int
+	scopes    []scopeType
+	functions map[byte]functionStackChange
+}
+
+func (d *decoder) printIndent() {
+	for i := 0; i < len(d.scopes); i++ {
+		fmt.Print("  ")
+	}
+}
+
+func NewDecoder(buf []byte) decoder {
+	d := decoder{
+		buf:       buf,
+		offset:    0,
+		scopes:    []scopeType(nil),
+		functions: make(map[byte]functionStackChange),
+	}
+	d.functions[18] = functionStackChange{0, 0}
+	d.functions[26] = functionStackChange{1, 0}
+	return d
+}
+func (d *decoder) Decode() (Opcode, bool) {
+	if d.offset >= len(d.buf) {
+		return nil, false
+	}
+	opcode := d.buf[d.offset]
+	d.offset += 1
+	if opcode > 0x7f {
+		opcode <<= 1
+		if opcode > 0x7f {
+			opcode &= 0x7f
+			return PopTo{opcode/2}, true
+		} else {
+			return PushFrom{opcode / 2}, true
+		}
+	} else {
+		opcode <<= 1
+		if opcode <= 0x7f || opcode > 0xF4 {
+			return d.noArgOpCode(opcode), true
+		} else {
+			return d.oneArgOpCode(opcode), true
+		}
+	}
+}
+
+func ReadOpcodes(reader io.Reader) ([]Opcode, error) {
+	buf, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+	decoder := NewDecoder(buf)
+	opcodes := []Opcode(nil)
+	for {
+		opcode, cont := decoder.Decode()
+		if !cont {
+			return opcodes, nil
+		}
+		opcodes = append(opcodes, opcode)
+	}
+}
