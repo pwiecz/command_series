@@ -4,6 +4,18 @@ import "io"
 import "io/ioutil"
 import "fmt"
 
+type decoder struct {
+	buf    []byte
+	offset int
+}
+
+func NewDecoder(buf []byte) decoder {
+	return decoder{
+		buf:    buf,
+		offset: 0,
+	}
+}
+
 func (d *decoder) noArgOpCode(opcode byte) Opcode {
 	switch opcode {
 	case 0x00:
@@ -138,7 +150,7 @@ func (d *decoder) oneArgOpCode(opcode byte) Opcode {
 			panic(fmt.Errorf("EOF decoding opcode 0xA2"))
 		}
 		d.offset += 1
-		return Push2Byte{256*uint16(d.buf[d.offset])+uint16(arg)}
+		return Push2Byte{256*uint16(d.buf[d.offset]) + uint16(arg)}
 	case 0xA4:
 		return Push{arg}
 	case 0xA6:
@@ -164,40 +176,6 @@ func (d *decoder) oneArgOpCode(opcode byte) Opcode {
 	}
 }
 
-type functionStackChange struct {
-	popped, pushed int
-}
-type scopeType int
-
-const (
-	IF  scopeType = 0
-	FOR scopeType = 1
-)
-
-type decoder struct {
-	buf       []byte
-	offset    int
-	scopes    []scopeType
-	functions map[byte]functionStackChange
-}
-
-func (d *decoder) printIndent() {
-	for i := 0; i < len(d.scopes); i++ {
-		fmt.Print("  ")
-	}
-}
-
-func NewDecoder(buf []byte) decoder {
-	d := decoder{
-		buf:       buf,
-		offset:    0,
-		scopes:    []scopeType(nil),
-		functions: make(map[byte]functionStackChange),
-	}
-	d.functions[18] = functionStackChange{0, 0}
-	d.functions[26] = functionStackChange{1, 0}
-	return d
-}
 func (d *decoder) Decode() (Opcode, bool) {
 	if d.offset >= len(d.buf) {
 		return nil, false
@@ -208,7 +186,7 @@ func (d *decoder) Decode() (Opcode, bool) {
 		opcode <<= 1
 		if opcode > 0x7f {
 			opcode &= 0x7f
-			return PopTo{opcode/2}, true
+			return PopTo{opcode / 2}, true
 		} else {
 			return PushFrom{opcode / 2}, true
 		}
