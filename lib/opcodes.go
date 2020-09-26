@@ -16,17 +16,6 @@ func (b Byte) String() string          { return fmt.Sprintf("%d", int(b.b)) }
 func (b Byte) StackEffect() (int, int) { return 0, 1 }
 func (b Byte) HasSideEffects() bool    { return false }
 
-type Atom struct {
-	s string
-}
-
-func NewAtom(s string) *Atom {
-	return &Atom{s: s}
-}
-func (a *Atom) String() string          { return a.s }
-func (a *Atom) StackEffect() (int, int) { return 0, 1 }
-func (a *Atom) HasSideEffects() bool    { return false }
-
 type Return struct{}
 
 func (r Return) String() string          { return "RETURN" }
@@ -87,11 +76,11 @@ func (d Divide) String() string          { return "DIV" }
 func (d Divide) StackEffect() (int, int) { return 2, 1 }
 func (d Divide) HasSideEffects() bool    { return false }
 
-type IfGreaterThenZero struct{}
+type IfGreaterThanZero struct{}
 
-func (i IfGreaterThenZero) String() string          { return "IF_GREATER_THAN_ZERO" }
-func (i IfGreaterThenZero) StackEffect() (int, int) { return 1, 0 }
-func (i IfGreaterThenZero) HasSideEffects() bool    { return true }
+func (i IfGreaterThanZero) String() string          { return "IF_GREATER_THAN_ZERO" }
+func (i IfGreaterThanZero) StackEffect() (int, int) { return 1, 0 }
+func (i IfGreaterThanZero) HasSideEffects() bool    { return true }
 
 type IfZero struct{}
 
@@ -452,38 +441,39 @@ func (p PopTo) HasSideEffects() bool    { return true }
 type PushFrom struct{ b byte }
 
 func (p PushFrom) String() string {
-	var locStr string
-	switch p.b {
-	case 1:
-		locStr = "&SCN_UNI"
-	case 2:
-		locStr = "&CRUSADE_MAP"
-	case 3:
-		locStr = "&SCN_TER"
-	case 4:
-		locStr = "&GENERIC_DTA"
-	case 5:
-		locStr = "&SCN_DTA"
-	case 17:
-		locStr = "&SCN_DTA_STRINGS"
-	case 24:
-		locStr = "&SCN_TER_2"
-	case 8:
-		locStr = "&HEXES_DTA"
-	case 22:
-		locStr = "29927"
-	case 31:
-		locStr = "&V10[8]"
-	case 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63:
-		locStr = numToUnitField(p.b)
-	default:
-		locStr = fmt.Sprintf("V%d", p.b)
-	}
-	return fmt.Sprintf("PUSH_FROM(%s)", locStr)
+	return fmt.Sprintf("PUSH_FROM(%s)", pushFromArgString(p.b))
 }
 func (p PushFrom) StackEffect() (int, int) { return 0, 1 }
 func (p PushFrom) HasSideEffects() bool    { return false }
 
+func pushFromArgString(num byte) string {
+	switch num {
+	case 1:
+		return "&SCN_UNI"
+	case 2:
+		return "&CRUSADE_MAP"
+	case 3:
+		return "&SCN_TER"
+	case 4:
+		return "&GENERIC_DTA"
+	case 5:
+		return "&SCN_DTA"
+	case 17:
+		return "&SCN_DTA_STRINGS"
+	case 24:
+		return "&SCN_TER_2"
+	case 8:
+		return "&HEXES_DTA"
+	case 22:
+		return "29927"
+	case 31:
+		return "&V10[8]"
+	case 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63:
+		return numToUnitField(num)
+	default:
+		return fmt.Sprintf("V%d", num)
+	}
+}
 func numToUnitField(num byte) string {
 	if num < 32 || num > 63 {
 		return fmt.Sprintf("V%d", num)

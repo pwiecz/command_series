@@ -87,7 +87,7 @@ func (d *decoder) noArgOpCode(opcode byte) Opcode {
 		arg := d.buf[d.offset]
 		d.offset += 1
 		if d.offset >= len(d.buf) {
-			panic(fmt.Errorf("EOF decoding opcode 0xA2"))
+			panic(fmt.Errorf("EOF decoding opcode 0x48"))
 		}
 		return MultiplyShiftRight{arg}
 	case 0x4A:
