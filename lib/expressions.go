@@ -70,194 +70,115 @@ func (f *FoldingDecoder) funcCall(o Opcode, name string, numArgs int) bool {
 }
 
 func (f *FoldingDecoder) Apply(o Opcode) {
-	switch v := o.(type) {
-	case Byte:
-		f.push(Atom{o.String()})
-	case Add:
-		if f.binaryOp(o, "+") {
-			return
-		}
-	case Subtract:
-		if f.binaryOp(o, "-") {
-			return
-		}
-	case Multiply:
-		if f.binaryOp(o, "*") {
-			return
-		}
-	case Divide:
-		if f.binaryOp(o, "/") {
-			return
-		}
-	case MultiplyShiftRight:
-		if len(f.stack) >= 2 {
+	toPop, toPush := o.StackEffect()
+	if !o.HasSideEffects() && toPop <= len(f.stack) {
+		stackLen := len(f.stack)
+		switch v := o.(type) {
+		case Byte:
+			f.push(Atom{o.String()})
+		case Add:
+			f.binaryOp(o, "+")
+		case Subtract:
+			f.binaryOp(o, "-")
+		case Multiply:
+			f.binaryOp(o, "*")
+		case Divide:
+			f.binaryOp(o, "/")
+		case MultiplyShiftRight:
 			a := Atom{fmt.Sprintf("(%s)*(%s)>>%d", f.belowTop(), f.top(), v.b)}
 			f.popNAndPush(2, a)
-			return
-		}
-	case Increment:
-		if len(f.stack) >= 1 {
+		case Increment:
 			a := Atom{"(" + f.top().String() + ")+1"}
 			f.popNAndPush(1, a)
-			return
-		}
-	case Decrement:
-		if len(f.stack) >= 1 {
+		case Decrement:
 			a := Atom{"(" + f.top().String() + ")-1"}
 			f.popNAndPush(1, a)
-			return
-		}
-	case AdditiveInverse:
-		if len(f.stack) >= 1 {
+		case AdditiveInverse:
 			a := Atom{"-(" + f.top().String() + ")"}
 			f.popNAndPush(1, a)
-			return
-		}
-	case And_0xFF:
-		if len(f.stack) >= 1 {
+		case And_0xFF:
 			a := Atom{"(" + f.top().String() + ")&0xFF"}
 			f.popNAndPush(1, a)
-			return
-		}
-	case BinaryAnd:
-		if f.binaryOp(o, "&") {
-			return
-		}
-	case BinaryOr:
-		if f.binaryOp(o, "|") {
-			return
-		}
-	case BinaryXor:
-		if f.binaryOp(o, "^") {
-			return
-		}
-	case ShiftLeft:
-		if len(f.stack) >= 1 {
+		case BinaryAnd:
+			f.binaryOp(o, "&")
+		case BinaryOr:
+			f.binaryOp(o, "|")
+		case BinaryXor:
+			f.binaryOp(o, "^")
+		case ShiftLeft:
 			a := Atom{fmt.Sprintf("(%s)<<%d", f.top(), v.shift)}
 			f.popNAndPush(1, a)
-			return
-		}
-	case ShiftRight:
-		if len(f.stack) >= 1 {
+		case ShiftRight:
 			a := Atom{fmt.Sprintf("(%s)>>%d", f.top(), v.shift)}
 			f.popNAndPush(1, a)
-			return
-		}
-	case ScnDtaUnitTypeOffset:
-		a := Atom{fmt.Sprintf("[&SCN_DTA+%d+UNIT.TYPE]", v.offset)}
-		f.push(a)
-		return
-	case ReadByte:
-		if len(f.stack) >= 1 {
+		case ScnDtaUnitTypeOffset:
+			a := Atom{fmt.Sprintf("[&SCN_DTA+%d+UNIT.TYPE]", v.offset)}
+			f.push(a)
+		case ReadByte:
 			a := Atom{fmt.Sprintf("[%s]", f.top())}
 			f.popNAndPush(1, a)
-			return
-		}
-	case Read:
-		if len(f.stack) >= 1 {
+		case Read:
 			a := Atom{fmt.Sprintf("[%s:]", f.top())}
 			f.popNAndPush(1, a)
-			return
-		}
-	case ReadByteWithOffset:
-		if len(f.stack) >= 1 {
+		case ReadByteWithOffset:
 			a := Atom{fmt.Sprintf("[(%s)+%d]", f.top(), v.offset)}
 			f.popNAndPush(1, a)
-			return
-		}
-	case MulRandShiftRight8:
-		if f.funcCall(o, "MUL_RAND_SHR8", 1) {
-			return
-		}
-	case Abs:
-		if f.funcCall(o, "ABS", 1) {
-			return
-		}
-	case Sign:
-		if f.funcCall(o, "SIGN", 1) {
-			return
-		}
-	case Swap:
-		if len(f.stack) >= 2 {
+		case MulRandShiftRight8:
+			f.funcCall(o, "MUL_RAND_SHR8", 1)
+		case Abs:
+			f.funcCall(o, "ABS", 1)
+		case Sign:
+			f.funcCall(o, "SIGN", 1)
+		case Swap:
 			f.stack[len(f.stack)-1], f.stack[len(f.stack)-2] = f.stack[len(f.stack)-2], f.stack[len(f.stack)-1]
-			return
-		}
-	case Dup:
-		if len(f.stack) >= 1 {
+		case Dup:
 			f.push(f.stack[len(f.stack)-1])
-			return
-		}
-	case Drop:
-		if len(f.stack) >= 1 {
+		case Drop:
 			f.popN(1)
-			return
-		}
-	case SignExtend:
-		if f.funcCall(o, "SIGN_EXTEND", 1) {
-			return
-		}
-	case Clamp:
-		if f.funcCall(o, "CLAMP", 3) {
-			return
-		}
-	case FindObject:
-		if f.funcCall(o, "FIND_OBJECT", 3) {
-			return
-		}
-	case CountNeighbourObjects:
-		if f.funcCall(o, "COUNT_NEIGHBOUR_OBJECTS", 3) {
-			return
-		}
-	case MagicNumber:
-		if f.funcCall(o, "MAGIC_NUMBER", 4) {
-			return
-		}
-	case AndNum:
-		if len(f.stack) >= 1 {
+		case SignExtend:
+			f.funcCall(o, "SIGN_EXTEND", 1)
+		case Clamp:
+			f.funcCall(o, "CLAMP", 3)
+		case FindObject:
+			f.funcCall(o, "FIND_OBJECT", 3)
+		case CountNeighbourObjects:
+			f.funcCall(o, "COUNT_NEIGHBOUR_OBJECTS", 3)
+		case MagicNumber:
+			f.funcCall(o, "MAGIC_NUMBER", 4)
+		case AndNum:
 			a := Atom{fmt.Sprintf("(%s)&%d", f.top(), v.b)}
 			f.popNAndPush(1, a)
-			return
-		}
-	case OrNum:
-		if len(f.stack) >= 1 {
+		case OrNum:
 			a := Atom{fmt.Sprintf("(%s)|%d", f.top(), v.b)}
 			f.popNAndPush(1, a)
-			return
-		}
-	case XorNum:
-		if len(f.stack) >= 1 {
+		case XorNum:
 			a := Atom{fmt.Sprintf("(%s)^%d", f.top(), v.b)}
 			f.popNAndPush(1, a)
+		case RotateRight:
+			f.funcCall(o, fmt.Sprintf("ROT[%d]", v.b), 1)
+		case PushSigned:
+			a := Atom{fmt.Sprintf("%d", v.n)}
+			f.push(a)
+		case Push2Byte:
+			a := Atom{fmt.Sprintf("0x%X", v.n)}
+			f.push(a)
+		case Push:
+			a := Atom{fmt.Sprintf("%d", v.b)}
+			f.push(a)
+		case CoordsToMapAddress:
+			f.funcCall(o, fmt.Sprintf("COORDS_TO_MAP_ADDRESS[%d]", v.b), 2)
+		case IfNotBetweenSet:
+			f.funcCall(o, fmt.Sprintf("IF_NOT_BETWEEN_SET[%d]", v.b), 3)
+		case PushFrom:
+			f.push(Atom{pushFromArgString(v.b)})
+		default:
+			panic(fmt.Sprintf("Unexpected opcode type %s", o.String()))
 		}
-	case RotateRight:
-		if f.funcCall(o, fmt.Sprintf("ROT[%d]", v.b), 1) {
-			return
+		if stackLen-len(f.stack) != toPush-toPop {
+			panic(fmt.Sprintf("Stack effect mismatch %d->%d vs %d->%d", stackLen, len(f.stack), toPush, toPop))
 		}
-	case PushSigned:
-		a := Atom{fmt.Sprintf("%d", v.n)}
-		f.push(a)
-		return
-	case Push2Byte:
-		a := Atom{fmt.Sprintf("0x%X", v.n)}
-		f.push(a)
-		return
-	case Push:
-		a := Atom{fmt.Sprintf("%d", v.b)}
-		f.push(a)
-		return
-	case CoordsToMapAddress:
-		if f.funcCall(o, fmt.Sprintf("COORDS_TO_MAP_ADDRESS[%d]", v.b), 2) {
-			return
-		}
-	case IfNotBetweenSet:
-		if f.funcCall(o, fmt.Sprintf("IF_NOT_BETWEEN_SET[%d]", v.b), 3) {
-			return
-		}
-	case PushFrom:
-		f.push(Atom{pushFromArgString(v.b)})
 		return
 	}
-
 	f.DumpStack()
 
 	switch o.(type) {
@@ -277,9 +198,9 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 		f.printIndent()
 		f.scopes = append(f.scopes, IF)
 	case Fi:
-		if f.scopes[len(f.scopes)-1] != IF {
-//			panic("FI not in if statement")
-		}
+		//if f.scopes[len(f.scopes)-1] != IF {
+		//	panic("FI not in an if statement")
+		//}
 		f.scopes = f.scopes[:len(f.scopes)-1]
 		f.printIndent()
 	case Else:
@@ -298,9 +219,9 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 		f.printIndent()
 		f.scopes = append(f.scopes, FOR)
 	case Done:
-		if f.scopes[len(f.scopes) - 1] != FOR {
-//			panic("DONE not in for loop")
-		}
+		//if f.scopes[len(f.scopes)-1] != FOR {
+		//	panic("DONE not in a for loop")
+		//}
 		f.scopes = f.scopes[:len(f.scopes)-1]
 		f.printIndent()
 	default:
@@ -321,9 +242,5 @@ func (f *FoldingDecoder) DumpStack() {
 		f.printIndent()
 		fmt.Println(expr.String())
 	}
-	//for i := len(f.stack) - 1; i >= 0; i-- {
-	//	f.printIndent()
-	//	fmt.Println(f.stack[i].String())
-	//}
 	f.stack = nil
 }
