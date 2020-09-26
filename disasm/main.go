@@ -28,7 +28,7 @@ func main() {
 	var scopes []scopeType
 	for _, opcode := range opcodes {
 		switch opcode.(type) {
-		case lib.IfGreaterThenZero:
+		case lib.IfGreaterThanZero:
 			printIndent(len(scopes))
 			scopes = append(scopes, IF)
 		case lib.IfZero:
@@ -46,6 +46,8 @@ func main() {
 		case lib.Fi:
 			scopes = scopes[:len(scopes)-1]
 			printIndent(len(scopes))
+		case lib.Else:
+			printIndent(len(scopes)-1)
 		case lib.FiAll:
 			for i := 0; i < len(scopes); i++ {
 				if scopes[i] == IF {
