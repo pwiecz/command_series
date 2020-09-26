@@ -105,9 +105,9 @@ func (d *decoder) noArgOpCode(opcode byte) Opcode {
 	case 0x5C:
 		return PopToD4{}
 	case 0x60:
-		return FetchByteAt{}
+		return StoreByte{}
 	case 0x68:
-		return FetchAt{}
+		return Store{}
 	case 0x6A:
 		return Clamp{}
 	case 0x6C:

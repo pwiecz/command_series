@@ -174,8 +174,8 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 		default:
 			panic(fmt.Sprintf("Unexpected opcode type %s", o.String()))
 		}
-		if stackLen-len(f.stack) != toPush-toPop {
-			panic(fmt.Sprintf("Stack effect mismatch %d->%d vs %d->%d", stackLen, len(f.stack), toPush, toPop))
+		if len(f.stack)-stackLen != toPush-toPop {
+			panic(fmt.Sprintf("Stack effect mismatch for opcode %s %d->%d vs %d->%d", o.String(), stackLen, len(f.stack), toPush, toPop))
 		}
 		return
 	}

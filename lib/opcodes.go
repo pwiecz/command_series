@@ -218,17 +218,17 @@ func (p PopToD4) String() string          { return "POP_TO_D4" }
 func (p PopToD4) StackEffect() (int, int) { return 1, 0 }
 func (p PopToD4) HasSideEffects() bool    { return true }
 
-type FetchByteAt struct{}
+type StoreByte struct{}
 
-func (f FetchByteAt) String() string          { return "FETCH_BYTE_AT" }
-func (f FetchByteAt) StackEffect() (int, int) { return 1, 1 }
-func (f FetchByteAt) HasSideEffects() bool    { return false }
+func (s StoreByte) String() string          { return "STORE_BYTE_AT" }
+func (s StoreByte) StackEffect() (int, int) { return 2, 0 }
+func (s StoreByte) HasSideEffects() bool    { return true }
 
-type FetchAt struct{}
+type Store struct{}
 
-func (f FetchAt) String() string          { return "FETCH_AT" }
-func (f FetchAt) StackEffect() (int, int) { return 1, 1 }
-func (f FetchAt) HasSideEffects() bool    { return false }
+func (s Store) String() string          { return "STORE_AT" }
+func (s Store) StackEffect() (int, int) { return 2, 0 }
+func (s Store) HasSideEffects() bool    { return true }
 
 type FindObject struct{}
 
@@ -369,7 +369,7 @@ func (l LoadUnit) String() string {
 	}
 }
 func (l LoadUnit) StackEffect() (int, int) { return 0, 1 }
-func (l LoadUnit) HasSideEffects() bool    { return false }
+func (l LoadUnit) HasSideEffects() bool    { return true }
 
 type SaveUnit struct{ b byte }
 
