@@ -28,10 +28,10 @@ func main() {
 		}
 		currentProgram = append(currentProgram, b)
 		if b == 0x0c {
-			fmt.Printf("%d\n", i+1 - len(currentProgram) - startPosition)
+			fmt.Printf("%d\n", i+1-len(currentProgram)-startPosition)
 			ioutil.WriteFile(fmt.Sprintf("prg_%d.sid", progIdx), currentProgram, 0644)
 			currentProgram = nil
-			progIdx += 1
+			progIdx++
 		}
 	}
 }

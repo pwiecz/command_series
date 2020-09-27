@@ -20,14 +20,14 @@ func (d *decoder) skipTwoZeroes() {
 	if d.buf[d.offset] != 0x0 {
 		panic(fmt.Sprintf("Expected 0x0 got 0x%X", d.buf[d.offset]))
 	}
-	d.offset += 1
+	d.offset++
 	if d.offset >= len(d.buf) {
 		panic("EOF while skipping zeroes")
 	}
 	if d.buf[d.offset] != 0x0 {
 		panic(fmt.Sprintf("Expected 0x0 got 0x%X", d.buf[d.offset]))
 	}
-	d.offset += 1
+	d.offset++
 	if d.offset >= len(d.buf) {
 		panic("EOF while skipping zeroes")
 	}
@@ -80,12 +80,12 @@ func (d *decoder) noArgOpCode(opcode byte) Opcode {
 		if shiftOpcode != 0x45 {
 			panic("Unexpected opcode after MUL2")
 		}
-		d.offset += 1
+		d.offset++
 		if d.offset >= len(d.buf) {
 			panic(fmt.Errorf("EOF decoding opcode 0x48"))
 		}
 		arg := d.buf[d.offset]
-		d.offset += 1
+		d.offset++
 		if d.offset >= len(d.buf) {
 			panic(fmt.Errorf("EOF decoding opcode 0x48"))
 		}
@@ -137,7 +137,7 @@ func (d *decoder) oneArgOpCode(opcode byte) Opcode {
 		panic(fmt.Errorf("EOF decoding opcode"))
 	}
 	arg := d.buf[d.offset]
-	d.offset += 1
+	d.offset++
 	switch opcode {
 	case 0x80:
 		return Done{arg}
@@ -170,7 +170,7 @@ func (d *decoder) oneArgOpCode(opcode byte) Opcode {
 		if d.offset >= len(d.buf) {
 			panic(fmt.Errorf("EOF decoding opcode 0xA2"))
 		}
-		d.offset += 1
+		d.offset++
 		return Push2Byte{256*uint16(d.buf[d.offset]) + uint16(arg)}
 	case 0xA4:
 		return Push{arg}
@@ -204,23 +204,20 @@ func (d *decoder) Decode() (Opcode, bool) {
 		return nil, false
 	}
 	opcode := d.buf[d.offset]
-	d.offset += 1
+	d.offset++
 	if opcode > 0x7f {
 		opcode <<= 1
 		if opcode > 0x7f {
 			opcode &= 0x7f
 			return PopTo{opcode / 2}, true
-		} else {
-			return PushFrom{opcode / 2}, true
 		}
-	} else {
-		opcode <<= 1
-		if opcode <= 0x7f || opcode > 0xF4 {
-			return d.noArgOpCode(opcode), true
-		} else {
-			return d.oneArgOpCode(opcode), true
-		}
+		return PushFrom{opcode / 2}, true
 	}
+	opcode <<= 1
+	if opcode <= 0x7f || opcode > 0xF4 {
+		return d.noArgOpCode(opcode), true
+	}
+	return d.oneArgOpCode(opcode), true
 }
 
 func ReadOpcodes(reader io.Reader) ([]Opcode, error) {

@@ -4,7 +4,8 @@ import "fmt"
 import "strings"
 
 type Expression interface {
-	String() string
+	fmt.Stringer
+	Priority() int
 }
 
 type Atom struct {
@@ -12,6 +13,68 @@ type Atom struct {
 }
 
 func (a Atom) String() string { return a.s }
+func (a Atom) Priority() int  { return 20 }
+
+type Num struct {
+	n int
+}
+
+func (n Num) String() string { return fmt.Sprintf("%d", n.n) }
+func (n Num) Priority() int  { return 10 }
+
+func inParensIfPriorityLessThan(e Expression, priority int) string {
+	if e.Priority() < priority {
+		return fmt.Sprintf("(%s)", e)
+	}
+	return e.String()
+}
+
+type NonCommutativeBinaryOp struct {
+	op         string
+	arg0, arg1 Expression
+	priority   int
+}
+
+func (o NonCommutativeBinaryOp) String() string {
+	return fmt.Sprintf("%s %s %s",
+		inParensIfPriorityLessThan(o.arg0, o.priority),
+		o.op,
+		inParensIfPriorityLessThan(o.arg1, o.priority+1))
+}
+func (o NonCommutativeBinaryOp) Priority() int {
+	return o.priority
+}
+
+type CommutativeBinaryOp struct {
+	op         string
+	arg0, arg1 Expression
+	priority   int
+}
+
+func (o CommutativeBinaryOp) String() string {
+	return fmt.Sprintf("%s %s %s",
+		inParensIfPriorityLessThan(o.arg0, o.priority),
+		o.op,
+		inParensIfPriorityLessThan(o.arg1, o.priority))
+}
+func (o CommutativeBinaryOp) Priority() int {
+	return o.priority
+}
+
+type MultiplyShiftRightExpr struct {
+	arg0, arg1 Expression
+	shift      int
+}
+
+func (m MultiplyShiftRightExpr) String() string {
+	return fmt.Sprintf("%s * %s >> %d",
+		inParensIfPriorityLessThan(m.arg0, 11),
+		inParensIfPriorityLessThan(m.arg1, 11),
+		m.shift)
+}
+func (m MultiplyShiftRightExpr) Priority() int {
+	return 9
+}
 
 type scopeType int
 
@@ -48,25 +111,26 @@ func (f *FoldingDecoder) pushScope(t scopeType) {
 	f.scopes = append(f.scopes, t)
 }
 
-func (f *FoldingDecoder) binaryOp(o Opcode, op string) bool {
-	if len(f.stack) >= 2 {
-		a := Atom{"(" + f.belowTop().String() + ")" + op + "(" + f.top().String() + ")"}
-		f.popNAndPush(2, a)
-		return true
-	}
-	return false
+func (f *FoldingDecoder) commutativeBinaryOp(op string, priority int) {
+	o := CommutativeBinaryOp{op, f.belowTop(), f.top(), priority}
+	f.popNAndPush(2, o)
 }
-func (f *FoldingDecoder) funcCall(o Opcode, name string, numArgs int) bool {
-	if len(f.stack) >= numArgs {
-		args := make([]string, numArgs)
-		for i, expr := range f.stack[len(f.stack)-numArgs:] {
-			args[i] = expr.String()
-		}
-		a := Atom{fmt.Sprintf("%s(%s)", name, strings.Join(args, ","))}
-		f.popNAndPush(numArgs, a)
-		return true
+func (f *FoldingDecoder) nonCommutativeBinaryOp(op string, priority int) {
+	o := NonCommutativeBinaryOp{op, f.belowTop(), f.top(), priority}
+	f.popNAndPush(2, o)
+}
+func (f *FoldingDecoder) multiplyShiftRight(shift int) {
+	m := MultiplyShiftRightExpr{f.belowTop(), f.top(), shift}
+	f.popNAndPush(2, m)
+}
+
+func (f *FoldingDecoder) funcCall(o Opcode, name string, numArgs int) {
+	args := make([]string, numArgs)
+	for i, expr := range f.stack[len(f.stack)-numArgs:] {
+		args[i] = expr.String()
 	}
-	return false
+	a := Atom{fmt.Sprintf("%s(%s)", name, strings.Join(args, ", "))}
+	f.popNAndPush(numArgs, a)
 }
 
 func (f *FoldingDecoder) Apply(o Opcode) {
@@ -77,40 +141,39 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 		case Byte:
 			f.push(Atom{o.String()})
 		case Add:
-			f.binaryOp(o, "+")
+			f.commutativeBinaryOp("+", 10)
 		case Subtract:
-			f.binaryOp(o, "-")
+			f.nonCommutativeBinaryOp("-", 10)
 		case Multiply:
-			f.binaryOp(o, "*")
+			f.commutativeBinaryOp("*", 11)
 		case Divide:
-			f.binaryOp(o, "/")
+			f.nonCommutativeBinaryOp("/", 11)
 		case MultiplyShiftRight:
-			a := Atom{fmt.Sprintf("(%s)*(%s)>>%d", f.belowTop(), f.top(), v.b)}
-			f.popNAndPush(2, a)
+			f.multiplyShiftRight(int(v.b))
 		case Increment:
-			a := Atom{"(" + f.top().String() + ")+1"}
-			f.popNAndPush(1, a)
+			i := CommutativeBinaryOp{"+", f.top(), Atom{"1"}, 10}
+			f.popNAndPush(1, i)
 		case Decrement:
-			a := Atom{"(" + f.top().String() + ")-1"}
-			f.popNAndPush(1, a)
+			d := NonCommutativeBinaryOp{"-", f.top(), Atom{"1"}, 10}
+			f.popNAndPush(1, d)
 		case AdditiveInverse:
-			a := Atom{"-(" + f.top().String() + ")"}
-			f.popNAndPush(1, a)
+			i := Atom{"-(" + f.top().String() + ")"}
+			f.popNAndPush(1, i)
 		case And_0xFF:
-			a := Atom{"(" + f.top().String() + ")&0xFF"}
+			a := CommutativeBinaryOp{"&", f.top(), Atom{"0xFF"}, 5}
 			f.popNAndPush(1, a)
 		case BinaryAnd:
-			f.binaryOp(o, "&")
+			f.commutativeBinaryOp("&", 5)
 		case BinaryOr:
-			f.binaryOp(o, "|")
+			f.commutativeBinaryOp("|", 3)
 		case BinaryXor:
-			f.binaryOp(o, "^")
+			f.commutativeBinaryOp("^", 4)
 		case ShiftLeft:
-			a := Atom{fmt.Sprintf("(%s)<<%d", f.top(), v.shift)}
-			f.popNAndPush(1, a)
+			s := CommutativeBinaryOp{"<<", f.top(), Num{int(v.shift)}, 9}
+			f.popNAndPush(1, s)
 		case ShiftRight:
-			a := Atom{fmt.Sprintf("(%s)>>%d", f.top(), v.shift)}
-			f.popNAndPush(1, a)
+			s := CommutativeBinaryOp{">>", f.top(), Num{int(v.shift)}, 9}
+			f.popNAndPush(1, s)
 		case ScnDtaUnitTypeOffset:
 			a := Atom{fmt.Sprintf("[&SCN_DTA+%d+UNIT.TYPE]", v.offset)}
 			f.push(a)
@@ -121,8 +184,9 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 			a := Atom{fmt.Sprintf("[%s:]", f.top())}
 			f.popNAndPush(1, a)
 		case ReadByteWithOffset:
-			a := Atom{fmt.Sprintf("[(%s)+%d]", f.top(), v.offset)}
-			f.popNAndPush(1, a)
+			a := CommutativeBinaryOp{"+", f.top(), Num{int(v.offset)}, 10}
+			r := Atom{fmt.Sprintf("[%s]", a)}
+			f.popNAndPush(1, r)
 		case MulRandShiftRight8:
 			f.funcCall(o, "MUL_RAND_SHR8", 1)
 		case Abs:
@@ -146,13 +210,13 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 		case MagicNumber:
 			f.funcCall(o, "MAGIC_NUMBER", 4)
 		case AndNum:
-			a := Atom{fmt.Sprintf("(%s)&%d", f.top(), v.b)}
+			a := CommutativeBinaryOp{"&", f.top(), Num{int(v.b)}, 5}
 			f.popNAndPush(1, a)
 		case OrNum:
-			a := Atom{fmt.Sprintf("(%s)|%d", f.top(), v.b)}
+			a := CommutativeBinaryOp{"|", f.top(), Num{int(v.b)}, 3}
 			f.popNAndPush(1, a)
 		case XorNum:
-			a := Atom{fmt.Sprintf("(%s)^%d", f.top(), v.b)}
+			a := CommutativeBinaryOp{"^", f.top(), Num{int(v.b)}, 4}
 			f.popNAndPush(1, a)
 		case RotateRight:
 			f.funcCall(o, fmt.Sprintf("ROT[%d]", v.b), 1)
@@ -178,6 +242,75 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 			panic(fmt.Sprintf("Stack effect mismatch for opcode %s %d->%d vs %d->%d", o.String(), stackLen, len(f.stack), toPush, toPop))
 		}
 		return
+	} else if o.HasSideEffects() && toPop > 0 && toPop <= len(f.stack) {
+		for _, expr := range f.stack[:len(f.stack)-toPop] {
+			f.printIndent()
+			fmt.Printf("PUSH(%s)\n", expr.String())
+		}
+		f.stack = f.stack[len(f.stack)-toPop:]
+		f.printIndent()
+		switch v := o.(type) {
+		case IfGreaterThanZero:
+			fmt.Printf("IF %s > 0 THEN\n", f.top())
+			f.scopes = append(f.scopes, IF)
+		case IfZero:
+			fmt.Printf("IF %s == 0 THEN\n", f.top())
+			f.scopes = append(f.scopes, IF)
+		case IfNotEqual:
+			fmt.Printf("IF %s != %s THEN\n", f.belowTop(), f.top())
+			f.scopes = append(f.scopes, IF)
+		case IfSignEq:
+			if v.b == 255 {
+				fmt.Printf("IF %s < 0 THEN\n", f.top())
+			} else if v.b == 0 {
+				fmt.Printf("IF %s == 0 THEN\n", f.top())
+			} else if v.b == 1 {
+				fmt.Printf("IF %s > 0 THEN\n", f.top())
+			} else {
+				panic("Unexpected sign value")
+			}
+			f.scopes = append(f.scopes, IF)
+		case IfCmp:
+			if v.b == 255 {
+				fmt.Printf("IF %s < %s THEN\n", f.belowTop(), f.top())
+			} else if v.b == 0 {
+				fmt.Printf("IF %s == %s THEN\n", f.belowTop(), f.top())
+			} else if v.b == 1 {
+				fmt.Printf("IF %s > %s THEN\n", f.belowTop(), f.top())
+			} else {
+				panic("Unexpected cmp value")
+			}
+			f.scopes = append(f.scopes, IF)
+		case WriteToA200Plus:
+			fmt.Printf("[A200+%s] = %s\n", inParensIfPriorityLessThan(f.top(), 10), f.belowTop())
+		case PopToD4:
+			fmt.Printf("D4 = %s\n", f.top())
+		case StoreByte:
+			fmt.Printf("[%s] = %s\n", f.top(), f.belowTop())
+		case Store:
+			fmt.Printf("[%s:] = %s\n", f.top(), f.belowTop())
+		case For:
+			fmt.Printf("FOR V%d = %s TO %s DO\n", v.b, f.belowTop(), f.top())
+			f.scopes = append(f.scopes, FOR)
+		case PopTo:
+			fmt.Printf("[%s] = %s\n", numToUnitField(v.b), f.top())
+		case Fill:
+			fmt.Printf("FILL(%s, %s, %d)\n", f.belowTop(), f.top(), v.b)
+		case LoadUnit:
+			if v.b == 15 {
+				fmt.Printf("LOAD_UNIT1(%s)\n", f.top())
+			} else if v.b == 31 {
+				fmt.Printf("LOAD_UNIT2(%s)\n", f.top())
+			} else {
+				fmt.Printf("LOAD_UNIT[%d](%s)\n", v.b, f.top())
+			}
+		default:
+			if toPop > 0 {
+				panic(fmt.Sprintf("Unhandled opcode %s", o.String()))
+			}
+		}
+		f.stack = nil
+		return
 	}
 	f.DumpStack()
 
@@ -198,10 +331,11 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 		f.printIndent()
 		f.scopes = append(f.scopes, IF)
 	case Fi:
-		//if f.scopes[len(f.scopes)-1] != IF {
+		if f.scopes[len(f.scopes)-1] == IF {
+			f.scopes = f.scopes[:len(f.scopes)-1]
+		} // else {
 		//	panic("FI not in an if statement")
 		//}
-		f.scopes = f.scopes[:len(f.scopes)-1]
 		f.printIndent()
 	case Else:
 		f.scopes = f.scopes[:len(f.scopes)-1]
@@ -219,10 +353,11 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 		f.printIndent()
 		f.scopes = append(f.scopes, FOR)
 	case Done:
-		//if f.scopes[len(f.scopes)-1] != FOR {
+		if f.scopes[len(f.scopes)-1] == FOR {
+			f.scopes = f.scopes[:len(f.scopes)-1]
+		} // else {
 		//	panic("DONE not in a for loop")
 		//}
-		f.scopes = f.scopes[:len(f.scopes)-1]
 		f.printIndent()
 	default:
 		f.printIndent()
@@ -240,7 +375,7 @@ func (f *FoldingDecoder) printIndent() {
 func (f *FoldingDecoder) DumpStack() {
 	for _, expr := range f.stack {
 		f.printIndent()
-		fmt.Println(expr.String())
+		fmt.Printf("PUSH(%s)\n", expr.String())
 	}
 	f.stack = nil
 }

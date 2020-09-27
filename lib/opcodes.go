@@ -88,11 +88,11 @@ func (i IfZero) String() string          { return "IF_ZERO" }
 func (i IfZero) StackEffect() (int, int) { return 1, 0 }
 func (i IfZero) HasSideEffects() bool    { return true }
 
-type And_0xFF struct{}
+type And0xFF struct{}
 
-func (a And_0xFF) String() string          { return "AND_OxFF" }
-func (a And_0xFF) StackEffect() (int, int) { return 1, 1 }
-func (a And_0xFF) HasSideEffects() bool    { return false }
+func (a And0xFF) String() string          { return "AND_OxFF" }
+func (a And0xFF) StackEffect() (int, int) { return 1, 1 }
+func (a And0xFF) HasSideEffects() bool    { return false }
 
 type BinaryAnd struct{}
 
@@ -180,7 +180,7 @@ type Swap struct{}
 
 func (s Swap) String() string          { return "SWAP" }
 func (s Swap) StackEffect() (int, int) { return 2, 2 }
-func (s Swap) HasSideEffects() bool    { return true }
+func (s Swap) HasSideEffects() bool    { return false }
 
 type Dup struct{}
 
@@ -239,7 +239,7 @@ func (f FindObject) HasSideEffects() bool    { return false }
 type IfNotEqual struct{}
 
 func (i IfNotEqual) String() string          { return "IF_NOT_EQUAL" }
-func (i IfNotEqual) StackEffect() (int, int) { return 1, 0 }
+func (i IfNotEqual) StackEffect() (int, int) { return 2, 0 }
 func (i IfNotEqual) HasSideEffects() bool    { return true }
 
 type CountNeighbourObjects struct{}
@@ -348,7 +348,7 @@ func (p Push) HasSideEffects() bool    { return false }
 type IfSignEq struct{ b byte }
 
 func (i IfSignEq) String() string          { return fmt.Sprintf("IF_SIGN_EQ[%d]", i.b) }
-func (i IfSignEq) StackEffect() (int, int) { return 0, 0 }
+func (i IfSignEq) StackEffect() (int, int) { return 1, 0 }
 func (i IfSignEq) HasSideEffects() bool    { return true }
 
 type CoordsToMapAddress struct{ b byte }
@@ -360,15 +360,15 @@ func (c CoordsToMapAddress) HasSideEffects() bool    { return false }
 type LoadUnit struct{ b byte }
 
 func (l LoadUnit) String() string {
-	if l.b == 0 {
+	if l.b == 15 {
 		return "LOAD_UNIT1"
-	} else if l.b == 1 {
+	} else if l.b == 31 {
 		return "LOAD_UNIT2"
 	} else {
 		return fmt.Sprintf("LOAD_UNIT[%d]", l.b)
 	}
 }
-func (l LoadUnit) StackEffect() (int, int) { return 0, 1 }
+func (l LoadUnit) StackEffect() (int, int) { return 1, 0 }
 func (l LoadUnit) HasSideEffects() bool    { return true }
 
 type SaveUnit struct{ b byte }
@@ -405,7 +405,7 @@ func (i IfCmp) String() string {
 		return fmt.Sprintf("IF_CMP_IS[%d]", i.b)
 	}
 }
-func (i IfCmp) StackEffect() (int, int) { return 0, 0 }
+func (i IfCmp) StackEffect() (int, int) { return 2, 0 }
 func (i IfCmp) HasSideEffects() bool    { return true }
 
 type IfNotBetweenSet struct{ b byte }
