@@ -70,13 +70,13 @@ func ParseMap(data io.Reader) (Map, error) {
 		return Map{}, nil
 	}
 	if header[0] == 0xFF {
-		return ParseMapConflict(data)
+		return parseMapConflict(data)
 	}
 	_, err = io.ReadFull(data, header[1:])
 	if err != nil {
 		return Map{}, nil
 	}
-	return ParseMapCrusade(data, int(header[0]), int(header[1]))
+	return parseMapCrusade(data, int(header[0]), int(header[1]))
 }
 
 // parseMapCrusade parses CRUSADE.MAP file from CiE and DitD games.

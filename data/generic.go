@@ -27,8 +27,19 @@ func CoordsToMapAddress(x, y int) int {
 	return y*64 + x/2 - y/2
 }
 
+
+func signInt(v int) int {
+	if v > 0 {
+		return 1
+	}
+	if v < 0 {
+		return -1
+	}
+	return 0
+}
+
 func (g Generic) DxDyToNeighbour(dx, dy, variant int) int {
-	direction := 5*SignInt(dy) + 3*SignInt(dx-dy) + SignInt(dx+dy)
+	direction := 5*signInt(dy) + 3*signInt(dx-dy) + signInt(dx+dy)
 	neighbourIndex, ok := g.DirectionToNeighbourIndex[direction]
 	if !ok {
 		panic(fmt.Errorf("No neighbour index for direction %d", direction))

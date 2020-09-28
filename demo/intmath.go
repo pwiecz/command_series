@@ -1,4 +1,4 @@
-package data
+package main
 
 func AbsInt(i int) int {
 	if i >= 0 {
