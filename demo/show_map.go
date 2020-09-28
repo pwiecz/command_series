@@ -47,9 +47,9 @@ type ShowMap struct {
 	weather         int
 	isNight         bool
 	lastUpdatedUnit int
-	citiesHeld      [2]int
-	menLost         [2]int
-	tanksLost       [2]int
+	citiesHeld      [2]int  // 29927 + 15 + side*2
+	menLost         [2]int  // 29927 + side*2
+	tanksLost       [2]int  // 29927 + 4 + side*2
 	flashback       [][]data.FlashbackUnit
 	map0            [2][256]int // 0
 	map1            [2][256]int // 0x200
