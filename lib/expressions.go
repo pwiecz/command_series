@@ -159,7 +159,7 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 		case AdditiveInverse:
 			i := Atom{"-(" + f.top().String() + ")"}
 			f.popNAndPush(1, i)
-		case And_0xFF:
+		case And0xFF:
 			a := CommutativeBinaryOp{"&", f.top(), Atom{"0xFF"}, 5}
 			f.popNAndPush(1, a)
 		case BinaryAnd:
