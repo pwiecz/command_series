@@ -24,8 +24,11 @@ func NewButton(text string, x, y float64, font *data.Font) (*Button, error) {
 	opts := &ebiten.DrawImageOptions{}
 	opts.GeoM.Scale(2., 1.)
 	for _, r := range text {
-		img.DrawImage(font.Glyph(r), opts)
-		opts.GeoM.Translate(float64(font.Width)*2., 0)
+		glyphImg, err := ebiten.NewImageFromImage(font.Glyph(r), ebiten.FilterNearest)
+		if err == nil {
+			img.DrawImage(glyphImg, opts)
+			opts.GeoM.Translate(float64(font.Width)*2., 0)
+		}
 	}
 	return &Button{
 		X: x, Y: y,

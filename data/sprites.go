@@ -7,17 +7,13 @@ import "io"
 import "os"
 import "path"
 
-import "github.com/hajimehoshi/ebiten"
-
-//type Glyph [8][8]bool
-
 type Font struct {
 	Width, Height int
-	fallback      *ebiten.Image
-	characters    map[rune]*ebiten.Image
+	fallback      image.Image
+	characters    map[rune]image.Image
 }
 
-func (f *Font) Glyph(r rune) *ebiten.Image {
+func (f *Font) Glyph(r rune) image.Image {
 	if c, ok := f.characters[r]; ok {
 		return c
 	}
@@ -27,7 +23,7 @@ func (f *Font) Glyph(r rune) *ebiten.Image {
 type Sprites struct {
 	GameFont          *Font
 	IntroFont         *Font
-	IntroSprites      []*ebiten.Image
+	IntroSprites      []*image.Paletted
 	TerrainTiles      [48]*image.Paletted
 	UnitSymbolSprites [16]*image.Paletted
 	UnitIconSprites   [16]*image.Paletted
@@ -63,7 +59,7 @@ func ParseSpriteData(data io.Reader, width, height, bits int) ([]*image.Paletted
 	}
 	palette := make([]color.Color, 1<<bits)
 	for i := 0; i < len(palette); i++ {
-		palette[len(palette)-1-i] = color.Gray{uint8(i * 255 / (len(palette)-1))}
+		palette[len(palette)-1-i] = color.Gray{uint8(i * 255 / (len(palette) - 1))}
 	}
 	bytesPerSprite := (width*height*bits + 7) / 8
 	spriteData := make([]byte, bytesPerSprite)
@@ -83,7 +79,7 @@ func ParseSpriteData(data io.Reader, width, height, bits int) ([]*image.Paletted
 				byteChunkNum := pixelNum % (8 / bits)
 				pixelByte = (pixelByte << byte(byteChunkNum*bits)) >> (byteChunkNum * bits)
 				pixelByte >>= 8 - bits - byteChunkNum*bits
-				sprite.SetColorIndex(x, y, pixelByte)//color.Gray{255 - (pixelByte*255)/byte(bits)})
+				sprite.SetColorIndex(x, y, pixelByte) //color.Gray{255 - (pixelByte*255)/byte(bits)})
 			}
 		}
 		sprites = append(sprites, sprite)
@@ -116,15 +112,7 @@ func ParseSprites(iconData, symbolData, introData io.Reader) (Sprites, error) {
 		return sprites, fmt.Errorf("Too few intro sprites read. Expected 128, read %d",
 			len(introSprites))
 	}
-
-	for _, img := range introSprites {
-		sprite, err := ebiten.NewImageFromImage(img, ebiten.FilterNearest)
-		if err != nil {
-			panic(err)
-		}
-		sprites.IntroSprites = append(sprites.IntroSprites, sprite)
-
-	}
+	sprites.IntroSprites = introSprites
 	chars := []rune{
 		' ', '!', '"', '#', 0, 0, 0, '\'', '(', ')', 0, 0, ',', '-', '.', '/',
 		'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', ';', 0, 0, 0, '?', 0,
@@ -135,24 +123,22 @@ func ParseSprites(iconData, symbolData, introData io.Reader) (Sprites, error) {
 		'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
 		'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
 	}
-	characters := make(map[rune]*ebiten.Image)
-	introCharacters := make(map[rune]*ebiten.Image)
+	characters := make(map[rune]image.Image)
+	introCharacters := make(map[rune]image.Image)
 	for i, char := range chars {
 		if char == 0 {
 			continue
 		}
 		if i < 59 {
-			sprite, err := ebiten.NewImageFromImage(iconSprites[i], ebiten.FilterNearest)
 			if err != nil {
 				return sprites, fmt.Errorf("Cannot convert sprite for char %c, %v", char, err)
 			}
-			characters[char] = sprite
+			characters[char] = iconSprites[i]
 		}
-		sprite, err := ebiten.NewImageFromImage(introSprites[i], ebiten.FilterNearest)
 		if err != nil {
 			return sprites, fmt.Errorf("Cannot convert sprite for intro char %c, %v", char, err)
 		}
-		introCharacters[char] = sprite
+		introCharacters[char] = introSprites[i]
 	}
 	sprites.IntroFont = &Font{
 		Width: 4, Height: 8,

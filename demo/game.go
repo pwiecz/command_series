@@ -63,31 +63,3 @@ func (g *Game) Draw(screen *ebiten.Image) {
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
 	return 320, 192
 }
-
-func (g *Game) showString(screen *ebiten.Image, text string, x, y int) {
-	opts := &ebiten.DrawImageOptions{}
-	opts.GeoM.Scale(2., 1.)
-	opts.GeoM.Translate(float64(x), float64(y))
-	for _, c := range text {
-		glyph := g.sprites.IntroFont.Glyph(c)
-
-		screen.DrawImage(glyph, opts)
-		opts.GeoM.Translate(8, 0)
-	}
-}
-
-func (g *Game) showSpriteString(screen *ebiten.Image, text []byte, x, y int) {
-	opts := &ebiten.DrawImageOptions{}
-	opts.GeoM.Translate(float64(x), float64(y))
-	for _, b := range text {
-		var sprite *ebiten.Image
-		if int(b) < len(g.sprites.IntroSprites) {
-			sprite = g.sprites.IntroSprites[b]
-		} else {
-			sprite = g.sprites.IntroSprites[0]
-		}
-
-		screen.DrawImage(sprite, opts)
-		opts.GeoM.Translate(4, 0)
-	}
-}
