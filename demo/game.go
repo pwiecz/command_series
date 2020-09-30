@@ -6,7 +6,7 @@ import "github.com/pwiecz/command_series/data"
 type Game struct {
 	subGame          ebiten.Game
 	gameDirname      string
-	sprites          Sprites
+	sprites          data.Sprites
 	scenarios        []data.Scenario
 	terrainMap       data.Map
 	generic          data.Generic
@@ -32,7 +32,7 @@ func NewGame(gameDirname string) *Game {
 	return game
 }
 
-func (g *Game) onGameLoaded(scenarios []data.Scenario, sprites Sprites, terrainMap data.Map, generic data.Generic, hexes data.Hexes) {
+func (g *Game) onGameLoaded(scenarios []data.Scenario, sprites data.Sprites, terrainMap data.Map, generic data.Generic, hexes data.Hexes) {
 	g.scenarios = scenarios
 	g.sprites = sprites
 	g.terrainMap = terrainMap

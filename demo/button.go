@@ -2,21 +2,22 @@ package main
 
 import "image"
 import "github.com/hajimehoshi/ebiten"
+import "github.com/pwiecz/command_series/data"
 
 type Button struct {
-	X, Y float64
-	Rect image.Rectangle
-	Text string
-	Font *Font
-	image *ebiten.Image
+	X, Y      float64
+	Rect      image.Rectangle
+	Text      string
+	Font      *data.Font
+	image     *ebiten.Image
 	mouseDown bool
 }
 
-func NewButton(text string, x, y float64, font *Font) (*Button, error) {
-	img, err := ebiten.NewImage(len(text) * font.Width * 2., font.Height, ebiten.FilterNearest)
+func NewButton(text string, x, y float64, font *data.Font) (*Button, error) {
+	img, err := ebiten.NewImage(len(text)*font.Width*2., font.Height, ebiten.FilterNearest)
 	var rect image.Rectangle
 	rect.Min.X, rect.Min.Y = int(x), int(y)
-	rect.Max.X, rect.Max.Y = int(x) + len(text) * font.Width * 2., int(y)+font.Height
+	rect.Max.X, rect.Max.Y = int(x)+len(text)*font.Width*2., int(y)+font.Height
 	if err != nil {
 		return nil, err
 	}
@@ -27,14 +28,13 @@ func NewButton(text string, x, y float64, font *Font) (*Button, error) {
 		opts.GeoM.Translate(float64(font.Width)*2., 0)
 	}
 	return &Button{
-		X : x, Y: y,
-		Rect: rect,
-		Text: text,
-		Font: font,
+		X: x, Y: y,
+		Rect:  rect,
+		Text:  text,
+		Font:  font,
 		image: img,
 	}, nil
 }
-
 
 func (b *Button) Draw(dst *ebiten.Image) {
 	opts := &ebiten.DrawImageOptions{}

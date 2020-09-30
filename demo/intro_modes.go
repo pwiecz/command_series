@@ -40,7 +40,7 @@ func numToKey(n int) ebiten.Key {
 	panic(fmt.Errorf("No key for num %d", n))
 }
 
-func NewScenarioSelection(scenarios []data.Scenario, font *Font, scenarioSelected func(int)) *ScenarioSelection {
+func NewScenarioSelection(scenarios []data.Scenario, font *data.Font, scenarioSelected func(int)) *ScenarioSelection {
 	buttons := make([]*Button, len(scenarios))
 	x, y := 16.0, 16.0
 	for i, scenario := range scenarios {
@@ -117,16 +117,16 @@ func (s *VariantSelection) Layout(outsideWidth, outsideHeight int) (int, int) {
 
 type GameLoading struct {
 	gameDirname string
-	gameLoaded  func([]data.Scenario, Sprites, data.Map, data.Generic, data.Hexes)
+	gameLoaded  func([]data.Scenario, data.Sprites, data.Map, data.Generic, data.Hexes)
 	loadingDone chan error
 	scenarios   []data.Scenario
-	sprites     Sprites
+	sprites     data.Sprites
 	terrainMap  data.Map
 	generic     data.Generic
 	hexes       data.Hexes
 }
 
-func NewGameLoading(gameDirname string, gameLoaded func([]data.Scenario, Sprites, data.Map, data.Generic, data.Hexes)) *GameLoading {
+func NewGameLoading(gameDirname string, gameLoaded func([]data.Scenario, data.Sprites, data.Map, data.Generic, data.Hexes)) *GameLoading {
 	return &GameLoading{
 		gameDirname: gameDirname,
 		gameLoaded:  gameLoaded,
@@ -164,7 +164,7 @@ func (l *GameLoading) loadGameData() error {
 	if err != nil {
 		return fmt.Errorf("Error loading scenarios, %v", err)
 	}
-	l.sprites, err = ReadSprites(l.gameDirname)
+	l.sprites, err = data.ReadSprites(l.gameDirname)
 	if err != nil {
 		return fmt.Errorf("Error loading sprites, %v", err)
 	}
