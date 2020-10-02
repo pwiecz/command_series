@@ -234,7 +234,7 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 		case IfNotBetweenSet:
 			f.funcCall(o, fmt.Sprintf("IF_NOT_BETWEEN_SET[%d]", v.b), 3)
 		case PushFrom:
-			f.push(Atom{pushFromArgString(v.b)})
+			f.push(Atom{varName(v.b)})
 		default:
 			panic(fmt.Sprintf("Unexpected opcode type %s", o.String()))
 		}
@@ -290,10 +290,10 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 		case Store:
 			fmt.Printf("[%s:] = %s\n", f.top(), f.belowTop())
 		case For:
-			fmt.Printf("FOR V%d = %s TO %s DO\n", v.b, f.belowTop(), f.top())
+			fmt.Printf("FOR %s = %s TO %s DO\n", varName(v.b), f.belowTop(), f.top())
 			f.scopes = append(f.scopes, FOR)
 		case PopTo:
-			fmt.Printf("[%s] = %s\n", numToUnitField(v.b), f.top())
+			fmt.Printf("[%s] = %s\n", varName(v.b), f.top())
 		case Fill:
 			fmt.Printf("FILL(%s, %s, %d)\n", f.belowTop(), f.top(), v.b)
 		case LoadUnit:
@@ -333,9 +333,9 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 	case Fi:
 		if f.scopes[len(f.scopes)-1] == IF {
 			f.scopes = f.scopes[:len(f.scopes)-1]
-		} // else {
-		//	panic("FI not in an if statement")
-		//}
+		} else {
+			panic("FI not in an if statement")
+		}
 		f.printIndent()
 	case Else:
 		f.scopes = f.scopes[:len(f.scopes)-1]
@@ -355,7 +355,7 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 	case Done:
 		if f.scopes[len(f.scopes)-1] == FOR {
 			f.scopes = f.scopes[:len(f.scopes)-1]
-		} // else {
+		} //else {
 		//	panic("DONE not in a for loop")
 		//}
 		f.printIndent()

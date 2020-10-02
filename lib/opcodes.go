@@ -274,7 +274,7 @@ func (f Fi) HasSideEffects() bool    { return true }
 
 type Done struct{ b byte }
 
-func (d Done) String() string          { return fmt.Sprintf("DONE[%d]", int(d.b)) }
+func (d Done) String() string          { return fmt.Sprintf("DONE[%s]", varName(d.b)) }
 func (d Done) StackEffect() (int, int) { return 0, 0 }
 func (d Done) HasSideEffects() bool    { return true }
 
@@ -388,7 +388,7 @@ func (s SaveUnit) HasSideEffects() bool    { return true }
 
 type For struct{ b byte }
 
-func (f For) String() string          { return fmt.Sprintf("FOR[%d]", f.b) }
+func (f For) String() string          { return fmt.Sprintf("FOR[%s]", varName(f.b)) }
 func (f For) StackEffect() (int, int) { return 2, 0 }
 func (f For) HasSideEffects() bool    { return true }
 
@@ -434,88 +434,21 @@ func (u UnknownOneArg) HasSideEffects() bool    { return true }
 
 type PopTo struct{ b byte }
 
-func (p PopTo) String() string          { return fmt.Sprintf("POP_TO(%s)", numToUnitField(p.b)) }
+func (p PopTo) String() string          { return fmt.Sprintf("POP_TO(%s)", varName(p.b)) }
 func (p PopTo) StackEffect() (int, int) { return 1, 0 }
 func (p PopTo) HasSideEffects() bool    { return true }
 
 type PushFrom struct{ b byte }
 
 func (p PushFrom) String() string {
-	return fmt.Sprintf("PUSH_FROM(%s)", pushFromArgString(p.b))
+	return fmt.Sprintf("PUSH_FROM(%s)", varName(p.b))
 }
 func (p PushFrom) StackEffect() (int, int) { return 0, 1 }
 func (p PushFrom) HasSideEffects() bool    { return false }
 
-func pushFromArgString(num byte) string {
-	switch num {
-	case 1:
-		return "&SCN_UNI"
-	case 2:
-		return "&CRUSADE_MAP"
-	case 3:
-		return "&SCN_TER"
-	case 4:
-		return "&GENERIC_DTA"
-	case 5:
-		return "&SCN_DTA"
-	case 17:
-		return "&SCN_DTA_STRINGS"
-	case 24:
-		return "&SCN_TER_2"
-	case 8:
-		return "&HEXES_DTA"
-	case 22:
-		return "29927"
-	case 31:
-		return "&V10[8]"
-	case 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63:
-		return numToUnitField(num)
-	default:
-		return fmt.Sprintf("V%d", num)
+func varName(num byte) string {
+	if int(num) < len(varNames) {
+		return varNames[num]
 	}
-}
-func numToUnitField(num byte) string {
-	if num < 32 || num > 63 {
-		return fmt.Sprintf("V%d", num)
-	}
-	unitName := "UNIT"
-	if num >= 48 {
-		unitName = "UNIT2"
-	}
-	unitField := fmt.Sprintf("%d", (num-32)%16)
-	switch (num - 32) % 16 {
-	case 0:
-		unitField = "STATE"
-	case 1:
-		unitField = "X"
-	case 2:
-		unitField = "Y"
-	case 3:
-		unitField = "MEN"
-	case 4:
-		unitField = "TANKS"
-	case 5:
-		unitField = "_FORMATION"
-	case 6:
-		unitField = "FATIGUE"
-	case 7:
-		unitField = "SIDE_AND_TYPE"
-	case 8:
-		unitField = "NAME"
-	case 9:
-		unitField = "_ORDER"
-	case 10:
-		unitField = "GENERAL"
-	case 11:
-		unitField = "OBJ_X"
-	case 12:
-		unitField = "OBJ_Y"
-	case 13:
-		unitField = "TERRAIN"
-	case 14:
-		unitField = "SUPPLY"
-	case 15:
-		unitField = "MORALE"
-	}
-	return fmt.Sprintf("%s.%s", unitName, unitField)
+	return fmt.Sprintf("V%d", num)
 }
