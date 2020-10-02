@@ -175,7 +175,7 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 			s := CommutativeBinaryOp{">>", f.top(), Num{int(v.shift)}, 9}
 			f.popNAndPush(1, s)
 		case ScnDtaUnitTypeOffset:
-			a := Atom{fmt.Sprintf("[&SCN_DTA+%d+UNIT.TYPE]", v.offset)}
+			a := Atom{v.String()}
 			f.push(a)
 		case ReadByte:
 			a := Atom{fmt.Sprintf("[%s]", f.top())}
