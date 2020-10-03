@@ -170,8 +170,9 @@ func (d *decoder) oneArgOpCode(opcode byte) Opcode {
 		if d.offset >= len(d.buf) {
 			panic(fmt.Errorf("EOF decoding opcode 0xA2"))
 		}
+		arg2 := d.buf[d.offset]
 		d.offset++
-		return Push2Byte{256*uint16(d.buf[d.offset]) + uint16(arg)}
+		return Push2Byte{256*uint16(arg2) + uint16(arg)}
 	case 0xA4:
 		return Push{arg}
 	case 0xA6:
