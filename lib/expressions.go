@@ -171,7 +171,7 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 		case ShiftLeft:
 			s := CommutativeBinaryOp{"<<", f.top(), Num{int(v.shift)}, 9}
 			f.popNAndPush(1, s)
-		case ShiftRight:
+		case ArithmeticShiftRight:
 			s := CommutativeBinaryOp{">>", f.top(), Num{int(v.shift)}, 9}
 			f.popNAndPush(1, s)
 		case ScnDtaUnitTypeOffset:
@@ -218,8 +218,9 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 		case XorNum:
 			a := CommutativeBinaryOp{"^", f.top(), Num{int(v.b)}, 4}
 			f.popNAndPush(1, a)
-		case RotateRight:
-			f.funcCall(o, fmt.Sprintf("ROT[%d]", v.b), 1)
+		case LogicalShiftRight:
+			s := CommutativeBinaryOp{">>>", f.top(), Num{int(v.shift)}, 9}
+			f.popNAndPush(1, s)
 		case PushSigned:
 			a := Atom{fmt.Sprintf("%d", v.n)}
 			f.push(a)
@@ -293,7 +294,7 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 			fmt.Printf("FOR %s = %s TO %s DO\n", varName(v.b), f.belowTop(), f.top())
 			f.scopes = append(f.scopes, FOR)
 		case PopTo:
-			fmt.Printf("[%s] = %s\n", varName(v.b), f.top())
+			fmt.Printf("%s = %s\n", varName(v.b), f.top())
 		case Fill:
 			fmt.Printf("FILL(%s, %s, %d)\n", f.belowTop(), f.top(), v.b)
 		case LoadUnit:

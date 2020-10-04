@@ -142,7 +142,7 @@ func (d *decoder) oneArgOpCode(opcode byte) Opcode {
 	case 0x80:
 		return Done{arg}
 	case 0x82:
-		return ShiftRight{arg}
+		return ArithmeticShiftRight{arg}
 	case 0x84:
 		return ShiftLeft{arg}
 	case 0x86:
@@ -161,7 +161,7 @@ func (d *decoder) oneArgOpCode(opcode byte) Opcode {
 	case 0x96:
 		return GoTo{arg}
 	case 0x98:
-		return RotateRight{arg}
+		return LogicalShiftRight{arg}
 	case 0x9E:
 		return Label{arg}
 	case 0xA0:

@@ -12,7 +12,7 @@ type Byte struct {
 	b byte
 }
 
-func (b Byte) String() string          { return fmt.Sprintf("%d", int(b.b)) }
+func (b Byte) String() string          { return fmt.Sprintf("%d", b.b) }
 func (b Byte) StackEffect() (int, int) { return 0, 1 }
 func (b Byte) HasSideEffects() bool    { return false }
 
@@ -116,17 +116,17 @@ type ShiftLeft struct {
 	shift byte
 }
 
-func (s ShiftLeft) String() string          { return fmt.Sprintf("SHIFT_LEFT[%d]", int(s.shift)) }
+func (s ShiftLeft) String() string          { return fmt.Sprintf("SHIFT_LEFT[%d]", s.shift) }
 func (s ShiftLeft) StackEffect() (int, int) { return 1, 1 }
 func (s ShiftLeft) HasSideEffects() bool    { return false }
 
-type ShiftRight struct {
+type ArithmeticShiftRight struct {
 	shift byte
 }
 
-func (s ShiftRight) String() string          { return fmt.Sprintf("SHIFT_RIGHT[%d]", int(s.shift)) }
-func (s ShiftRight) StackEffect() (int, int) { return 1, 1 }
-func (s ShiftRight) HasSideEffects() bool    { return false }
+func (s ArithmeticShiftRight) String() string          { return fmt.Sprintf("ARITHMETIC_SHIFT_RIGHT[%d]", s.shift) }
+func (s ArithmeticShiftRight) StackEffect() (int, int) { return 1, 1 }
+func (s ArithmeticShiftRight) HasSideEffects() bool    { return false }
 
 type ScnDtaUnitTypeOffset struct {
 	offset byte
@@ -154,7 +154,7 @@ type ReadByteWithOffset struct {
 	offset byte
 }
 
-func (r ReadByteWithOffset) String() string          { return fmt.Sprintf("READ_BYTE[%d]", int(r.offset)) }
+func (r ReadByteWithOffset) String() string          { return fmt.Sprintf("READ_BYTE[%d]", r.offset) }
 func (r ReadByteWithOffset) StackEffect() (int, int) { return 1, 1 }
 func (r ReadByteWithOffset) HasSideEffects() bool    { return false }
 
@@ -280,7 +280,7 @@ func (d Done) HasSideEffects() bool    { return true }
 
 type Gosub struct{ b byte }
 
-func (g Gosub) String() string          { return fmt.Sprintf("GOSUB L%d", int(g.b)) }
+func (g Gosub) String() string          { return fmt.Sprintf("GOSUB L%d", g.b) }
 func (g Gosub) StackEffect() (int, int) { return 0, 0 }
 func (g Gosub) HasSideEffects() bool    { return true }
 
@@ -311,15 +311,15 @@ func (x XorNum) HasSideEffects() bool    { return false }
 
 type GoTo struct{ b byte }
 
-func (g GoTo) String() string          { return fmt.Sprintf("GOTO %d", g.b) }
+func (g GoTo) String() string          { return fmt.Sprintf("GOTO L%d", g.b) }
 func (g GoTo) StackEffect() (int, int) { return 0, 0 }
 func (g GoTo) HasSideEffects() bool    { return true }
 
-type RotateRight struct{ b byte }
+type LogicalShiftRight struct{ shift byte }
 
-func (r RotateRight) String() string          { return fmt.Sprintf("ROTATE_RIGHT[%d]", r.b) }
-func (r RotateRight) StackEffect() (int, int) { return 1, 1 }
-func (r RotateRight) HasSideEffects() bool    { return false }
+func (r LogicalShiftRight) String() string          { return fmt.Sprintf("LOGICAL_SHIFT_RIGHT[%d]", r.shift) }
+func (r LogicalShiftRight) StackEffect() (int, int) { return 1, 1 }
+func (r LogicalShiftRight) HasSideEffects() bool    { return false }
 
 type Label struct{ b byte }
 

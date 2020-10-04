@@ -239,7 +239,7 @@ nextUnit:
 							if v6-1 == 0 {
 								tmp <<= 1
 							}
-							v16 := tmp
+							v16 = tmp
 							if v16 > v13 {
 								v16 = v13
 								//v25 = v6
