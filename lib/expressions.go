@@ -3,17 +3,41 @@ package lib
 import "fmt"
 import "strings"
 
+type Type int
+
+const NUMBER = Type(0)
+const ADDRESS = Type(1)
+const REFERENCE = Type(2)
+const UNDEFINED = Type(3)
+
+func (t Type) String() string {
+	switch t {
+	case NUMBER:
+		return "NUMBER"
+	case ADDRESS:
+		return "ADDRESS"
+	case REFERENCE:
+		return "REFERENCE"
+	case UNDEFINED:
+		return "UNDEFINED"
+	}
+	return fmt.Sprintf("UNKNOWN<%d>", t)
+}
+
 type Expression interface {
 	fmt.Stringer
 	Priority() int
+	Type() Type
 }
 
 type Atom struct {
-	s string
+	s   string
+	typ Type
 }
 
 func (a Atom) String() string { return a.s }
 func (a Atom) Priority() int  { return 20 }
+func (a Atom) Type() Type     { return a.typ }
 
 type Num struct {
 	n int
@@ -21,12 +45,63 @@ type Num struct {
 
 func (n Num) String() string { return fmt.Sprintf("%d", n.n) }
 func (n Num) Priority() int  { return 10 }
+func (n Num) Type() Type     { return NUMBER }
 
 func inParensIfPriorityLessThan(e Expression, priority int) string {
 	if e.Priority() < priority {
 		return fmt.Sprintf("(%s)", e)
 	}
 	return e.String()
+}
+
+type Sum struct {
+	arg0, arg1 Expression
+}
+
+func (s Sum) String() string {
+	return fmt.Sprintf("%s + %s",
+		inParensIfPriorityLessThan(s.arg0, s.Priority()),
+		inParensIfPriorityLessThan(s.arg1, s.Priority()))
+}
+func (s Sum) Priority() int {
+	return 10
+}
+func (s Sum) Type() Type {
+	if s.arg0.Type() == ADDRESS {
+		if s.arg1.Type() == ADDRESS {
+			panic("Sum of two addresses")
+		}
+		return ADDRESS
+	}
+	if s.arg1.Type() == ADDRESS {
+		return ADDRESS
+	}
+	return NUMBER
+}
+
+type Difference struct {
+	arg0, arg1 Expression
+}
+
+func (d Difference) String() string {
+	return fmt.Sprintf("%s - %s",
+		inParensIfPriorityLessThan(d.arg0, d.Priority()),
+		inParensIfPriorityLessThan(d.arg1, d.Priority()+1))
+}
+func (d Difference) Priority() int {
+	return 10
+}
+func (d Difference) Type() Type {
+	if d.arg0.Type() == ADDRESS {
+		if d.arg1.Type() == ADDRESS {
+			panic("Difference of two addresses")
+		}
+		return ADDRESS
+	}
+	if d.arg1.Type() == ADDRESS {
+		panic("Subtracting address from number or reference")
+	}
+	return NUMBER
 }
 
 type NonCommutativeBinaryOp struct {
@@ -44,6 +119,14 @@ func (o NonCommutativeBinaryOp) String() string {
 func (o NonCommutativeBinaryOp) Priority() int {
 	return o.priority
 }
+func (o NonCommutativeBinaryOp) Type() Type {
+	if (o.arg0.Type() != NUMBER && o.arg0.Type() != REFERENCE && o.arg0.Type() != UNDEFINED) ||
+		(o.arg1.Type() != NUMBER && o.arg1.Type() != REFERENCE && o.arg1.Type() != UNDEFINED) {
+		panic(fmt.Sprintf("Invalid parameters to operator %s:\"%s\"(%s) and \"%s\"(%s)",
+			o.op, o.arg0, o.arg0.Type(), o.arg1, o.arg1.Type()))
+	}
+	return NUMBER
+}
 
 type CommutativeBinaryOp struct {
 	op         string
@@ -60,6 +143,14 @@ func (o CommutativeBinaryOp) String() string {
 func (o CommutativeBinaryOp) Priority() int {
 	return o.priority
 }
+func (o CommutativeBinaryOp) Type() Type {
+	if (o.arg0.Type() != NUMBER && o.arg0.Type() != REFERENCE && o.arg0.Type() != UNDEFINED) ||
+		(o.arg1.Type() != NUMBER && o.arg1.Type() != REFERENCE && o.arg1.Type() != UNDEFINED) {
+		panic(fmt.Sprintf("Invalid parameters to operator %s:\"%s\"(%s) and \"%s\"(%s)",
+			o.op, o.arg0, o.arg0.Type(), o.arg1, o.arg1.Type()))
+	}
+	return NUMBER
+}
 
 type MultiplyShiftRightExpr struct {
 	arg0, arg1 Expression
@@ -67,7 +158,7 @@ type MultiplyShiftRightExpr struct {
 }
 
 func (m MultiplyShiftRightExpr) String() string {
-	return fmt.Sprintf("%s * %s >> %d",
+	return fmt.Sprintf("(%s) ** (%s) >> %d",
 		inParensIfPriorityLessThan(m.arg0, 11),
 		inParensIfPriorityLessThan(m.arg1, 11),
 		m.shift)
@@ -75,6 +166,7 @@ func (m MultiplyShiftRightExpr) String() string {
 func (m MultiplyShiftRightExpr) Priority() int {
 	return 9
 }
+func (m MultiplyShiftRightExpr) Type() Type { return NUMBER }
 
 type scopeType int
 
@@ -124,12 +216,12 @@ func (f *FoldingDecoder) multiplyShiftRight(shift int) {
 	f.popNAndPush(2, m)
 }
 
-func (f *FoldingDecoder) funcCall(o Opcode, name string, numArgs int) {
+func (f *FoldingDecoder) funcCall(o Opcode, name string, numArgs int, typ Type) {
 	args := make([]string, numArgs)
 	for i, expr := range f.stack[len(f.stack)-numArgs:] {
 		args[i] = expr.String()
 	}
-	a := Atom{fmt.Sprintf("%s(%s)", name, strings.Join(args, ", "))}
+	a := Atom{fmt.Sprintf("%s(%s)", name, strings.Join(args, ", ")), typ}
 	f.popNAndPush(numArgs, a)
 }
 
@@ -139,11 +231,13 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 		stackLen := len(f.stack)
 		switch v := o.(type) {
 		case Byte:
-			f.push(Atom{o.String()})
+			f.push(Atom{o.String(), NUMBER})
 		case Add:
-			f.commutativeBinaryOp("+", 10)
+			s := Sum{f.belowTop(), f.top()}
+			f.popNAndPush(2, s)
 		case Subtract:
-			f.nonCommutativeBinaryOp("-", 10)
+			d := Difference{f.belowTop(), f.top()}
+			f.popNAndPush(2, d)
 		case Multiply:
 			f.commutativeBinaryOp("*", 11)
 		case Divide:
@@ -151,16 +245,19 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 		case MultiplyShiftRight:
 			f.multiplyShiftRight(int(v.b))
 		case Increment:
-			i := CommutativeBinaryOp{"+", f.top(), Atom{"1"}, 10}
+			i := Sum{f.top(), Atom{"1", NUMBER}}
 			f.popNAndPush(1, i)
 		case Decrement:
-			d := NonCommutativeBinaryOp{"-", f.top(), Atom{"1"}, 10}
+			d := Difference{f.top(), Atom{"1", NUMBER}}
 			f.popNAndPush(1, d)
 		case AdditiveInverse:
-			i := Atom{"-(" + f.top().String() + ")"}
+			if f.top().Type() != NUMBER && f.top().Type() != REFERENCE && f.top().Type() != UNDEFINED {
+				panic("Invalid argument to unary -")
+			}
+			i := Atom{"-(" + f.top().String() + ")", NUMBER}
 			f.popNAndPush(1, i)
 		case And0xFF:
-			a := CommutativeBinaryOp{"&", f.top(), Atom{"0xFF"}, 5}
+			a := CommutativeBinaryOp{"&", f.top(), Atom{"0xFF", NUMBER}, 5}
 			f.popNAndPush(1, a)
 		case BinaryAnd:
 			f.commutativeBinaryOp("&", 5)
@@ -175,24 +272,24 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 			s := CommutativeBinaryOp{">>", f.top(), Num{int(v.shift)}, 9}
 			f.popNAndPush(1, s)
 		case ScnDtaUnitTypeOffset:
-			a := Atom{v.String()}
+			a := Atom{v.String(), NUMBER}
 			f.push(a)
 		case ReadByte:
-			a := Atom{fmt.Sprintf("[%s]", f.top())}
+			a := Atom{fmt.Sprintf("[%s]", f.top()), NUMBER}
 			f.popNAndPush(1, a)
 		case Read:
-			a := Atom{fmt.Sprintf("[%s:]", f.top())}
+			a := Atom{fmt.Sprintf("[%s:]", f.top()), NUMBER}
 			f.popNAndPush(1, a)
 		case ReadByteWithOffset:
 			a := CommutativeBinaryOp{"+", f.top(), Num{int(v.offset)}, 10}
-			r := Atom{fmt.Sprintf("[%s]", a)}
+			r := Atom{fmt.Sprintf("[%s]", a), NUMBER}
 			f.popNAndPush(1, r)
 		case MulRandShiftRight8:
-			f.funcCall(o, "MUL_RAND_SHR8", 1)
+			f.funcCall(o, "MUL_RAND_SHR8", 1, NUMBER)
 		case Abs:
-			f.funcCall(o, "ABS", 1)
+			f.funcCall(o, "ABS", 1, NUMBER)
 		case Sign:
-			f.funcCall(o, "SIGN", 1)
+			f.funcCall(o, "SIGN", 1, NUMBER)
 		case Swap:
 			f.stack[len(f.stack)-1], f.stack[len(f.stack)-2] = f.stack[len(f.stack)-2], f.stack[len(f.stack)-1]
 		case Dup:
@@ -200,15 +297,15 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 		case Drop:
 			f.popN(1)
 		case SignExtend:
-			f.funcCall(o, "SIGN_EXTEND", 1)
+			f.funcCall(o, "SIGN_EXTEND", 1, NUMBER)
 		case Clamp:
-			f.funcCall(o, "CLAMP", 3)
+			f.funcCall(o, "CLAMP", 3, NUMBER)
 		case FindObject:
-			f.funcCall(o, "FIND_OBJECT", 3)
+			f.funcCall(o, "FIND_OBJECT", 3, ADDRESS)
 		case CountNeighbourObjects:
-			f.funcCall(o, "COUNT_NEIGHBOUR_OBJECTS", 3)
+			f.funcCall(o, "COUNT_NEIGHBOUR_OBJECTS", 3, NUMBER)
 		case MagicNumber:
-			f.funcCall(o, "MAGIC_NUMBER", 4)
+			f.funcCall(o, "MAGIC_NUMBER", 4, NUMBER)
 		case AndNum:
 			a := CommutativeBinaryOp{"&", f.top(), Num{int(v.b)}, 5}
 			f.popNAndPush(1, a)
@@ -222,20 +319,20 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 			s := CommutativeBinaryOp{">>>", f.top(), Num{int(v.shift)}, 9}
 			f.popNAndPush(1, s)
 		case PushSigned:
-			a := Atom{fmt.Sprintf("%d", v.n)}
+			a := Atom{fmt.Sprintf("%d", v.n), NUMBER}
 			f.push(a)
 		case Push2Byte:
-			a := Atom{fmt.Sprintf("0x%X", v.n)}
+			a := Atom{fmt.Sprintf("0x%X", v.n), NUMBER}
 			f.push(a)
 		case Push:
-			a := Atom{fmt.Sprintf("%d", v.b)}
+			a := Atom{fmt.Sprintf("%d", v.b), NUMBER}
 			f.push(a)
 		case CoordsToMapAddress:
-			f.funcCall(o, fmt.Sprintf("COORDS_TO_MAP_ADDRESS[%d]", v.b), 2)
+			f.funcCall(o, fmt.Sprintf("COORDS_TO_MAP_ADDRESS[%d]", v.b), 2, ADDRESS)
 		case IfNotBetweenSet:
-			f.funcCall(o, fmt.Sprintf("IF_NOT_BETWEEN_SET[%d]", v.b), 3)
+			f.funcCall(o, fmt.Sprintf("IF_NOT_BETWEEN_SET[%d]", v.b), 3, NUMBER)
 		case PushFrom:
-			f.push(Atom{varName(v.b)})
+			f.push(Atom{varName(v.b), varType(v.b)})
 		default:
 			panic(fmt.Sprintf("Unexpected opcode type %s", o.String()))
 		}
@@ -287,13 +384,26 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 		case PopToD4:
 			fmt.Printf("D4 = %s\n", f.top())
 		case StoreByte:
-			fmt.Printf("[%s] = %s\n", f.top(), f.belowTop())
+			if f.top().Type() == REFERENCE {
+				fmt.Printf("%s = %s\n", f.top(), f.belowTop())
+			} else {
+				fmt.Printf("[%s] = %s\n", f.top(), f.belowTop())
+			}
 		case Store:
-			fmt.Printf("[%s:] = %s\n", f.top(), f.belowTop())
+			if f.top().Type() == REFERENCE {
+				//panic("Storing two-byte value in one-byte variable")
+			} else {
+				fmt.Printf("[%s] = %s\n", f.top(), f.belowTop())
+			}
 		case For:
 			fmt.Printf("FOR %s = %s TO %s DO\n", varName(v.b), f.belowTop(), f.top())
 			f.scopes = append(f.scopes, FOR)
 		case PopTo:
+			if varType(v.b) != ADDRESS && varType(v.b) != UNDEFINED && f.top().Type() == ADDRESS {
+				panic("Writing address value " + f.top().String() + " into " + varName(v.b))
+			}
+			// We don't panic if a number is writting into a variable of type ADDRESS.
+			// In program 17 a hardcoded address of flashback data is being used.
 			fmt.Printf("%s = %s\n", varName(v.b), f.top())
 		case Fill:
 			fmt.Printf("FILL(%s, %s, %d)\n", f.belowTop(), f.top(), v.b)
@@ -379,4 +489,15 @@ func (f *FoldingDecoder) DumpStack() {
 		fmt.Printf("PUSH(%s)\n", expr.String())
 	}
 	f.stack = nil
+}
+func varType(b byte) Type {
+	name := varName(b)
+	// Those variables are being used as both numbers and addresses
+	if name == "TEMP" || name == "TEMP2" || name == "ARG1" || name == "ARG2" || name == "INDEX" || name == "INDEX2" || name == "UNIT2.SUPPLY" || name == "RANGE" {
+		return UNDEFINED
+	}
+	if name[0] == '&' {
+		return ADDRESS
+	}
+	return REFERENCE
 }

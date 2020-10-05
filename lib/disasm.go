@@ -16,16 +16,15 @@ func NewDecoder(buf []byte) decoder {
 	}
 }
 
-func (d *decoder) skipTwoZeroes() {
-	if d.buf[d.offset] != 0x0 {
-		panic(fmt.Sprintf("Expected 0x0 got 0x%X", d.buf[d.offset]))
-	}
+func (d *decoder) skipByteAndZero() {
+	// First skipped byte after an IF statement can be anything, only the seconds one
+	// is being checked for being zero.
 	d.offset++
 	if d.offset >= len(d.buf) {
 		panic("EOF while skipping zeroes")
 	}
 	if d.buf[d.offset] != 0x0 {
-		panic(fmt.Sprintf("Expected 0x0 got 0x%X", d.buf[d.offset]))
+		panic(fmt.Sprintf("Expected 0x0 got 0x%X at position %d", d.buf[d.offset], d.offset))
 	}
 	d.offset++
 	if d.offset >= len(d.buf) {
@@ -91,10 +90,10 @@ func (d *decoder) noArgOpCode(opcode byte) Opcode {
 		}
 		return MultiplyShiftRight{arg}
 	case 0x4A:
-		d.skipTwoZeroes()
+		d.skipByteAndZero()
 		return IfGreaterThanZero{}
 	case 0x4C:
-		d.skipTwoZeroes()
+		d.skipByteAndZero()
 		return IfZero{}
 	case 0x4e:
 		return Exit{}
@@ -115,14 +114,14 @@ func (d *decoder) noArgOpCode(opcode byte) Opcode {
 	case 0x6E:
 		return FindObject{}
 	case 0x70:
-		d.skipTwoZeroes()
+		d.skipByteAndZero()
 		return IfNotEqual{}
 	case 0x72:
 		return CountNeighbourObjects{}
 	case 0x74:
 		return MagicNumber{}
 	case 0xF6:
-		d.skipTwoZeroes()
+		d.skipByteAndZero()
 		return Else{}
 	case 0xF8:
 		return FiAll{}
@@ -178,7 +177,7 @@ func (d *decoder) oneArgOpCode(opcode byte) Opcode {
 	case 0xA6:
 		return ScnDtaUnitTypeOffset{arg}
 	case 0xC2:
-		d.skipTwoZeroes()
+		d.skipByteAndZero()
 		return IfSignEq{arg}
 	case 0xC4:
 		return CoordsToMapAddress{arg}
@@ -189,7 +188,7 @@ func (d *decoder) oneArgOpCode(opcode byte) Opcode {
 	case 0xE0:
 		return For{arg}
 	case 0xE2:
-		d.skipTwoZeroes()
+		d.skipByteAndZero()
 		return IfCmp{arg}
 	case 0xE4:
 		return IfNotBetweenSet{arg}

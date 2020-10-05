@@ -124,7 +124,9 @@ type ArithmeticShiftRight struct {
 	shift byte
 }
 
-func (s ArithmeticShiftRight) String() string          { return fmt.Sprintf("ARITHMETIC_SHIFT_RIGHT[%d]", s.shift) }
+func (s ArithmeticShiftRight) String() string {
+	return fmt.Sprintf("ARITHMETIC_SHIFT_RIGHT[%d]", s.shift)
+}
 func (s ArithmeticShiftRight) StackEffect() (int, int) { return 1, 1 }
 func (s ArithmeticShiftRight) HasSideEffects() bool    { return false }
 
