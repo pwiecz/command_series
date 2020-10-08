@@ -28,25 +28,29 @@ type Expression interface {
 	fmt.Stringer
 	Priority() int
 	Type() Type
+	BaseMemoryAddress() int
+	ReadsFromMemoryAddress(v int) bool
 }
 
-type Atom struct {
-	s   string
-	typ Type
+type Variable struct {
+	id byte
 }
 
-func (a Atom) String() string { return a.s }
-func (a Atom) Priority() int  { return 20 }
-func (a Atom) Type() Type     { return a.typ }
+func (v Variable) String() string                       { return varName(v.id) }
+func (v Variable) Priority() int                        { return 20 }
+func (v Variable) Type() Type                           { return varType(v.id) }
+func (v Variable) BaseMemoryAddress() int               { return int(v.id) }
+func (v Variable) ReadsFromMemoryAddress(addr int) bool { return addr == int(v.id) }
 
 type Num struct {
 	n int
 }
 
-func (n Num) String() string { return fmt.Sprintf("%d", n.n) }
-func (n Num) Priority() int  { return 10 }
-func (n Num) Type() Type     { return NUMBER }
-
+func (n Num) String() string                       { return fmt.Sprintf("%d", n.n) }
+func (n Num) Priority() int                        { return 20 }
+func (n Num) Type() Type                           { return NUMBER }
+func (n Num) BaseMemoryAddress() int               { return -1 }
+func (n Num) ReadsFromMemoryAddress(addr int) bool { return false }
 func inParensIfPriorityLessThan(e Expression, priority int) string {
 	if e.Priority() < priority {
 		return fmt.Sprintf("(%s)", e)
@@ -63,9 +67,7 @@ func (s Sum) String() string {
 		inParensIfPriorityLessThan(s.arg0, s.Priority()),
 		inParensIfPriorityLessThan(s.arg1, s.Priority()))
 }
-func (s Sum) Priority() int {
-	return 10
-}
+func (s Sum) Priority() int { return 10 }
 func (s Sum) Type() Type {
 	if s.arg0.Type() == ADDRESS {
 		if s.arg1.Type() == ADDRESS {
@@ -78,6 +80,19 @@ func (s Sum) Type() Type {
 	}
 	return NUMBER
 }
+func (s Sum) BaseMemoryAddress() int {
+	if s.arg0.Type() == ADDRESS {
+		return s.arg0.BaseMemoryAddress()
+	}
+	if s.arg1.Type() == ADDRESS {
+		return s.arg1.BaseMemoryAddress()
+	}
+	panic("Don't know yet")
+}
+func (s Sum) ReadsFromMemoryAddress(addr int) bool {
+	return s.arg0.ReadsFromMemoryAddress(addr) ||
+		s.arg1.ReadsFromMemoryAddress(addr)
+}
 
 type Difference struct {
 	arg0, arg1 Expression
@@ -88,9 +103,7 @@ func (d Difference) String() string {
 		inParensIfPriorityLessThan(d.arg0, d.Priority()),
 		inParensIfPriorityLessThan(d.arg1, d.Priority()+1))
 }
-func (d Difference) Priority() int {
-	return 10
-}
+func (d Difference) Priority() int { return 10 }
 func (d Difference) Type() Type {
 	if d.arg0.Type() == ADDRESS {
 		if d.arg1.Type() == ADDRESS {
@@ -102,6 +115,36 @@ func (d Difference) Type() Type {
 		panic("Subtracting address from number or reference")
 	}
 	return NUMBER
+}
+func (d Difference) BaseMemoryAddress() int {
+	return d.arg0.BaseMemoryAddress()
+}
+func (d Difference) ReadsFromMemoryAddress(addr int) bool {
+	return d.arg0.ReadsFromMemoryAddress(addr) ||
+		d.arg1.ReadsFromMemoryAddress(addr)
+}
+
+type UnaryPrefixOp struct {
+	op       string
+	arg      Expression
+	priority int
+}
+
+func (o UnaryPrefixOp) String() string {
+	return fmt.Sprintf("%s%s", o.op, inParensIfPriorityLessThan(o.arg, o.priority+1))
+}
+func (o UnaryPrefixOp) Priority() int { return o.priority }
+func (o UnaryPrefixOp) Type() Type {
+	if o.arg.Type() != NUMBER && o.arg.Type() != REFERENCE {
+		panic(fmt.Sprintf("Invalid parameter to operator %s:\"%s\"(%s)", o.op, o.arg, o.arg.Type()))
+	}
+	return NUMBER
+}
+func (o UnaryPrefixOp) BaseMemoryAddress() int {
+	return -1
+}
+func (o UnaryPrefixOp) ReadsFromMemoryAddress(addr int) bool {
+	return o.arg.ReadsFromMemoryAddress(addr)
 }
 
 type NonCommutativeBinaryOp struct {
@@ -116,9 +159,7 @@ func (o NonCommutativeBinaryOp) String() string {
 		o.op,
 		inParensIfPriorityLessThan(o.arg1, o.priority+1))
 }
-func (o NonCommutativeBinaryOp) Priority() int {
-	return o.priority
-}
+func (o NonCommutativeBinaryOp) Priority() int { return o.priority }
 func (o NonCommutativeBinaryOp) Type() Type {
 	if (o.arg0.Type() != NUMBER && o.arg0.Type() != REFERENCE && o.arg0.Type() != UNDEFINED) ||
 		(o.arg1.Type() != NUMBER && o.arg1.Type() != REFERENCE && o.arg1.Type() != UNDEFINED) {
@@ -126,6 +167,13 @@ func (o NonCommutativeBinaryOp) Type() Type {
 			o.op, o.arg0, o.arg0.Type(), o.arg1, o.arg1.Type()))
 	}
 	return NUMBER
+}
+func (o NonCommutativeBinaryOp) BaseMemoryAddress() int {
+	panic("Unexpected call")
+}
+func (o NonCommutativeBinaryOp) ReadsFromMemoryAddress(addr int) bool {
+	return o.arg0.ReadsFromMemoryAddress(addr) ||
+		o.arg1.ReadsFromMemoryAddress(addr)
 }
 
 type CommutativeBinaryOp struct {
@@ -140,9 +188,7 @@ func (o CommutativeBinaryOp) String() string {
 		o.op,
 		inParensIfPriorityLessThan(o.arg1, o.priority))
 }
-func (o CommutativeBinaryOp) Priority() int {
-	return o.priority
-}
+func (o CommutativeBinaryOp) Priority() int { return o.priority }
 func (o CommutativeBinaryOp) Type() Type {
 	if (o.arg0.Type() != NUMBER && o.arg0.Type() != REFERENCE && o.arg0.Type() != UNDEFINED) ||
 		(o.arg1.Type() != NUMBER && o.arg1.Type() != REFERENCE && o.arg1.Type() != UNDEFINED) {
@@ -150,6 +196,13 @@ func (o CommutativeBinaryOp) Type() Type {
 			o.op, o.arg0, o.arg0.Type(), o.arg1, o.arg1.Type()))
 	}
 	return NUMBER
+}
+func (o CommutativeBinaryOp) BaseMemoryAddress() int {
+	panic("Unexpected call")
+}
+func (o CommutativeBinaryOp) ReadsFromMemoryAddress(addr int) bool {
+	return o.arg0.ReadsFromMemoryAddress(addr) ||
+		o.arg1.ReadsFromMemoryAddress(addr)
 }
 
 type MultiplyShiftRightExpr struct {
@@ -163,10 +216,62 @@ func (m MultiplyShiftRightExpr) String() string {
 		inParensIfPriorityLessThan(m.arg1, 11),
 		m.shift)
 }
-func (m MultiplyShiftRightExpr) Priority() int {
-	return 9
+func (m MultiplyShiftRightExpr) Priority() int          { return 9 }
+func (m MultiplyShiftRightExpr) Type() Type             { return NUMBER }
+func (m MultiplyShiftRightExpr) BaseMemoryAddress() int { panic("Unexpected call") }
+func (m MultiplyShiftRightExpr) ReadsFromMemoryAddress(addr int) bool {
+	return m.arg0.ReadsFromMemoryAddress(addr) ||
+		m.arg1.ReadsFromMemoryAddress(addr)
 }
-func (m MultiplyShiftRightExpr) Type() Type { return NUMBER }
+
+type FuncCall struct {
+	name string
+	args []Expression
+	typ  Type
+}
+
+func (c FuncCall) String() string {
+	argStrs := make([]string, 0, len(c.args))
+	for _, arg := range c.args {
+		argStrs = append(argStrs, arg.String())
+	}
+	return fmt.Sprintf("%s(%s)", c.name, strings.Join(argStrs, ", "))
+}
+func (c FuncCall) Priority() int          { return 20 }
+func (c FuncCall) Type() Type             { return c.typ }
+func (c FuncCall) BaseMemoryAddress() int { return -1 }
+func (c FuncCall) ReadsFromMemoryAddress(addr int) bool {
+	for _, arg := range c.args {
+		if arg.ReadsFromMemoryAddress(addr) {
+			return true
+		}
+	}
+	return false
+}
+
+type ReadByteExpr struct {
+	arg Expression
+}
+
+func (r ReadByteExpr) String() string         { return fmt.Sprintf("[%s]", r.arg) }
+func (r ReadByteExpr) Priority() int          { return 20 }
+func (r ReadByteExpr) Type() Type             { return NUMBER }
+func (r ReadByteExpr) BaseMemoryAddress() int { return -1 }
+func (r ReadByteExpr) ReadsFromMemoryAddress(addr int) bool {
+	return r.arg.ReadsFromMemoryAddress(addr)
+}
+
+type ReadExpr struct {
+	arg Expression
+}
+
+func (r ReadExpr) String() string         { return fmt.Sprintf("[%s:]", r.arg) }
+func (r ReadExpr) Priority() int          { return 20 }
+func (r ReadExpr) Type() Type             { return NUMBER }
+func (r ReadExpr) BaseMemoryAddress() int { return -1 }
+func (r ReadExpr) ReadsFromMemoryAddress(addr int) bool {
+	return r.arg.ReadsFromMemoryAddress(addr)
+}
 
 type scopeType int
 
@@ -217,12 +322,188 @@ func (f *FoldingDecoder) multiplyShiftRight(shift int) {
 }
 
 func (f *FoldingDecoder) funcCall(o Opcode, name string, numArgs int, typ Type) {
-	args := make([]string, numArgs)
-	for i, expr := range f.stack[len(f.stack)-numArgs:] {
-		args[i] = expr.String()
+	// Make sure the args slice is a copy of a piece of the stack, and it does not point
+	// to the original stack array. Otherwise modifying stack modifies args as well.
+	args := append(make([]Expression, 0, numArgs), f.stack[len(f.stack)-numArgs:]...)
+	fc := FuncCall{name, args, typ}
+	f.popNAndPush(numArgs, fc)
+}
+
+type Statement interface {
+	fmt.Stringer
+	AffectsExpressionValue(e Expression, stack []Expression) bool
+}
+type IfGreaterThanZeroStmt struct {
+	arg Expression
+}
+
+func (i IfGreaterThanZeroStmt) AffectsExpressionValue(e Expression, stack []Expression) bool {
+	return true
+}
+func (i IfGreaterThanZeroStmt) String() string { return fmt.Sprintf("IF %s > 0 THEN", i.arg) }
+
+type IfZeroStmt struct {
+	arg Expression
+}
+
+func (i IfZeroStmt) AffectsExpressionValue(e Expression, stack []Expression) bool { return true }
+func (i IfZeroStmt) String() string                                               { return fmt.Sprintf("IF %s == 0 THEN", i.arg) }
+
+type IfNotEqualStmt struct {
+	arg0, arg1 Expression
+}
+
+func (i IfNotEqualStmt) AffectsExpressionValue(e Expression, stack []Expression) bool { return true }
+func (i IfNotEqualStmt) String() string                                               { return fmt.Sprintf("IF %s != %s THEN", i.arg0, i.arg1) }
+
+type IfSignEqStmt struct {
+	arg Expression
+	v   byte
+}
+
+func (i IfSignEqStmt) AffectsExpressionValue(e Expression, stack []Expression) bool { return true }
+func (i IfSignEqStmt) String() string {
+	if i.v == 255 {
+		return fmt.Sprintf("IF %s < 0 THEN", i.arg)
+	} else if i.v == 0 {
+		return fmt.Sprintf("IF %s == 0 THEN", i.arg)
+	} else if i.v == 1 {
+		return fmt.Sprintf("IF %s > 0 THEN", i.arg)
+	} else {
+		panic("Unexpected sign value")
 	}
-	a := Atom{fmt.Sprintf("%s(%s)", name, strings.Join(args, ", ")), typ}
-	f.popNAndPush(numArgs, a)
+}
+
+type IfCmpStmt struct {
+	arg0, arg1 Expression
+	v          byte
+}
+
+func (i IfCmpStmt) AffectsExpressionValue(e Expression, stack []Expression) bool { return true }
+func (i IfCmpStmt) String() string {
+	if i.v == 255 {
+		return fmt.Sprintf("IF %s < %s THEN", i.arg0, i.arg1)
+	} else if i.v == 0 {
+		return fmt.Sprintf("IF %s == %s THEN", i.arg0, i.arg1)
+	} else if i.v == 1 {
+		return fmt.Sprintf("IF %s > %s THEN", i.arg0, i.arg1)
+	} else {
+		panic("Unexpected cmp value")
+	}
+}
+
+type WriteToA200PlusStmt struct {
+	offset, value Expression
+}
+
+func (w WriteToA200PlusStmt) AffectsExpressionValue(e Expression, stack []Expression) bool {
+	return false
+}
+func (w WriteToA200PlusStmt) String() string {
+	return fmt.Sprintf("[A200+%s] = %s", inParensIfPriorityLessThan(w.offset, 10), w.value)
+}
+
+type PopToD4Stmt struct {
+	arg Expression
+}
+
+func (p PopToD4Stmt) AffectsExpressionValue(e Expression, stack []Expression) bool { return false }
+func (p PopToD4Stmt) String() string                                               { return fmt.Sprintf("D4 = %s", p.arg) }
+
+type StoreByteStmt struct {
+	location, value Expression
+}
+
+func (s StoreByteStmt) AffectsExpressionValue(e Expression, stack []Expression) bool {
+	addr := s.location.BaseMemoryAddress()
+	return addr >= 0 && e.ReadsFromMemoryAddress(addr)
+}
+func (s StoreByteStmt) String() string {
+	if s.location.Type() == REFERENCE {
+		return fmt.Sprintf("%s = %s", s.location, s.value)
+	} else {
+		return fmt.Sprintf("[%s] = %s", s.location, s.value)
+	}
+
+}
+
+type StoreStmt struct {
+	location, value Expression
+}
+
+func (s StoreStmt) AffectsExpressionValue(e Expression, stack []Expression) bool {
+	addr := s.location.BaseMemoryAddress()
+	return addr >= 0 && e.ReadsFromMemoryAddress(addr)
+}
+func (s StoreStmt) String() string {
+	if s.location.Type() == REFERENCE {
+		//panic("Storing two-byte value in one-byte variable")
+	}
+	return fmt.Sprintf("[%s] = %s", s.location, s.value)
+}
+
+type ForStmt struct {
+	v        byte
+	from, to Expression
+}
+
+func (f ForStmt) AffectsExpressionValue(e Expression, stack []Expression) bool { return true }
+func (f ForStmt) String() string {
+	return fmt.Sprintf("FOR %s = %s TO %s DO", varName(f.v), f.from, f.to)
+}
+
+type PopToStmt struct {
+	v     byte
+	value Expression
+}
+
+func (p PopToStmt) AffectsExpressionValue(e Expression, stack []Expression) bool {
+	return e.ReadsFromMemoryAddress(int(p.v))
+}
+func (p PopToStmt) String() string {
+	if varType(p.v) != ADDRESS && varType(p.v) != UNDEFINED && p.value.Type() == ADDRESS {
+		panic("Writing address value " + p.value.String() + " into " + varName(p.v))
+	}
+	// We don't panic if a number is writting into a variable of type ADDRESS.
+	// In program 17 a hardcoded address of flashback data is being used.
+	return fmt.Sprintf("%s = %s", varName(p.v), p.value)
+}
+
+type FillStmt struct {
+	address, size Expression
+	val           byte
+}
+
+func (f FillStmt) AffectsExpressionValue(e Expression, stack []Expression) bool {
+	addr := f.address.BaseMemoryAddress()
+	return addr >= 0 && e.ReadsFromMemoryAddress(addr)
+}
+func (f FillStmt) String() string {
+	return fmt.Sprintf("FILL(%s, %s, %d)", f.address, f.size, f.val)
+}
+
+type LoadUnitStmt struct {
+	v   byte
+	arg Expression
+}
+
+func (l LoadUnitStmt) AffectsExpressionValue(e Expression, stack []Expression) bool {
+	for i := 0; i < 16; i++ {
+		if e.ReadsFromMemoryAddress(int(l.v) + 17 + i) {
+			return true
+		}
+	}
+	return false
+}
+func (l LoadUnitStmt) String() string {
+	if l.v == 15 {
+		return fmt.Sprintf("LOAD_UNIT1(%s)", l.arg)
+	} else if l.v == 31 {
+		return fmt.Sprintf("LOAD_UNIT2(%s)", l.arg)
+	} else {
+		return fmt.Sprintf("LOAD_UNIT[%d](%s)", l.v, l.arg)
+	}
+
 }
 
 func (f *FoldingDecoder) Apply(o Opcode) {
@@ -231,7 +512,7 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 		stackLen := len(f.stack)
 		switch v := o.(type) {
 		case Byte:
-			f.push(Atom{o.String(), NUMBER})
+			f.push(Num{int(v.b)})
 		case Add:
 			s := Sum{f.belowTop(), f.top()}
 			f.popNAndPush(2, s)
@@ -245,19 +526,19 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 		case MultiplyShiftRight:
 			f.multiplyShiftRight(int(v.b))
 		case Increment:
-			i := Sum{f.top(), Atom{"1", NUMBER}}
+			i := Sum{f.top(), Num{1}}
 			f.popNAndPush(1, i)
 		case Decrement:
-			d := Difference{f.top(), Atom{"1", NUMBER}}
+			d := Difference{f.top(), Num{1}}
 			f.popNAndPush(1, d)
 		case AdditiveInverse:
 			if f.top().Type() != NUMBER && f.top().Type() != REFERENCE && f.top().Type() != UNDEFINED {
 				panic("Invalid argument to unary -")
 			}
-			i := Atom{"-(" + f.top().String() + ")", NUMBER}
+			i := UnaryPrefixOp{"-", f.top(), 11 /* ? TODO: check */}
 			f.popNAndPush(1, i)
 		case And0xFF:
-			a := CommutativeBinaryOp{"&", f.top(), Atom{"0xFF", NUMBER}, 5}
+			a := CommutativeBinaryOp{"&", f.top(), Num{255}, 5}
 			f.popNAndPush(1, a)
 		case BinaryAnd:
 			f.commutativeBinaryOp("&", 5)
@@ -272,17 +553,17 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 			s := CommutativeBinaryOp{">>", f.top(), Num{int(v.shift)}, 9}
 			f.popNAndPush(1, s)
 		case ScnDtaUnitTypeOffset:
-			a := Atom{v.String(), NUMBER}
+			a := Sum{Variable{5}, Sum{Variable{39}, Num{int(v.offset)}}}
 			f.push(a)
 		case ReadByte:
-			a := Atom{fmt.Sprintf("[%s]", f.top()), NUMBER}
-			f.popNAndPush(1, a)
+			r := ReadByteExpr{f.top()}
+			f.popNAndPush(1, r)
 		case Read:
-			a := Atom{fmt.Sprintf("[%s:]", f.top()), NUMBER}
-			f.popNAndPush(1, a)
+			r := ReadExpr{f.top()}
+			f.popNAndPush(1, r)
 		case ReadByteWithOffset:
-			a := CommutativeBinaryOp{"+", f.top(), Num{int(v.offset)}, 10}
-			r := Atom{fmt.Sprintf("[%s]", a), NUMBER}
+			a := Sum{f.top(), Num{int(v.offset)}}
+			r := ReadByteExpr{a}
 			f.popNAndPush(1, r)
 		case MulRandShiftRight8:
 			f.funcCall(o, "MUL_RAND_SHR8", 1, NUMBER)
@@ -319,20 +600,20 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 			s := CommutativeBinaryOp{">>>", f.top(), Num{int(v.shift)}, 9}
 			f.popNAndPush(1, s)
 		case PushSigned:
-			a := Atom{fmt.Sprintf("%d", v.n), NUMBER}
+			a := Num{int(v.n)}
 			f.push(a)
 		case Push2Byte:
-			a := Atom{fmt.Sprintf("0x%X", v.n), NUMBER}
+			a := Num{int(v.n)}
 			f.push(a)
 		case Push:
-			a := Atom{fmt.Sprintf("%d", v.b), NUMBER}
+			a := Num{int(v.b)}
 			f.push(a)
 		case CoordsToMapAddress:
 			f.funcCall(o, fmt.Sprintf("COORDS_TO_MAP_ADDRESS[%d]", v.b), 2, ADDRESS)
 		case IfNotBetweenSet:
 			f.funcCall(o, fmt.Sprintf("IF_NOT_BETWEEN_SET[%d]", v.b), 3, NUMBER)
 		case PushFrom:
-			f.push(Atom{varName(v.b), varType(v.b)})
+			f.push(Variable{v.b})
 		default:
 			panic(fmt.Sprintf("Unexpected opcode type %s", o.String()))
 		}
@@ -341,86 +622,65 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 		}
 		return
 	} else if o.HasSideEffects() && toPop > 0 && toPop <= len(f.stack) {
-		for _, expr := range f.stack[:len(f.stack)-toPop] {
+		var stmt Statement
+		switch v := o.(type) {
+		case IfGreaterThanZero:
+			stmt = IfGreaterThanZeroStmt{f.top()}
+		case IfZero:
+			stmt = IfZeroStmt{f.top()}
+		case IfNotEqual:
+			stmt = IfNotEqualStmt{f.belowTop(), f.top()}
+		case IfSignEq:
+			stmt = IfSignEqStmt{f.top(), v.b}
+		case IfCmp:
+			stmt = IfCmpStmt{f.belowTop(), f.top(), v.b}
+		case WriteToA200Plus:
+			stmt = WriteToA200PlusStmt{f.top(), f.belowTop()}
+		case PopToD4:
+			stmt = PopToD4Stmt{f.top()}
+		case StoreByte:
+			stmt = StoreByteStmt{f.top(), f.belowTop()}
+		case Store:
+			stmt = StoreStmt{f.top(), f.belowTop()}
+		case For:
+			stmt = ForStmt{v.b, f.belowTop(), f.top()}
+		case PopTo:
+			stmt = PopToStmt{v.b, f.top()}
+		case Fill:
+			stmt = FillStmt{f.belowTop(), f.top(), v.b}
+		case LoadUnit:
+			stmt = LoadUnitStmt{v.b, f.top()}
+		default:
+			panic(fmt.Sprintf("Unhandled opcode %s", o.String()))
+		}
+		f.popN(toPop)
+		lastAffectedExpression := 0
+		for i, expr := range f.stack {
+			if stmt.AffectsExpressionValue(expr, f.stack) {
+				lastAffectedExpression = i + 1
+			}
+		}
+		for _, expr := range f.stack[:lastAffectedExpression] {
 			f.printIndent()
 			fmt.Printf("PUSH(%s)\n", expr.String())
 		}
-		f.stack = f.stack[len(f.stack)-toPop:]
+		f.stack = f.stack[lastAffectedExpression:]
 		f.printIndent()
-		switch v := o.(type) {
+		fmt.Println(stmt)
+		switch o.(type) {
 		case IfGreaterThanZero:
-			fmt.Printf("IF %s > 0 THEN\n", f.top())
 			f.scopes = append(f.scopes, IF)
 		case IfZero:
-			fmt.Printf("IF %s == 0 THEN\n", f.top())
 			f.scopes = append(f.scopes, IF)
 		case IfNotEqual:
-			fmt.Printf("IF %s != %s THEN\n", f.belowTop(), f.top())
 			f.scopes = append(f.scopes, IF)
 		case IfSignEq:
-			if v.b == 255 {
-				fmt.Printf("IF %s < 0 THEN\n", f.top())
-			} else if v.b == 0 {
-				fmt.Printf("IF %s == 0 THEN\n", f.top())
-			} else if v.b == 1 {
-				fmt.Printf("IF %s > 0 THEN\n", f.top())
-			} else {
-				panic("Unexpected sign value")
-			}
 			f.scopes = append(f.scopes, IF)
 		case IfCmp:
-			if v.b == 255 {
-				fmt.Printf("IF %s < %s THEN\n", f.belowTop(), f.top())
-			} else if v.b == 0 {
-				fmt.Printf("IF %s == %s THEN\n", f.belowTop(), f.top())
-			} else if v.b == 1 {
-				fmt.Printf("IF %s > %s THEN\n", f.belowTop(), f.top())
-			} else {
-				panic("Unexpected cmp value")
-			}
 			f.scopes = append(f.scopes, IF)
-		case WriteToA200Plus:
-			fmt.Printf("[A200+%s] = %s\n", inParensIfPriorityLessThan(f.top(), 10), f.belowTop())
-		case PopToD4:
-			fmt.Printf("D4 = %s\n", f.top())
-		case StoreByte:
-			if f.top().Type() == REFERENCE {
-				fmt.Printf("%s = %s\n", f.top(), f.belowTop())
-			} else {
-				fmt.Printf("[%s] = %s\n", f.top(), f.belowTop())
-			}
-		case Store:
-			if f.top().Type() == REFERENCE {
-				//panic("Storing two-byte value in one-byte variable")
-			} else {
-				fmt.Printf("[%s] = %s\n", f.top(), f.belowTop())
-			}
 		case For:
-			fmt.Printf("FOR %s = %s TO %s DO\n", varName(v.b), f.belowTop(), f.top())
 			f.scopes = append(f.scopes, FOR)
-		case PopTo:
-			if varType(v.b) != ADDRESS && varType(v.b) != UNDEFINED && f.top().Type() == ADDRESS {
-				panic("Writing address value " + f.top().String() + " into " + varName(v.b))
-			}
-			// We don't panic if a number is writting into a variable of type ADDRESS.
-			// In program 17 a hardcoded address of flashback data is being used.
-			fmt.Printf("%s = %s\n", varName(v.b), f.top())
-		case Fill:
-			fmt.Printf("FILL(%s, %s, %d)\n", f.belowTop(), f.top(), v.b)
-		case LoadUnit:
-			if v.b == 15 {
-				fmt.Printf("LOAD_UNIT1(%s)\n", f.top())
-			} else if v.b == 31 {
-				fmt.Printf("LOAD_UNIT2(%s)\n", f.top())
-			} else {
-				fmt.Printf("LOAD_UNIT[%d](%s)\n", v.b, f.top())
-			}
-		default:
-			if toPop > 0 {
-				panic(fmt.Sprintf("Unhandled opcode %s", o.String()))
-			}
 		}
-		f.stack = nil
 		return
 	}
 	f.DumpStack()

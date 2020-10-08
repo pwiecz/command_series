@@ -208,6 +208,7 @@ func (c Clamp) String() string          { return "CLAMP" }
 func (c Clamp) StackEffect() (int, int) { return 3, 1 }
 func (c Clamp) HasSideEffects() bool    { return false }
 
+// Used for e.g. copying a city name to the memory accessible from the driver code.
 type WriteToA200Plus struct{}
 
 func (w WriteToA200Plus) String() string          { return "WRITE_TO_A200_PLUS" }
