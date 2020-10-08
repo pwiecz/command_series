@@ -28,29 +28,33 @@ type Expression interface {
 	fmt.Stringer
 	Priority() int
 	Type() Type
-	BaseMemoryAddress() int
-	ReadsFromMemoryAddress(v int) bool
+	BaseMemoryAddress() (byte, bool)
+	ReadsFromMemoryAddress(addr byte) bool
+	ReadsFromVariable(v byte) bool
 }
 
 type Variable struct {
 	id byte
 }
 
-func (v Variable) String() string                       { return varName(v.id) }
-func (v Variable) Priority() int                        { return 20 }
-func (v Variable) Type() Type                           { return varType(v.id) }
-func (v Variable) BaseMemoryAddress() int               { return int(v.id) }
-func (v Variable) ReadsFromMemoryAddress(addr int) bool { return addr == int(v.id) }
+func (v Variable) String() string                        { return varName(v.id) }
+func (v Variable) Priority() int                         { return 20 }
+func (v Variable) Type() Type                            { return varType(v.id) }
+func (v Variable) BaseMemoryAddress() (byte, bool)       { return v.id, true }
+func (v Variable) ReadsFromMemoryAddress(addr byte) bool { return false }
+func (v Variable) ReadsFromVariable(v_ byte) bool        { return v_ == v.id }
 
 type Num struct {
 	n int
 }
 
-func (n Num) String() string                       { return fmt.Sprintf("%d", n.n) }
-func (n Num) Priority() int                        { return 20 }
-func (n Num) Type() Type                           { return NUMBER }
-func (n Num) BaseMemoryAddress() int               { return -1 }
-func (n Num) ReadsFromMemoryAddress(addr int) bool { return false }
+func (n Num) String() string                        { return fmt.Sprintf("%d", n.n) }
+func (n Num) Priority() int                         { return 20 }
+func (n Num) Type() Type                            { return NUMBER }
+func (n Num) BaseMemoryAddress() (byte, bool)       { return 0, false }
+func (n Num) ReadsFromMemoryAddress(addr byte) bool { return false }
+func (n Num) ReadsFromVariable(v byte) bool         { return false }
+
 func inParensIfPriorityLessThan(e Expression, priority int) string {
 	if e.Priority() < priority {
 		return fmt.Sprintf("(%s)", e)
@@ -80,7 +84,7 @@ func (s Sum) Type() Type {
 	}
 	return NUMBER
 }
-func (s Sum) BaseMemoryAddress() int {
+func (s Sum) BaseMemoryAddress() (byte, bool) {
 	if s.arg0.Type() == ADDRESS {
 		return s.arg0.BaseMemoryAddress()
 	}
@@ -89,9 +93,55 @@ func (s Sum) BaseMemoryAddress() int {
 	}
 	panic("Don't know yet")
 }
-func (s Sum) ReadsFromMemoryAddress(addr int) bool {
+func (s Sum) ReadsFromMemoryAddress(addr byte) bool {
 	return s.arg0.ReadsFromMemoryAddress(addr) ||
 		s.arg1.ReadsFromMemoryAddress(addr)
+}
+func (s Sum) ReadsFromVariable(v byte) bool {
+	return s.arg0.ReadsFromVariable(v) ||
+		s.arg1.ReadsFromVariable(v)
+}
+
+type ExclusiveOr struct {
+	arg0, arg1 Expression
+}
+
+func (x ExclusiveOr) String() string {
+	return fmt.Sprintf("%s ^ %s",
+		inParensIfPriorityLessThan(x.arg0, x.Priority()),
+		inParensIfPriorityLessThan(x.arg1, x.Priority()))
+}
+func (x ExclusiveOr) Priority() int {
+	return 4
+}
+func (x ExclusiveOr) Type() Type {
+	if x.arg0.Type() == ADDRESS {
+		if x.arg1.Type() == ADDRESS {
+			panic("Xor of two addresses")
+		}
+		return ADDRESS
+	}
+	if x.arg1.Type() == ADDRESS {
+		return ADDRESS
+	}
+	return NUMBER
+}
+func (x ExclusiveOr) BaseMemoryAddress() (byte, bool) {
+	if x.arg0.Type() == ADDRESS {
+		return x.arg0.BaseMemoryAddress()
+	}
+	if x.arg1.Type() == ADDRESS {
+		return x.arg1.BaseMemoryAddress()
+	}
+	panic("Don't know yet")
+}
+func (x ExclusiveOr) ReadsFromMemoryAddress(addr byte) bool {
+	return x.arg0.ReadsFromMemoryAddress(addr) ||
+		x.arg1.ReadsFromMemoryAddress(addr)
+}
+func (x ExclusiveOr) ReadsFromVariable(v byte) bool {
+	return x.arg0.ReadsFromVariable(v) ||
+		x.arg1.ReadsFromVariable(v)
 }
 
 type Difference struct {
@@ -116,12 +166,16 @@ func (d Difference) Type() Type {
 	}
 	return NUMBER
 }
-func (d Difference) BaseMemoryAddress() int {
+func (d Difference) BaseMemoryAddress() (byte, bool) {
 	return d.arg0.BaseMemoryAddress()
 }
-func (d Difference) ReadsFromMemoryAddress(addr int) bool {
+func (d Difference) ReadsFromMemoryAddress(addr byte) bool {
 	return d.arg0.ReadsFromMemoryAddress(addr) ||
 		d.arg1.ReadsFromMemoryAddress(addr)
+}
+func (d Difference) ReadsFromVariable(v byte) bool {
+	return d.arg0.ReadsFromVariable(v) ||
+		d.arg1.ReadsFromVariable(v)
 }
 
 type UnaryPrefixOp struct {
@@ -140,11 +194,14 @@ func (o UnaryPrefixOp) Type() Type {
 	}
 	return NUMBER
 }
-func (o UnaryPrefixOp) BaseMemoryAddress() int {
-	return -1
+func (o UnaryPrefixOp) BaseMemoryAddress() (byte, bool) {
+	return 0, false
 }
-func (o UnaryPrefixOp) ReadsFromMemoryAddress(addr int) bool {
+func (o UnaryPrefixOp) ReadsFromMemoryAddress(addr byte) bool {
 	return o.arg.ReadsFromMemoryAddress(addr)
+}
+func (o UnaryPrefixOp) ReadsFromVariable(v byte) bool {
+	return o.arg.ReadsFromVariable(v)
 }
 
 type NonCommutativeBinaryOp struct {
@@ -168,12 +225,16 @@ func (o NonCommutativeBinaryOp) Type() Type {
 	}
 	return NUMBER
 }
-func (o NonCommutativeBinaryOp) BaseMemoryAddress() int {
+func (o NonCommutativeBinaryOp) BaseMemoryAddress() (byte, bool) {
 	panic("Unexpected call")
 }
-func (o NonCommutativeBinaryOp) ReadsFromMemoryAddress(addr int) bool {
+func (o NonCommutativeBinaryOp) ReadsFromMemoryAddress(addr byte) bool {
 	return o.arg0.ReadsFromMemoryAddress(addr) ||
 		o.arg1.ReadsFromMemoryAddress(addr)
+}
+func (o NonCommutativeBinaryOp) ReadsFromVariable(v byte) bool {
+	return o.arg0.ReadsFromVariable(v) ||
+		o.arg1.ReadsFromVariable(v)
 }
 
 type CommutativeBinaryOp struct {
@@ -197,12 +258,16 @@ func (o CommutativeBinaryOp) Type() Type {
 	}
 	return NUMBER
 }
-func (o CommutativeBinaryOp) BaseMemoryAddress() int {
-	panic("Unexpected call")
+func (o CommutativeBinaryOp) BaseMemoryAddress() (byte, bool) {
+	panic(fmt.Sprintf("Unexpected call op:%s(%s) %s", o.op, o.Type(), o))
 }
-func (o CommutativeBinaryOp) ReadsFromMemoryAddress(addr int) bool {
+func (o CommutativeBinaryOp) ReadsFromMemoryAddress(addr byte) bool {
 	return o.arg0.ReadsFromMemoryAddress(addr) ||
 		o.arg1.ReadsFromMemoryAddress(addr)
+}
+func (o CommutativeBinaryOp) ReadsFromVariable(v byte) bool {
+	return o.arg0.ReadsFromVariable(v) ||
+		o.arg1.ReadsFromMemoryAddress(v)
 }
 
 type MultiplyShiftRightExpr struct {
@@ -216,12 +281,16 @@ func (m MultiplyShiftRightExpr) String() string {
 		inParensIfPriorityLessThan(m.arg1, 11),
 		m.shift)
 }
-func (m MultiplyShiftRightExpr) Priority() int          { return 9 }
-func (m MultiplyShiftRightExpr) Type() Type             { return NUMBER }
-func (m MultiplyShiftRightExpr) BaseMemoryAddress() int { panic("Unexpected call") }
-func (m MultiplyShiftRightExpr) ReadsFromMemoryAddress(addr int) bool {
+func (m MultiplyShiftRightExpr) Priority() int                   { return 9 }
+func (m MultiplyShiftRightExpr) Type() Type                      { return NUMBER }
+func (m MultiplyShiftRightExpr) BaseMemoryAddress() (byte, bool) { panic("Unexpected call") }
+func (m MultiplyShiftRightExpr) ReadsFromMemoryAddress(addr byte) bool {
 	return m.arg0.ReadsFromMemoryAddress(addr) ||
 		m.arg1.ReadsFromMemoryAddress(addr)
+}
+func (m MultiplyShiftRightExpr) ReadsFromVariable(v byte) bool {
+	return m.arg0.ReadsFromVariable(v) ||
+		m.arg1.ReadsFromVariable(v)
 }
 
 type FuncCall struct {
@@ -237,10 +306,10 @@ func (c FuncCall) String() string {
 	}
 	return fmt.Sprintf("%s(%s)", c.name, strings.Join(argStrs, ", "))
 }
-func (c FuncCall) Priority() int          { return 20 }
-func (c FuncCall) Type() Type             { return c.typ }
-func (c FuncCall) BaseMemoryAddress() int { return -1 }
-func (c FuncCall) ReadsFromMemoryAddress(addr int) bool {
+func (c FuncCall) Priority() int                   { return 20 }
+func (c FuncCall) Type() Type                      { return c.typ }
+func (c FuncCall) BaseMemoryAddress() (byte, bool) { panic("Unexpected call") }
+func (c FuncCall) ReadsFromMemoryAddress(addr byte) bool {
 	for _, arg := range c.args {
 		if arg.ReadsFromMemoryAddress(addr) {
 			return true
@@ -248,29 +317,44 @@ func (c FuncCall) ReadsFromMemoryAddress(addr int) bool {
 	}
 	return false
 }
+func (c FuncCall) ReadsFromVariable(v byte) bool {
+	for _, arg := range c.args {
+		if arg.ReadsFromVariable(v) {
+			return true
+		}
+	}
+	return false
+
+}
 
 type ReadByteExpr struct {
 	arg Expression
 }
 
-func (r ReadByteExpr) String() string         { return fmt.Sprintf("[%s]", r.arg) }
-func (r ReadByteExpr) Priority() int          { return 20 }
-func (r ReadByteExpr) Type() Type             { return NUMBER }
-func (r ReadByteExpr) BaseMemoryAddress() int { return -1 }
-func (r ReadByteExpr) ReadsFromMemoryAddress(addr int) bool {
-	return r.arg.ReadsFromMemoryAddress(addr)
+func (r ReadByteExpr) String() string                  { return fmt.Sprintf("[%s]", r.arg) }
+func (r ReadByteExpr) Priority() int                   { return 20 }
+func (r ReadByteExpr) Type() Type                      { return NUMBER }
+func (r ReadByteExpr) BaseMemoryAddress() (byte, bool) { panic("Unexpected call") }
+func (r ReadByteExpr) ReadsFromMemoryAddress(addr byte) bool {
+	return r.arg.ReadsFromVariable(addr)
+}
+func (r ReadByteExpr) ReadsFromVariable(v byte) bool {
+	return r.arg.ReadsFromVariable(v)
 }
 
 type ReadExpr struct {
 	arg Expression
 }
 
-func (r ReadExpr) String() string         { return fmt.Sprintf("[%s:]", r.arg) }
-func (r ReadExpr) Priority() int          { return 20 }
-func (r ReadExpr) Type() Type             { return NUMBER }
-func (r ReadExpr) BaseMemoryAddress() int { return -1 }
-func (r ReadExpr) ReadsFromMemoryAddress(addr int) bool {
-	return r.arg.ReadsFromMemoryAddress(addr)
+func (r ReadExpr) String() string                  { return fmt.Sprintf("[%s:]", r.arg) }
+func (r ReadExpr) Priority() int                   { return 20 }
+func (r ReadExpr) Type() Type                      { return NUMBER }
+func (r ReadExpr) BaseMemoryAddress() (byte, bool) { panic("Unexpected call") }
+func (r ReadExpr) ReadsFromMemoryAddress(addr byte) bool {
+	return r.arg.ReadsFromVariable(addr)
+}
+func (r ReadExpr) ReadsFromVariable(addr byte) bool {
+	return r.arg.ReadsFromVariable(addr)
 }
 
 type scopeType int
@@ -340,21 +424,27 @@ type IfGreaterThanZeroStmt struct {
 func (i IfGreaterThanZeroStmt) AffectsExpressionValue(e Expression, stack []Expression) bool {
 	return true
 }
-func (i IfGreaterThanZeroStmt) String() string { return fmt.Sprintf("IF %s > 0 THEN", i.arg) }
+func (i IfGreaterThanZeroStmt) String() string {
+	return fmt.Sprintf("IF %s > 0 THEN", i.arg)
+}
 
 type IfZeroStmt struct {
 	arg Expression
 }
 
 func (i IfZeroStmt) AffectsExpressionValue(e Expression, stack []Expression) bool { return true }
-func (i IfZeroStmt) String() string                                               { return fmt.Sprintf("IF %s == 0 THEN", i.arg) }
+func (i IfZeroStmt) String() string {
+	return fmt.Sprintf("IF %s == 0 THEN", i.arg)
+}
 
 type IfNotEqualStmt struct {
 	arg0, arg1 Expression
 }
 
 func (i IfNotEqualStmt) AffectsExpressionValue(e Expression, stack []Expression) bool { return true }
-func (i IfNotEqualStmt) String() string                                               { return fmt.Sprintf("IF %s != %s THEN", i.arg0, i.arg1) }
+func (i IfNotEqualStmt) String() string {
+	return fmt.Sprintf("IF %s != %s THEN", i.arg0, i.arg1)
+}
 
 type IfSignEqStmt struct {
 	arg Expression
@@ -408,15 +498,17 @@ type PopToD4Stmt struct {
 }
 
 func (p PopToD4Stmt) AffectsExpressionValue(e Expression, stack []Expression) bool { return false }
-func (p PopToD4Stmt) String() string                                               { return fmt.Sprintf("D4 = %s", p.arg) }
+func (p PopToD4Stmt) String() string {
+	return fmt.Sprintf("D4 = %s", p.arg)
+}
 
 type StoreByteStmt struct {
 	location, value Expression
 }
 
 func (s StoreByteStmt) AffectsExpressionValue(e Expression, stack []Expression) bool {
-	addr := s.location.BaseMemoryAddress()
-	return addr >= 0 && e.ReadsFromMemoryAddress(addr)
+	addr, ok := s.location.BaseMemoryAddress()
+	return ok && e.ReadsFromMemoryAddress(addr)
 }
 func (s StoreByteStmt) String() string {
 	if s.location.Type() == REFERENCE {
@@ -432,8 +524,8 @@ type StoreStmt struct {
 }
 
 func (s StoreStmt) AffectsExpressionValue(e Expression, stack []Expression) bool {
-	addr := s.location.BaseMemoryAddress()
-	return addr >= 0 && e.ReadsFromMemoryAddress(addr)
+	addr, ok := s.location.BaseMemoryAddress()
+	return ok && e.ReadsFromMemoryAddress(addr)
 }
 func (s StoreStmt) String() string {
 	if s.location.Type() == REFERENCE {
@@ -458,7 +550,7 @@ type PopToStmt struct {
 }
 
 func (p PopToStmt) AffectsExpressionValue(e Expression, stack []Expression) bool {
-	return e.ReadsFromMemoryAddress(int(p.v))
+	return e.ReadsFromVariable(p.v)
 }
 func (p PopToStmt) String() string {
 	if varType(p.v) != ADDRESS && varType(p.v) != UNDEFINED && p.value.Type() == ADDRESS {
@@ -475,8 +567,8 @@ type FillStmt struct {
 }
 
 func (f FillStmt) AffectsExpressionValue(e Expression, stack []Expression) bool {
-	addr := f.address.BaseMemoryAddress()
-	return addr >= 0 && e.ReadsFromMemoryAddress(addr)
+	addr, ok := f.address.BaseMemoryAddress()
+	return ok && e.ReadsFromMemoryAddress(addr)
 }
 func (f FillStmt) String() string {
 	return fmt.Sprintf("FILL(%s, %s, %d)", f.address, f.size, f.val)
@@ -489,7 +581,7 @@ type LoadUnitStmt struct {
 
 func (l LoadUnitStmt) AffectsExpressionValue(e Expression, stack []Expression) bool {
 	for i := 0; i < 16; i++ {
-		if e.ReadsFromMemoryAddress(int(l.v) + 17 + i) {
+		if e.ReadsFromVariable(byte(int(l.v) + 17 + i)) {
 			return true
 		}
 	}
@@ -502,6 +594,26 @@ func (l LoadUnitStmt) String() string {
 		return fmt.Sprintf("LOAD_UNIT2(%s)", l.arg)
 	} else {
 		return fmt.Sprintf("LOAD_UNIT[%d](%s)", l.v, l.arg)
+	}
+
+}
+
+type SaveUnitStmt struct {
+	v   byte
+	arg Expression
+}
+
+func (l SaveUnitStmt) AffectsExpressionValue(e Expression, stack []Expression) bool {
+	a, ok := l.arg.BaseMemoryAddress()
+	return ok && e.ReadsFromMemoryAddress(a)
+}
+func (l SaveUnitStmt) String() string {
+	if l.v == 15 {
+		return fmt.Sprintf("SAVE_UNIT1(%s)", l.arg)
+	} else if l.v == 31 {
+		return fmt.Sprintf("SAVE_UNIT2(%s)", l.arg)
+	} else {
+		return fmt.Sprintf("SAVE_UNIT[%d](%s)", l.v, l.arg)
 	}
 
 }
@@ -545,7 +657,8 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 		case BinaryOr:
 			f.commutativeBinaryOp("|", 3)
 		case BinaryXor:
-			f.commutativeBinaryOp("^", 4)
+			x := ExclusiveOr{f.belowTop(), f.top()}
+			f.popNAndPush(2, x)
 		case ShiftLeft:
 			s := CommutativeBinaryOp{"<<", f.top(), Num{int(v.shift)}, 9}
 			f.popNAndPush(1, s)
@@ -594,8 +707,8 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 			a := CommutativeBinaryOp{"|", f.top(), Num{int(v.b)}, 3}
 			f.popNAndPush(1, a)
 		case XorNum:
-			a := CommutativeBinaryOp{"^", f.top(), Num{int(v.b)}, 4}
-			f.popNAndPush(1, a)
+			x := ExclusiveOr{f.top(), Num{int(v.b)}}
+			f.popNAndPush(1, x)
 		case LogicalShiftRight:
 			s := CommutativeBinaryOp{">>>", f.top(), Num{int(v.shift)}, 9}
 			f.popNAndPush(1, s)
@@ -650,6 +763,8 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 			stmt = FillStmt{f.belowTop(), f.top(), v.b}
 		case LoadUnit:
 			stmt = LoadUnitStmt{v.b, f.top()}
+		case SaveUnit:
+			stmt = SaveUnitStmt{v.b, f.top()}
 		default:
 			panic(fmt.Sprintf("Unhandled opcode %s", o.String()))
 		}

@@ -386,7 +386,7 @@ func (s SaveUnit) String() string {
 	}
 
 }
-func (s SaveUnit) StackEffect() (int, int) { return 0, 0 }
+func (s SaveUnit) StackEffect() (int, int) { return 1, 0 }
 func (s SaveUnit) HasSideEffects() bool    { return true }
 
 type For struct{ b byte }
