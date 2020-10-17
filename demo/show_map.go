@@ -47,14 +47,16 @@ type ShowMap struct {
 	weather         int
 	isNight         bool
 	lastUpdatedUnit int
-	citiesHeld      [2]int  // 29927 + 15 + side*2
-	menLost         [2]int  // 29927 + side*2
-	tanksLost       [2]int  // 29927 + 4 + side*2
+	citiesHeld      [2]int // 29927 + 15 + side*2
+	menLost         [2]int // 29927 + side*2
+	tanksLost       [2]int // 29927 + 4 + side*2
 	flashback       [][]data.FlashbackUnit
 	map0            [2][256]int // 0
 	map1            [2][256]int // 0x200
 	map2            [256]int    // 0x400
 	map3            [2][256]int // 0x600
+	mode            data.OrderType
+	update          int
 }
 
 func NewShowMap(g *Game) *ShowMap {
@@ -167,7 +169,6 @@ func (s *ShowMap) resetMaps() {
 
 func (s *ShowMap) updateUnit() {
 	unitState := 0
-	//	var v26 OrderType
 nextUnit:
 	s.lastUpdatedUnit = (s.lastUpdatedUnit + 1) % 128
 	unit := s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2]
@@ -196,22 +197,24 @@ nextUnit:
 	}
 
 	if s.options.IsPlayerControlled(unit.Side) {
-		// v25 = unit.Side ??
+		s.update = unit.Side
 		if unit.Order == data.Defend || unit.Order == data.Move || unit.ObjectiveX != 0 || unit.State&32 != 0 { // ... maybe?
 			goto l21
 		} else {
-			//v26 = unit.Order // ? plus top two bits
+			s.mode = unit.Order // ? plus top two bits
 			unit.State |= 32
 			goto l24
 		}
 	} else {
 		if unit.OrderLower4Bits&8 != 0 {
-			//v26 = unit.Order // ? plus top two bits
+			s.mode = unit.Order // ? plus top two bits
 			goto l24
 		}
-		if true { // unit.Side != v25 different unit side than before?
-			s.reinitSmallMapsAndSuch()
-		}
+	}
+	if s.update != unit.Side {
+		s.reinitSmallMapsAndSuch()
+	}
+	{
 		// v57 := sign(sign_extend([29927 + 10 + unit.side])/16)*4
 		tmp := unit.X/8 + unit.Y/2*4
 		v30 := 0
@@ -265,12 +268,14 @@ nextUnit:
 				}
 			}
 		}
+		{
+			v58 := s.mainGame.hexes.Arr3[unit.Side][unit.GeneralIndex]
+			if false {
+				fmt.Println(v58)
+			}
+		}
 	}
-{
-	v58 := s.mainGame.hexes.Arr3[unit.Side][unit.GeneralIndex]
-	if false {fmt.Println(v58)}
-}
-//...
+	//...
 l21:
 l24:
 end:
