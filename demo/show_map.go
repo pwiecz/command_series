@@ -51,10 +51,11 @@ type ShowMap struct {
 	menLost         [2]int // 29927 + side*2
 	tanksLost       [2]int // 29927 + 4 + side*2
 	flashback       [][]data.FlashbackUnit
-	map0            [2][256]int // 0
-	map1            [2][256]int // 0x200
-	map2            [256]int    // 0x400
-	map3            [2][256]int // 0x600
+	map0            [2][16][16]int // 0
+	map1            [2][16][16]int // 0x200
+	map2_0, map2_1  [2][4][4]int   // 0x400 - two byte values
+	map2_2, map2_3  [2][16]int
+	map3            [2][16][16]int // 0x600
 	mode            data.OrderType
 	update          int
 }
@@ -156,14 +157,21 @@ func (s *ShowMap) init() {
 
 func (s *ShowMap) resetMaps() {
 	for side := 0; side < 2; side++ {
-		for cell := 0; cell < 256; cell++ {
-			s.map0[side][cell] = 0
-			s.map1[side][cell] = 0
-			s.map3[side][cell] = 0
+		for sx := 0; sx < 16; sx++ {
+			for sy := 0; sy < 16; sy++ {
+				s.map0[side][sx][sy] = 0
+				s.map1[side][sx][sy] = 0
+				s.map3[side][sx][sy] = 0
+			}
 		}
 	}
-	for cell := 0; cell < 256; cell++ {
-		s.map2[cell] = 0
+	for side := 0; side < 2; side++ {
+		for tx := 0; tx < 4; tx++ {
+			for ty := 0; ty < 4; ty++ {
+				s.map2_0[side][tx][ty] = 0
+				s.map2_1[side][tx][ty] = 0
+			}
+		}
 	}
 }
 
@@ -216,54 +224,66 @@ nextUnit:
 	}
 	{
 		// v57 := sign(sign_extend([29927 + 10 + unit.side])/16)*4
-		tmp := unit.X/8 + unit.Y/2*4
+		sx, sy := unit.X/8, unit.Y/4
 		v30 := 0
 		for i := 1; i <= 9; i++ {
-			offsetIndex := tmp + s.mainGame.generic.SmallMapOffsets[i-1]
-			if offsetIndex >= 0 && offsetIndex < 256 {
-				v30 += s.map0[1-unit.Side][offsetIndex]
+			dx, dy := s.mainGame.generic.SmallMapOffsets(i - 1)
+			//offsetIndex := tmp + s.mainGame.generic.SmallMapOffsets[i-1]
+			if InRange(sx+dx, 0, 16) && InRange(dy+sy, 0, 16) {
+				v30 += s.map0[1-unit.Side][sx+dx][sy+dy]
 			}
 		}
 		if v30 == 0 {
 			if s.mainGame.scenarioData.UnitScores[unit.Type]+int(unit.State&8) == 0 {
-				v14 := ((unit.X / 16) & 254) + unit.Y/16*8 + unit.Side*32
+				//arg2 := ((unit.X / 16) & 254) + unit.Y/16*8 + unit.Side*32
+				tx, ty := unit.X/32, unit.Y/16
+				//arg2 := unit.X/32 + unit.Y/16*4
 				unit.X /= 4
 				unit.Y /= 4
-				v13 := 48000
-				for v6 := 1; v6 <= 9; v6++ {
-					t := s.mainGame.generic.Data44[v6-1]
-					if BetweenInt(SignInt(int(int8((t&6)*32)))*8+unit.X+1, 1, 33) {
-						if BetweenInt(SignInt((int(int8(t))+2)/8)*4+unit.Y, 1, 17) {
-							v19 := int(int8(t)) + v14
-							v21 := v19 ^ 32
-							arg := (s.map2[v19|64] + s.map2[v21|64]) * 16 / ClampInt(s.map2[v19]-s.map2[v21], 10, 9999)
-							var tmp int
-							// tmp = function26(arg)
-							if v6-1 == 0 {
-								tmp <<= 1
-							}
-							v16 = tmp
-							if v16 > v13 {
-								v16 = v13
-								//v25 = v6
-								//v20 = v19
-							}
-							if false {
-								fmt.Println(arg)
-							}
-						}
+				arg1 := 48000
+				bestI := 0
+				bestX, bestY := 0, 0
+				for i := 0; i <= 8; i++ {
+					//t := s.mainGame.generic.Data44[i]
+					//if !InRange(SignInt(int(int8((t&6)*32)))*8+unit.X+1, 1, 33) {
+					//	panic("")
+					//}
+					//if !InRange(SignInt((int(int8(t))+2)/8)*4+unit.Y+1, 1, 17) {
+					//	panic("")
+					//}
+					dx, dy := s.mainGame.generic.TinyMapOffsets(i)
+					x, y := tx+dx, ty+dy
+					if !InRange(x, 0, 4) || !InRange(y, 0, 4) {
+						continue
+					}
+					//sx := int(int8(t)) + arg2
+					//range_ := sx ^ 32
+					//funArg := (s.map2_1[unit.Side][x][y] + s.map2_1[1-unit.Side][x][y]) * 16 / ClampInt(s.map2_0[unit.Side][x][y]-s.map2_0[1-unit.Side][x][y], 10, 9999)
+					var tmp int
+					// tmp = function26(funArg)
+					if i == 0 {
+						tmp *= 2
+					}
+					//v16 = tmp
+					if tmp > arg1 {
+						arg1 = tmp
+						bestI = i
+						bestX, bestY = x, y
+						//v25 = v6
+						//v20 = v19
 					}
 				}
 				// reload the unit as its coords have been overwritten
 				unit = s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2]
-				if true { // v25 - 1 > 0 {
+				if bestI > 0 {
 					unit.OrderLower4Bits = 0
 					unit.Order = 0
 					v30 = (unit.MenCount + unit.EquipCount + 8) / 16
-					s.map2[v14] = AbsInt(s.map2[v14] - v30)
+					s.map2_0[unit.Side][tx][ty] = AbsInt(s.map2_0[unit.Side][bestX][bestY] - v30)
+					s.map2_0[unit.Side][bestX][bestY] += v30
 					//[v20] += v30
-					//unit.ObjectiveX = ((v20&6)*16)|16
-					//unit.ObjectiveY = ((v20&24)*2)| 8
+					unit.ObjectiveX = bestX*32 + 16 // ((v20&6)*16)|16
+					unit.ObjectiveY = bestY*16 + 8  // ((v20&24)*2)| 8
 					goto l21
 				}
 			}
@@ -283,7 +303,6 @@ end:
 }
 
 func (s *ShowMap) reinitSmallMapsAndSuch() {
-	//			var arr [2047]byte
 	s.resetMaps()
 	v13 := 0
 	v15 := 0
@@ -295,7 +314,8 @@ func (s *ShowMap) reinitSmallMapsAndSuch() {
 				continue
 			}
 			if s.mainGame.scenarioData.UnitMask[unit.Type]&16 == 0 {
-				coords := unit.Y/4*16 + unit.X/8
+				//				coords := unit.Y/4*16 + unit.X/8
+				sx, sy := unit.X/8, unit.Y/4
 				if s.options.IsPlayerControlled(unit.Side) {
 					v15 += unit.MenCount + unit.EquipCount
 					v13 += 1
@@ -303,7 +323,6 @@ func (s *ShowMap) reinitSmallMapsAndSuch() {
 					v16 += unit.MenCount + unit.EquipCount
 					if false { // if full intelligence??
 						if unit.State&64 == 0 {
-							// goto l23
 							continue
 						}
 					}
@@ -315,66 +334,77 @@ func (s *ShowMap) reinitSmallMapsAndSuch() {
 					v29 = 4
 					v30 = 4
 				}
-				s.map0[unit.Side][coords] += (v30 + 4) / 8
-				// arr[v28] += (v30+4)/8
-				// x := v28 + 1536
-				s.map3[unit.Side][coords] = ClampInt(s.map3[unit.Side][coords]+(v29+4)/8, 0, 255)
-				//arr[x] = ClampInt(arr[x]+((v29+4)>>3), 0, 255)
+				s.map0[unit.Side][sx][sy] += (v30 + 4) / 8
+				s.map3[unit.Side][sx][sy] = ClampInt(s.map3[unit.Side][sx][sy]+(v29+4)/8, 0, 255)
 				if s.mainGame.scenarioData.ProbabilityOfUnitsUsingSupplies < unit.SupplyLevel-1 {
-					v29 = s.mainGame.scenarioData.UnitScores[unit.Type] >> 2
-					if v29 != 0 {
+					v29 = s.mainGame.scenarioData.UnitScores[unit.Type] / 4
+					if v29 > 0 {
 						for v30 = -1; v30 <= v29; v30++ {
 							for v6 := 1; v6 <= (AbsInt(v30)-SignInt(AbsInt(v30)))*4+1; v6++ {
-								coords2 := s.mainGame.generic.SmallMapOffsets[v6-1] + coords
-								if coords2 < 0 || coords2 >= 256 {
+								//coords2 := s.mainGame.generic.SmallMapOffsets[v6-1] + coords
+								dx, dy := s.mainGame.generic.SmallMapOffsets(v6 - 1)
+								x, y := sx+dx, sy+dy
+								if !InRange(x, 0, 16) || !InRange(y, 0, 16) {
 									continue
 								}
-								//         x2 := s.mainGame.generic.v188[v6] + v28 +512
-								//         tmp := arr[x2] + 2
-								s.map1[unit.Side][coords2] += 2
+								s.map1[unit.Side][x][y] += 2
 								if unit.State&2 != 0 {
-									s.map1[unit.Side][coords2] += 2
+									s.map1[unit.Side][x][y] += 2
 								}
-								//         if unit.State != 0 {
-								//           tmp += 2
-								//         }
-								//         arr[x2] = tmp
 							}
 						}
 					}
 				}
-				// l23:
 			}
 		}
 	}
 	// function18();
 	for _, city := range s.mainGame.terrain.Cities {
 		if city.Owner != 0 || city.VictoryPoints != 0 {
-			coords := city.X/8 + city.Y/4*16
+			//coords := city.X/8 + city.Y/4*16
+			sx, sy := city.X/8, city.Y/4
 			v29 := city.VictoryPoints / 8
 			if v29 > 0 {
-				s.map3[city.Owner][coords]++
+				s.map3[city.Owner][sx][sy]++
 				for i := 1; i <= v29; i++ {
 					for j := 1; j <= (i-1)*4+1; j++ {
-						tmp := s.mainGame.generic.SmallMapOffsets[j-1]
-						if coords+tmp < 0 || coords+tmp >= 256 {
+						//tmp := s.mainGame.generic.SmallMapOffsets[j-1]
+						dx, dy := s.mainGame.generic.SmallMapOffsets(j - 1)
+						x, y := sx+dx, sy+dy
+						if !InRange(x, 0, 16) || !InRange(y, 0, 16) {
 							continue
 						}
-						s.map1[city.Owner][coords+tmp] += 2
+						s.map1[city.Owner][x][y] += 2
 					}
 				}
 			}
 		}
 	}
 	// function18();
-	for i := 0; i < 256; i++ {
-		s.map1[0][i] *= s.mainGame.terrain.Coeffs[i]
-		s.map1[1][i] *= s.mainGame.terrain.Coeffs[i]
+	for x := 0; x < 16; x++ {
+		for y := 0; y < 16; y++ {
+			s.map1[0][x][y] = s.map1[0][x][y] * s.mainGame.terrain.Coeffs[x][y] / 8
+			s.map1[1][x][y] = s.map1[1][x][y] * s.mainGame.terrain.Coeffs[x][y] / 8
+		}
 	}
 	// function18();
-	for i := 0; i < 512; i++ {
-		coord := (i & 6) + ((i / 4) & 248)
-		s.map2[coord] += s.map0[i/256][i%256] + s.map1[i/256][i%256]
+	// s.map2[0][0][0][0] = index: 0,1,2,3,16,17,18,19,32,33,34,35,48,49,50,51
+	//
+	//	for i := 0; i < 512; i++ {
+	//coord := (i & 3) + ((i / 4) & 124)
+	//s.map2[coord] += s.map0[i/256][i%256] + s.map1[i/256][i%256]
+	//	}
+	for side := 0; side < 2; side++ {
+		for x := 0; x < 4; x++ {
+			for y := 0; y < 4; y++ {
+				for dx := 0; dx < 4; dx++ {
+					for dy := 0; dy < 4; dy++ {
+						s.map2_0[side][x][y] += s.map0[side][x*4+dx][y*4+dy]
+						s.map2_1[side][x][y] += s.map1[side][x*4+dx][y*4+dy]
+					}
+				}
+			}
+		}
 	}
 	// function18();
 }

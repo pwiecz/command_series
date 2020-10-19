@@ -27,8 +27,8 @@ func SignInt(v int) int {
 	return 0
 }
 
-func BetweenInt(v, min, max int) bool {
-	if v < min || v > max {
+func InRange(v, min, max int) bool {
+	if v < min || v >= max {
 		return false
 	}
 	return true

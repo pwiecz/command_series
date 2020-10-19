@@ -531,7 +531,7 @@ func (s StoreStmt) String() string {
 	if s.location.Type() == REFERENCE {
 		//panic("Storing two-byte value in one-byte variable")
 	}
-	return fmt.Sprintf("[%s] = %s", s.location, s.value)
+	return fmt.Sprintf("[%s:] = %s", s.location, s.value)
 }
 
 type ForStmt struct {

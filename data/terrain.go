@@ -18,7 +18,7 @@ type Terrain struct {
 	// Coefficients for 4x4-tile squares on the map (a 16x16 map of coefficients).
 	// n-th (0-based) coefficient, if a coefficient for with top left corner:
 	// (4*(n%16), 4*n/16).
-	Coeffs [256]int
+	Coeffs [16][16]int
 }
 
 func ReadTerrain(filename string) (Terrain, error) {
@@ -72,7 +72,7 @@ func ParseTerrain(data io.Reader) (Terrain, error) {
 		return Terrain{}, err
 	}
 	for i, v := range coeffData {
-		terrain.Coeffs[i] = int(v)
+		terrain.Coeffs[i%16][i/16] = int(v)
 	}
 	return terrain, nil
 }

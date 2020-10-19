@@ -413,7 +413,7 @@ func (i IfCmp) HasSideEffects() bool    { return true }
 
 type IfNotBetweenSet struct{ b byte }
 
-func (s IfNotBetweenSet) String() string          { return fmt.Sprintf("IF_NO_BETWEEN_SET[%d]", s.b) }
+func (s IfNotBetweenSet) String() string          { return fmt.Sprintf("IF_NOT_BETWEEN_SET[%d]", s.b) }
 func (s IfNotBetweenSet) StackEffect() (int, int) { return 3, 1 }
 func (s IfNotBetweenSet) HasSideEffects() bool    { return false }
 
