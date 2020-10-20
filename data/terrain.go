@@ -18,7 +18,7 @@ type Terrain struct {
 	// Coefficients for 4x4-tile squares on the map (a 16x16 map of coefficients).
 	// n-th (0-based) coefficient, if a coefficient for with top left corner:
 	// (4*(n%16), 4*n/16).
-	Coeffs [16][16]int
+	Coeffs [16][16]int // Bytes [768-1024]
 }
 
 func ReadTerrain(filename string) (Terrain, error) {

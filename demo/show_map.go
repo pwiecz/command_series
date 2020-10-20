@@ -226,24 +226,21 @@ nextUnit:
 		// v57 := sign(sign_extend([29927 + 10 + unit.side])/16)*4
 		sx, sy := unit.X/8, unit.Y/4
 		v30 := 0
-		for i := 1; i <= 9; i++ {
-			dx, dy := s.mainGame.generic.SmallMapOffsets(i - 1)
-			//offsetIndex := tmp + s.mainGame.generic.SmallMapOffsets[i-1]
+		for i := 0; i < 9; i++ {
+			dx, dy := s.mainGame.generic.SmallMapOffsets(i)
 			if InRange(sx+dx, 0, 16) && InRange(dy+sy, 0, 16) {
 				v30 += s.map0[1-unit.Side][sx+dx][sy+dy]
 			}
 		}
 		if v30 == 0 {
 			if s.mainGame.scenarioData.UnitScores[unit.Type]+int(unit.State&8) == 0 {
-				//arg2 := ((unit.X / 16) & 254) + unit.Y/16*8 + unit.Side*32
 				tx, ty := unit.X/32, unit.Y/16
-				//arg2 := unit.X/32 + unit.Y/16*4
 				unit.X /= 4
 				unit.Y /= 4
 				arg1 := 48000
 				bestI := 0
 				bestX, bestY := 0, 0
-				for i := 0; i <= 8; i++ {
+				for i := 0; i < 9; i++ {
 					//t := s.mainGame.generic.Data44[i]
 					//if !InRange(SignInt(int(int8((t&6)*32)))*8+unit.X+1, 1, 33) {
 					//	panic("")
@@ -256,21 +253,16 @@ nextUnit:
 					if !InRange(x, 0, 4) || !InRange(y, 0, 4) {
 						continue
 					}
-					//sx := int(int8(t)) + arg2
-					//range_ := sx ^ 32
 					//funArg := (s.map2_1[unit.Side][x][y] + s.map2_1[1-unit.Side][x][y]) * 16 / ClampInt(s.map2_0[unit.Side][x][y]-s.map2_0[1-unit.Side][x][y], 10, 9999)
 					var tmp int
 					// tmp = function26(funArg)
 					if i == 0 {
 						tmp *= 2
 					}
-					//v16 = tmp
 					if tmp > arg1 {
 						arg1 = tmp
 						bestI = i
 						bestX, bestY = x, y
-						//v25 = v6
-						//v20 = v19
 					}
 				}
 				// reload the unit as its coords have been overwritten
@@ -281,7 +273,6 @@ nextUnit:
 					v30 = (unit.MenCount + unit.EquipCount + 8) / 16
 					s.map2_0[unit.Side][tx][ty] = AbsInt(s.map2_0[unit.Side][bestX][bestY] - v30)
 					s.map2_0[unit.Side][bestX][bestY] += v30
-					//[v20] += v30
 					unit.ObjectiveX = bestX*32 + 16 // ((v20&6)*16)|16
 					unit.ObjectiveY = bestY*16 + 8  // ((v20&24)*2)| 8
 					goto l21
@@ -314,7 +305,6 @@ func (s *ShowMap) reinitSmallMapsAndSuch() {
 				continue
 			}
 			if s.mainGame.scenarioData.UnitMask[unit.Type]&16 == 0 {
-				//				coords := unit.Y/4*16 + unit.X/8
 				sx, sy := unit.X/8, unit.Y/4
 				if s.options.IsPlayerControlled(unit.Side) {
 					v15 += unit.MenCount + unit.EquipCount
@@ -340,9 +330,8 @@ func (s *ShowMap) reinitSmallMapsAndSuch() {
 					v29 = s.mainGame.scenarioData.UnitScores[unit.Type] / 4
 					if v29 > 0 {
 						for v30 = -1; v30 <= v29; v30++ {
-							for v6 := 1; v6 <= (AbsInt(v30)-SignInt(AbsInt(v30)))*4+1; v6++ {
-								//coords2 := s.mainGame.generic.SmallMapOffsets[v6-1] + coords
-								dx, dy := s.mainGame.generic.SmallMapOffsets(v6 - 1)
+							for v6 := 0; v6 <= (AbsInt(v30)-SignInt(AbsInt(v30)))*4; v6++ {
+								dx, dy := s.mainGame.generic.SmallMapOffsets(v6)
 								x, y := sx+dx, sy+dy
 								if !InRange(x, 0, 16) || !InRange(y, 0, 16) {
 									continue
@@ -361,15 +350,13 @@ func (s *ShowMap) reinitSmallMapsAndSuch() {
 	// function18();
 	for _, city := range s.mainGame.terrain.Cities {
 		if city.Owner != 0 || city.VictoryPoints != 0 {
-			//coords := city.X/8 + city.Y/4*16
 			sx, sy := city.X/8, city.Y/4
 			v29 := city.VictoryPoints / 8
 			if v29 > 0 {
 				s.map3[city.Owner][sx][sy]++
 				for i := 1; i <= v29; i++ {
-					for j := 1; j <= (i-1)*4+1; j++ {
-						//tmp := s.mainGame.generic.SmallMapOffsets[j-1]
-						dx, dy := s.mainGame.generic.SmallMapOffsets(j - 1)
+					for j := 0; j <= (i-1)*4; j++ {
+						dx, dy := s.mainGame.generic.SmallMapOffsets(j)
 						x, y := sx+dx, sy+dy
 						if !InRange(x, 0, 16) || !InRange(y, 0, 16) {
 							continue
@@ -388,21 +375,11 @@ func (s *ShowMap) reinitSmallMapsAndSuch() {
 		}
 	}
 	// function18();
-	// s.map2[0][0][0][0] = index: 0,1,2,3,16,17,18,19,32,33,34,35,48,49,50,51
-	//
-	//	for i := 0; i < 512; i++ {
-	//coord := (i & 3) + ((i / 4) & 124)
-	//s.map2[coord] += s.map0[i/256][i%256] + s.map1[i/256][i%256]
-	//	}
 	for side := 0; side < 2; side++ {
-		for x := 0; x < 4; x++ {
-			for y := 0; y < 4; y++ {
-				for dx := 0; dx < 4; dx++ {
-					for dy := 0; dy < 4; dy++ {
-						s.map2_0[side][x][y] += s.map0[side][x*4+dx][y*4+dy]
-						s.map2_1[side][x][y] += s.map1[side][x*4+dx][y*4+dy]
-					}
-				}
+		for x := 0; x < 16; x++ {
+			for y := 0; y < 16; y++ {
+				s.map2_0[side][x/4][y/4] += s.map0[side][x][y]
+				s.map2_1[side][x/4][y/4] += s.map1[side][x][y]
 			}
 		}
 	}
