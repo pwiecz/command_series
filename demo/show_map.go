@@ -180,6 +180,7 @@ func (s *ShowMap) updateUnit() {
 nextUnit:
 	s.lastUpdatedUnit = (s.lastUpdatedUnit + 1) % 128
 	unit := s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2]
+	var v9 int
 	if unit.State&128 == 0 {
 		goto nextUnit
 	}
@@ -200,7 +201,8 @@ nextUnit:
 	if !s.mainGame.scenarioData.UnitCanMove[unit.Type] {
 		goto nextUnit
 	}
-	if s.countNeighbourUnits(unit.X, unit.Y, 1-unit.Side) == 0 {
+	v9 = s.countNeighbourUnits(unit.X, unit.Y, 1-unit.Side)
+	if v9 == 0 {
 		unit.State &= 239
 	}
 
@@ -235,9 +237,9 @@ nextUnit:
 		if v30 == 0 {
 			if s.mainGame.scenarioData.UnitScores[unit.Type]+int(unit.State&8) == 0 {
 				tx, ty := unit.X/32, unit.Y/16
-				unit.X /= 4
-				unit.Y /= 4
-				arg1 := 48000
+				//unit.X /= 4
+				//unit.Y /= 4
+				arg1 := -17536 // 0xBB80
 				bestI := 0
 				bestX, bestY := 0, 0
 				for i := 0; i < 9; i++ {
@@ -253,9 +255,8 @@ nextUnit:
 					if !InRange(x, 0, 4) || !InRange(y, 0, 4) {
 						continue
 					}
-					//funArg := (s.map2_1[unit.Side][x][y] + s.map2_1[1-unit.Side][x][y]) * 16 / ClampInt(s.map2_0[unit.Side][x][y]-s.map2_0[1-unit.Side][x][y], 10, 9999)
-					var tmp int
-					// tmp = function26(funArg)
+					val := (s.map2_1[unit.Side][x][y] + s.map2_1[1-unit.Side][x][y]) * 16 / ClampInt(s.map2_0[unit.Side][x][y]-s.map2_0[1-unit.Side][x][y], 10, 9999)
+					tmp := s.function26(unit.X / 4, unit.Y / 4, val, i)
 					if i == 0 {
 						tmp *= 2
 					}
@@ -266,7 +267,7 @@ nextUnit:
 					}
 				}
 				// reload the unit as its coords have been overwritten
-				unit = s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2]
+				//unit = s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2]
 				if bestI > 0 {
 					unit.OrderLower4Bits = 0
 					unit.Order = 0
@@ -280,9 +281,175 @@ nextUnit:
 			}
 		}
 		{
-			v58 := s.mainGame.hexes.Arr3[unit.Side][unit.GeneralIndex]
+			v58 := s.mainGame.hexes.Arr3[unit.Side][unit.GeneralIndex][0]
+			arg1 := -17536 // 0xBB80
+			var bestI int
+			var bestDx, bestDy int
+			var v59 int
+			temp2 := (unit.MenCount + unit.EquipCount + 4) / 8
+			v61 := temp2 * ClampInt(s.mainGame.scenarioData.Data144[unit.Formation&7], 8, 99) / 8 * s.mainGame.scenarioData.Data112[s.terrainType(s.terrainAt(unit.X/2, unit.Y)&63)] / 8
+			if s.mainGame.scenarioData.UnitScores[unit.Type] > 7 {
+				temp2 = 1
+				v61 = 1
+			}
+			s.map0[unit.Side][sx][sy] = ClampInt(s.map0[unit.Side][sx][sy]-temp2, 0, 255)
+			s.map3[unit.Side][sx][sy] = ClampInt(s.map3[unit.Side][sx][sy]-v61, 0, 255)
+			// save a copy of the unit, as we're going to modify it.
+			unitCopy := unit
+			for i := 1; i <= 9; i++ {
+				dx, dy := s.mainGame.generic.SmallMapOffsets(i - 1)
+				if !InRange(sx+dx, 0, 16) || !InRange(sy+dy, 0, 16) {
+					continue
+				}
+				v54 := 0
+				v49 := 0
+				v50 := 0
+				v53 := 0
+				unit.MenCount = s.map0[unit.Side][sx+dx][sy+dy]
+				unit.EquipCount = (unit.MenCount + s.map3[unit.Side][sx+dx][sy+dy]) / 2
+				v16 := s.map0[1-unit.Side][sx+dx][sy+dy] / 2
+				for i := 0; i <= 7; i++ {
+					ddx, ddy := s.mainGame.generic.SmallMapOffsets(i + 1)
+					if !InRange(sx+dx+ddx, 0, 16) || !InRange(sy+dy+ddy, 0, 16) {
+						continue
+					}
+					v := s.map0[1-unit.Side][sx+dx+ddx][sy+dy+ddy]
+					if i&4 > 0 { // diagonals(?)
+						v /= 2
+					}
+					v16 += v
+				}
+				v51 := s.map0[1-unit.Side][sx+dx][sy+dy]
+				temp := 0
+				if s.map3[1-unit.Side][sx+dx][sy+dy] > 0 {
+					temp = 32
+				}
+				v52 := (v51 + s.map3[1-unit.Side][sx+dx][sy+dy]) / 2
+				for j := 0; j < 2; j++ {
+					var v48 int
+					if unit.MenCount > v52 {
+						v48 = ClampInt((unit.MenCount+1)*8/(v52+1)-7, 0, 16)
+					} else {
+						v48 = -ClampInt((v52+1)*8/(unit.MenCount+1)-8, 0, 16)
+					}
+					v48 += int(int8((s.mainGame.hexes.Arr3[unit.Side][unit.GeneralIndex][1]&240))>>4) + int(int8(s.mainGame.scenarioData.Data[unit.Type]))/16
+					var v55 int
+					if unit.EquipCount > v16 {
+						v55 = ClampInt((unit.EquipCount+1)*8/(v16+1)-7, 0, 16)
+					} else {
+						v55 = -ClampInt((v16+1)*8/(unit.EquipCount+1)-8, 0, 16)
+					}
+					if v48 > 0 {
+						v := v48 * s.map1[1-unit.Side][sx+dx][sy+dy]
+						if unit.State&64 > 0 {
+							v /= 2
+						}
+						if v58&4 > 0 {
+							v *= 2
+						}
+						if v58&64 > 0 {
+							v /= 2
+						}
+						if j > 0 {
+							v += s.map1[unit.Side][sx+dx][sy+dy] * 8 / unit.MenCount
+						}
+						v54 += v
+					}
+					if v55 < 0 {
+						temp = 0
+						if v51 > 0 {
+							v := s.map1[unit.Side][sx+dx][sy+dy] * v55
+							if v58&2 > 0 {
+								v *= 2
+							}
+							if v58*32 > 0 {
+								v /= 2
+							}
+							v53 += v
+						}
+					}
+					if v48 > 0 {
+						if v9 > 0 {
+							temp = 32
+						}
+						if v51 > 0 {
+							v := v48
+							if v58&8 > 0 {
+								v *= 2
+							}
+							if v58&128 > 0 {
+								v /= 2
+							}
+							v *= v51
+							v49 += v
+						}
+					}
+					if v55 < 0 {
+						if unit.MenCount > 0 {
+							temp = 16
+							v := unit.MenCount * v55
+							if v58&1 > 0 {
+								v *= 2
+							}
+							if v58&16 > 0 {
+								v /= 2
+							}
+							v50 += v
+						}
+						if v55+(int(int8(s.mainGame.hexes.Arr3[unit.Side][unit.GeneralIndex][2]&240))>>4)+(int(int8((s.mainGame.scenarioData.Data[unit.Type]&15)<<4))>>4) < -9 {
+							if j == i {
+								unit.Fatigue = unit.Fatigue + 256
+							}
+						}
+					}
+					if j == 0 {
+						v54 = -v54
+						v53 = -v53
+						v49 = -v49
+						v50 = -v50
+						unit.MenCount += temp2
+						unit.EquipCount += v61
+					}
+				}
+				t := v54 + v53 + v49 + v50
+				if i == 1 {
+					if city, ok := s.FindCity(unit.X, unit.Y); ok {
+						if city.VictoryPoints > 0 {
+							if v51 > 0 {
+								v9 = 2
+							}
+						}
+					}
+				}
+				v := s.mainGame.scenarioData.UnitScores[unit.Type]&248
+				if unit.State & 1 > 0 {
+					v += (unit.Fatigue / 16 + unit.Fatigue / 32)
+				}
+				if v > 7 {
+					t = unit.EquipCount - v52 * 2
+					v9 = -128
+					temp = 0
+					unit.Fatigue &= 255
+				}
+				t = s.function26(unit.X, unit.Y, t, i)
+				if i == 1 {
+					v59 = t
+					s.mode = data.OrderType(temp / 16)
+				}
+				if t > arg1 {
+					arg1 = t
+					bestDx, bestDy = dx, dy
+					bestI = i
+				}
+				if i + 1 > SignInt(int(s.mode)) + v9 {
+					continue
+				}
+				break
+			}
+			// function18
+			unit = unitCopy // revert modified unit
 			if false {
-				fmt.Println(v58)
+				fmt.Print(bestI, bestDx, bestDy, v59)
 			}
 		}
 	}
@@ -291,6 +458,14 @@ l21:
 l24:
 end:
 	s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2] = unit
+}
+
+func (s *ShowMap) function26(x, y int, val int, index int) int {
+	v := s.mainGame.generic.Data214[((x/4)&1)*2+((y/2)&1)*18+index]
+	if ((((x/2)&3)+1)&2)+((((y)&3)+1)&2) == 4 {
+		v = ((index + 1) / 2) & 6
+	}
+	return val * v / 8
 }
 
 func (s *ShowMap) reinitSmallMapsAndSuch() {
