@@ -135,7 +135,11 @@ type ScnDtaUnitTypeOffset struct {
 }
 
 func (o ScnDtaUnitTypeOffset) String() string {
-	return fmt.Sprintf("[&S_TABLE + %d + UNIT.TYPE]", o.offset)
+	if o.offset != 0 {
+		return fmt.Sprintf("[&S_TABLE + %d + UNIT.TYPE]", o.offset)
+	} else {
+		return "[&S_TABLE + UNIT.TYPE]"
+	}
 }
 func (o ScnDtaUnitTypeOffset) StackEffect() (int, int) { return 0, 1 }
 func (o ScnDtaUnitTypeOffset) HasSideEffects() bool    { return false }

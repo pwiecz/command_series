@@ -666,8 +666,13 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 			s := CommutativeBinaryOp{">>", f.top(), Num{int(v.shift)}, 9}
 			f.popNAndPush(1, s)
 		case ScnDtaUnitTypeOffset:
-			a := Sum{Variable{5}, Sum{Variable{39}, Num{int(v.offset)}}}
-			f.push(a)
+			if v.offset > 0 {
+				a := ReadByteExpr{Sum{Variable{5}, Sum{Num{int(v.offset)}, Variable{39}}}}
+				f.push(a)
+			} else {
+				a := ReadByteExpr{Sum{Variable{5}, Variable{39}}}
+				f.push(a)
+			}
 		case ReadByte:
 			r := ReadByteExpr{f.top()}
 			f.popNAndPush(1, r)
