@@ -7,11 +7,12 @@ import "path"
 
 // Representation of data parsed from HEXES.DTA file.
 type Hexes struct {
-	Arr0 [48]int
-	Arr1 [48]int
-	Arr2 [96]int
+	Arr0 [48]int // Data[0:48]
+	Arr48 [48]int // Data[48:96]
+	Arr96 [48]int // Data[96:144]
+	Arr144 [48]int // Data[144:192]
 	// 4 bytes per general/side
-	Arr3 [2][8][4]int
+	Arr3 [2][8][4]int // Data[192:256]
 }
 
 func ReadHexes(dirname string) (Hexes, error) {
@@ -35,13 +36,14 @@ func ParseHexes(reader io.Reader) (Hexes, error) {
 	for i, val := range data[0:48] {
 		hexes.Arr0[i] = int(val)
 	}
-
 	for i, val := range data[48:96] {
-		hexes.Arr1[i] = int(val)
+		hexes.Arr48[i] = int(val)
 	}
-
-	for i, val := range data[96:192] {
-		hexes.Arr2[i] = int(val)
+	for i, val := range data[96:144] {
+		hexes.Arr96[i] = int(val)
+	}
+	for i, val := range data[144:192] {
+		hexes.Arr144[i] = int(val)
 	}
 
 	for side := 0; side < 2; side++ {

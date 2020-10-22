@@ -256,7 +256,7 @@ nextUnit:
 						continue
 					}
 					val := (s.map2_1[unit.Side][x][y] + s.map2_1[1-unit.Side][x][y]) * 16 / ClampInt(s.map2_0[unit.Side][x][y]-s.map2_0[1-unit.Side][x][y], 10, 9999)
-					tmp := s.function26(unit.X / 4, unit.Y / 4, val, i)
+					tmp := s.function26(unit.X/4, unit.Y/4, val, i)
 					if i == 0 {
 						tmp *= 2
 					}
@@ -283,9 +283,9 @@ nextUnit:
 		{
 			v58 := s.mainGame.hexes.Arr3[unit.Side][unit.GeneralIndex][0]
 			arg1 := -17536 // 0xBB80
-			var bestI int
+			//var bestI int
 			var bestDx, bestDy int
-			var v59 int
+			var v63 int
 			temp2 := (unit.MenCount + unit.EquipCount + 4) / 8
 			v61 := temp2 * ClampInt(s.mainGame.scenarioData.Data144[unit.Formation&7], 8, 99) / 8 * s.mainGame.scenarioData.Data112[s.terrainType(s.terrainAt(unit.X/2, unit.Y)&63)] / 8
 			if s.mainGame.scenarioData.UnitScores[unit.Type] > 7 {
@@ -320,9 +320,9 @@ nextUnit:
 					v16 += v
 				}
 				v51 := s.map0[1-unit.Side][sx+dx][sy+dy]
-				temp := 0
+				temp := data.Reserve
 				if s.map3[1-unit.Side][sx+dx][sy+dy] > 0 {
-					temp = 32
+					temp = data.Attack
 				}
 				v52 := (v51 + s.map3[1-unit.Side][sx+dx][sy+dy]) / 2
 				for j := 0; j < 2; j++ {
@@ -342,7 +342,7 @@ nextUnit:
 					if v48 > 0 {
 						v := v48 * s.map1[1-unit.Side][sx+dx][sy+dy]
 						if unit.State&64 > 0 {
-							v /= 2
+							v /= 2 /* logical shift not the arithmetic one, actually) */
 						}
 						if v58&4 > 0 {
 							v *= 2
@@ -356,7 +356,7 @@ nextUnit:
 						v54 += v
 					}
 					if v55 < 0 {
-						temp = 0
+						temp = data.Reserve
 						if v51 > 0 {
 							v := s.map1[unit.Side][sx+dx][sy+dy] * v55
 							if v58&2 > 0 {
@@ -370,7 +370,7 @@ nextUnit:
 					}
 					if v48 > 0 {
 						if v9 > 0 {
-							temp = 32
+							temp = data.Attack
 						}
 						if v51 > 0 {
 							v := v48
@@ -386,7 +386,7 @@ nextUnit:
 					}
 					if v55 < 0 {
 						if unit.MenCount > 0 {
-							temp = 16
+							temp = data.Defend
 							v := unit.MenCount * v55
 							if v58&1 > 0 {
 								v *= 2
@@ -421,43 +421,110 @@ nextUnit:
 						}
 					}
 				}
-				v := s.mainGame.scenarioData.UnitScores[unit.Type]&248
-				if unit.State & 1 > 0 {
-					v += (unit.Fatigue / 16 + unit.Fatigue / 32)
+				v := s.mainGame.scenarioData.UnitScores[unit.Type] & 248
+				if unit.State&1 > 0 {
+					v += (unit.Fatigue/16 + unit.Fatigue/32)
 				}
 				if v > 7 {
-					t = unit.EquipCount - v52 * 2
+					t = unit.EquipCount - v52*2
 					v9 = -128
-					temp = 0
+					temp = data.Reserve
 					unit.Fatigue &= 255
 				}
 				t = s.function26(unit.X, unit.Y, t, i)
 				if i == 1 {
-					v59 = t
-					s.mode = data.OrderType(temp / 16)
+					v63 = t
+					s.mode = temp
 				}
 				if t > arg1 {
 					arg1 = t
 					bestDx, bestDy = dx, dy
-					bestI = i
+					//bestI = i
 				}
-				if i + 1 > SignInt(int(s.mode)) + v9 {
+				if i+1 > SignInt(int(s.mode))+v9 {
 					continue
 				}
 				break
 			}
 			// function18
 			unit = unitCopy // revert modified unit
-			if false {
-				fmt.Print(bestI, bestDx, bestDy, v59)
+			unit.OrderLower4Bits |= 8
+			supplyUse := s.mainGame.scenarioData.ProbabilityOfUnitsUsingSupplies
+			if unit.State&8 > 0 {
+				supplyUse *= 2
 			}
+			if unit.SupplyLevel < supplyUse {
+				unit2 := s.mainGame.units[unit.Side][unit.Formation/16] // ?
+				if unit2.State&128 == 0 {
+					unit2 = s.mainGame.units[unit.Side][unit2.Formation/16] // ?
+				}
+				unit.ObjectiveX = unit2.X
+				unit.ObjectiveY = unit2.Y
+				t := data.Move
+				if v9 > 0 {
+					t = data.Defend
+				}
+				unit.Order = t
+				unit.OrderLower4Bits = 0
+				goto l21
+			}
+			if unit.Fatigue/4 > arg1-v63 {
+				bestDx, bestDy = 0, 0
+			}
+			if bestDx == 0 && bestDy == 0 {
+				if unit.Fatigue > 64 {
+					s.mode = data.Defend
+				}
+				if s.mode == data.Reserve {
+					s.mode = data.Defend
+				}
+				s.map0[unit.Side][sx][sy] += temp2
+				s.map3[unit.Side][sx][sy] += v61
+				// update = 13
+			} else {
+				if s.map0[unit.Side][sx+bestDx][sy+bestDy] > 0 {
+					s.map0[unit.Side][sx+bestDx][sy+bestDy] += temp2 / 2
+				}
+				s.map3[unit.Side][sx+bestDx][sy+bestDy] += temp2 / 2
+				unit.ObjectiveY = (((sy+bestDy)&240)/4 /*+ 2 * randbyte() / 256*/ + 1) & 63
+				unit.ObjectiveX = ((((sy+bestDy)&15)*4 /*+ 2 * randByte() / 256*/ +1)*2 + (unit.ObjectiveY & 1)) & 127
+				s.mode = data.Move
+				if v9 != 0 {
+					unit.Order = data.Defend
+					goto l24
+				}
+			}
+			unit.Order = s.mode
 		}
 	}
-	//...
-l21:
 l24:
+	unit.OrderLower4Bits = s.function10(unit.Order, 1)
+	if s.mode == data.Attack {
+		arg1 := 16000
+		terrainType := s.terrainType(s.terrainAt(unit.X/2, unit.Y) & 63)
+		menCoeff := s.mainGame.scenarioData.Data96[terrainType] * unit.MenCount
+		equipCoeff := s.mainGame.scenarioData.Data104[terrainType] * unit.EquipCount * (s.mainGame.scenarioData.UnitScores[unit.Type] / 16) / 4
+		coeff := (menCoeff + equipCoeff) / 8 * (255 - unit.Fatigue) / 255 * (unit.Morale + int(int8(s.mainGame.scenarioData.Data0[unit.Type]&240))) / 128
+		temp2 := coeff * s.magicCoeff(144, unit.X, unit.Y, unit.Side) / 8
+		if false {
+			fmt.Print(temp2, arg1)
+		}
+	}
+l21:
 end:
 	s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2] = unit
+}
+
+func (s *ShowMap) magicCoeff(offset, x, y, side int) int {
+	// todo:
+	return 8
+}
+
+func (s *ShowMap) function10(order data.OrderType, offset int) byte {
+	if offset < 0 || offset >= 4 {
+		panic(offset)
+	}
+	return byte(s.mainGame.scenarioData.Data176[int(order)*4+offset])
 }
 
 func (s *ShowMap) function26(x, y int, val int, index int) int {
@@ -737,10 +804,11 @@ func (s *ShowMap) FindCity(x, y int) (data.City, bool) {
 	}
 	return data.City{}, false
 }
-
 func (s *ShowMap) terrainType(terrain byte) int {
 	return s.mainGame.generic.TerrainTypes[terrain&63]
 }
+
+// function17
 func (s *ShowMap) terrainAt(x, y int) byte {
 	if y >= 0 && y < len(s.mainGame.terrainMap.Terrain) &&
 		x >= 0 && x < len(s.mainGame.terrainMap.Terrain[y]) {

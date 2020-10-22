@@ -87,6 +87,9 @@ func ParseUnit(data [16]byte, unitNames []string, generals []General) (Unit, err
 	default:
 		unit.Order = Move
 	}
+	if order & 0b11000000 != 0 {
+		panic(order)
+	}
 	generalIndex := int(data[10])
 	if generalIndex >= len(generals) {
 		// there's problem with one El-Alamein unit having high general index
