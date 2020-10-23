@@ -14,7 +14,7 @@ const (
 )
 
 type Unit struct {
-	Side                 int // 0 or 1
+	Side                 int  // 0 or 1
 	State                byte // bit 15 - is added to game, bit 5 - local command, bit 4 - has contact with enemy, bit 3 - is there no supply line to unit
 	X, Y                 int
 	MenCount, EquipCount int
@@ -24,7 +24,7 @@ type Unit struct {
 	Name                 string
 	OrderLower4Bits      byte
 	Order                OrderType
-	GeneralIndex int
+	GeneralIndex         int
 	General              General
 	SupplyLevel          int
 	Morale               int
@@ -38,9 +38,9 @@ type Unit struct {
 }
 
 type FlashbackUnit struct {
-	X, Y int
+	X, Y         int
 	ColorPalette int
-	Type int
+	Type         int
 }
 
 func ReadUnits(filename string, unitNames [2][]string, generals [2][]General) ([2][]Unit, error) {
@@ -87,7 +87,7 @@ func ParseUnit(data [16]byte, unitNames []string, generals []General) (Unit, err
 	default:
 		unit.Order = Move
 	}
-	if order & 0b11000000 != 0 {
+	if order&0b11000000 != 0 {
 		panic(order)
 	}
 	generalIndex := int(data[10])
@@ -122,7 +122,7 @@ func ParseUnits(data io.Reader, unitNames [2][]string, generals [2][]General) ([
 			}
 			unitData[15] = 100
 		}
-		side := i/64
+		side := i / 64
 		unit, err := ParseUnit(unitData, unitNames[side], generals[side])
 		if err != nil {
 			return [2][]Unit{}, fmt.Errorf("Error parsing unit %d, %v", i, err)

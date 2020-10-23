@@ -13,11 +13,11 @@ type Generic struct {
 	// First 0 offset to the origin field itself,
 	// then to its 4 neighbours in cardinal directions,
 	// then to its 4 neighbours in diagonal direction.
-	tinyMapOffsets [9]int // Bytes [44-52]
+	tinyMapOffsets [9]int // Bytes [44:52]
 	MapOffsets     [6]int
-	TerrainTypes   [64]int
-	Dx             [6]int
-	Dy             [6]int
+	TerrainTypes   [64]int // Bytes [64:128]
+	Dx             [6]int  //
+	Dy             [6]int  // Bytes [176:188] (Dx,Dy interleaved)
 	// Offsets on a square map 16x16.
 	// First 0 offset to the origin field itself,
 	// then to its 4 neighbours in cardinal directions,

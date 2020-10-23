@@ -505,7 +505,7 @@ l24:
 		menCoeff := s.mainGame.scenarioData.Data96[terrainType] * unit.MenCount
 		equipCoeff := s.mainGame.scenarioData.Data104[terrainType] * unit.EquipCount * (s.mainGame.scenarioData.UnitScores[unit.Type] / 16) / 4
 		coeff := (menCoeff + equipCoeff) / 8 * (255 - unit.Fatigue) / 255 * (unit.Morale + int(int8(s.mainGame.scenarioData.Data0[unit.Type]&240))) / 128
-		temp2 := coeff * s.magicCoeff(144, unit.X, unit.Y, unit.Side) / 8
+		temp2 := coeff * s.magicCoeff(s.mainGame.hexes.Arr144[:], unit.X, unit.Y, unit.Side) / 8
 		if false {
 			fmt.Print(temp2, arg1)
 		}
@@ -515,9 +515,77 @@ end:
 	s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2] = unit
 }
 
-func (s *ShowMap) magicCoeff(offset, x, y, side int) int {
-	// todo:
-	return 8
+// arr is one of 48 element arrays in Hexes
+func (s *ShowMap) magicCoeff(arr []int, x, y, side int) int {
+	var bitmaps [5]byte
+	for xA6FE := 1; xA6FE >= 0; xA6FE-- {
+		for i := 5; i >= 0; i-- {
+			bitmaps[0] <<= 2
+			bitmaps[3] <<= 2
+			nx := x + s.mainGame.generic.Dx[i]
+			ny := y + s.mainGame.generic.Dy[i]
+			if s.ContainsUnitOfSide(nx, ny, side) {
+				bitmaps[0]++
+			} else {
+				if xA6FE == 1 {
+					terr := s.terrainAt(nx/2, ny)&63
+					if terr < 48 { // what it really means? (no units there???)
+						if s.terrainType(terr) >= 7 {
+							bitmaps[3]++
+						}
+					}
+				}
+			}
+		}
+		side = 1 - side
+		if xA6FE == 1 {
+			bitmaps[1] = bitmaps[0]
+			bitmaps[4] = bitmaps[3]
+		}
+	}
+
+	bitmaps[3] = bitmaps[1]
+	bitmaps[2] = bitmaps[0]
+
+	bitmaps[1] = rotateRight6Bits(bitmaps[1])
+	bitmaps[0] = rotateRight6Bits(bitmaps[0])
+
+	bitmaps[3] |= rotateRight6Bits(bitmaps[1])
+	bitmaps[2] |= rotateRight6Bits(bitmaps[0])
+
+	bitmaps[1] |= rotateRight6Bits(bitmaps[4])
+
+	var xA705 [6]int
+
+	for i := 0; i < 6; i++ {
+		xA6FE := 0
+		for Y := 3; Y >= 0; Y-- {
+			xA6FE <<= 1
+			if bitmaps[Y]&1 != 0 {
+				xA6FE++
+			}
+			bitmaps[Y] >>= 1
+		}
+
+		xA70B := [16]int{0, 2, 1, 0, 4, 2, 1, 0, 3, 2, 1, 0, 5, 2, 1, 0}
+
+		A := xA70B[xA6FE]
+		xA705[A]++
+	}
+	xA704 := 0
+	for i := 5; i >= 0; i-- {
+		xA704 += arr[8*i+xA705[i]]
+	}
+	return int(int8(xA704))
+}
+
+func rotateRight6Bits(num byte) byte {
+	odd := num & 1
+	num >>= 1
+	if odd != 0 {
+		num |= 0x20
+	}
+	return num
 }
 
 func (s *ShowMap) function10(order data.OrderType, offset int) byte {

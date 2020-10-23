@@ -6,7 +6,7 @@ import "os"
 
 // Representation of data parsed from {scenario}.DTA files.
 type ScenarioData struct {
-	Data [512]byte
+	Data  [512]byte
 	Data0 [16]int // Data[0:16] per unit type
 	// Score gained by destroying enemy unit of this type
 	UnitScores [16]int // Data[48:64]
@@ -14,10 +14,10 @@ type ScenarioData struct {
 	UnitMask         [16]byte // Data[80:96]
 	UnitUsesSupplies [16]bool // bits 3 of bytes Data[80:96]
 	UnitCanMove      [16]bool // bits 6 of bytes Data[80:96]
-	Data96 [8]int // Data[96:104] per terrain type
-	Data104 [8]int // Data[104:112] per terrain type
-	Data112 [8]int // Data[112:118] sth per terrain type
-	Data144 [8]int // Data[144:152] sth per formation
+	Data96           [8]int   // Data[96:104] per terrain type
+	Data104          [8]int   // Data[104:112] per terrain type
+	Data112          [8]int   // Data[112:118] sth per terrain type
+	Data144          [8]int   // Data[144:152] sth per formation
 	// Units with type >=MinSupplyType can provide supply to other units.
 	// Such units can receive supplies only from units with larger type numbers.
 	MinSupplyType          int // Data[160]
@@ -32,13 +32,13 @@ type ScenarioData struct {
 	ResupplyRate                    [2]int     // Data[232,233]
 	MenReplacementRate              [2]int     // Data[234,235]
 	EquipReplacementRate            [2]int     // Data[236,237]
-	MoveCostPerTerrainTypesAndUnit  [8][16]int // Data[255:263]
+	MoveCostPerTerrainTypesAndUnit  [8][16]int // Data[255:383]
 	// Every chunk of four bytes list possible weather for a year's quarter.
-	PossibleWeather [16]byte // Data[384:400]
-	DaytimePalette  [8]byte  // Data[400:408]
-	NightPalette    [8]byte  // Data[408:416]
-	MenCountLimit   [16]int  // Data[416:432]
-	EquipCountLimit [16]int  // Data[432:448]
+	PossibleWeather [16]byte       // Data[384:400]
+	DaytimePalette  [8]byte        // Data[400:408]
+	NightPalette    [8]byte        // Data[408:416]
+	MenCountLimit   [16]int        // Data[416:432]
+	EquipCountLimit [16]int        // Data[432:448]
 	DataUpdates     [21]DataUpdate //Data[448:511]
 	UnitTypes       []string
 	Strings1        []string
@@ -57,9 +57,9 @@ type ScenarioData struct {
 
 // At Day change byte at Offset of the scenario data to Value.
 type DataUpdate struct {
-	Day int
+	Day    int
 	Offset int
-	Value int
+	Value  int
 }
 
 // ReadScenarioData reads and parses given {scenario}.DTA.
@@ -130,9 +130,9 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 		scenario.EquipCountLimit[i] = int(limit)
 	}
 	for i := 0; i < 21; i++ {
-		scenario.DataUpdates[i].Day = int(scenario.Data[448 + i*3])
-		scenario.DataUpdates[i].Offset = int(scenario.Data[448 + 1 + i*3])
-		scenario.DataUpdates[i].Value = int(scenario.Data[448 + 2 + i*3])
+		scenario.DataUpdates[i].Day = int(scenario.Data[448+i*3])
+		scenario.DataUpdates[i].Offset = int(scenario.Data[448+1+i*3])
+		scenario.DataUpdates[i].Value = int(scenario.Data[448+2+i*3])
 	}
 
 	// There are 32 header bytes, but only 14 string lists.
