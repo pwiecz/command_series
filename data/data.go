@@ -8,15 +8,17 @@ import "os"
 type ScenarioData struct {
 	Data  [512]byte
 	Data0 [16]int // Data[0:16] per unit type
+	Data16 [16]int // Data[16:32] per unit type
 	// Score gained by destroying enemy unit of this type
 	UnitScores [16]int // Data[48:64]
 	// Various bits concerning unit types... not all clear yet
-	UnitMask         [16]byte // Data[80:96]
+	UnitMask         [16]byte // Data[80:96] (per unit type)
 	UnitUsesSupplies [16]bool // bits 3 of bytes Data[80:96]
 	UnitCanMove      [16]bool // bits 6 of bytes Data[80:96]
 	Data96           [8]int   // Data[96:104] per terrain type
 	Data104          [8]int   // Data[104:112] per terrain type
-	Data112          [8]int   // Data[112:118] sth per terrain type
+	Data112          [8]int   // Data[112:120] sth per terrain type
+	Data120          [8]int   // Data[120:128] per terrain type
 	Data144          [8]int   // Data[144:152] sth per formation
 	// Units with type >=MinSupplyType can provide supply to other units.
 	// Such units can receive supplies only from units with larger type numbers.
@@ -83,6 +85,9 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 	for i, v := range scenario.Data[0:16] {
 		scenario.Data0[i] = int(v)
 	}
+	for i, v := range scenario.Data[16:32] {
+		scenario.Data16[i] = int(v)
+	}
 	for i, v := range scenario.Data[48:64] {
 		scenario.UnitScores[i] = int(v)
 	}
@@ -96,6 +101,12 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 	}
 	for i, v := range scenario.Data[104:112] {
 		scenario.Data104[i] = int(v)
+	}
+	for i, v := range scenario.Data[112:120] {
+		scenario.Data112[i] = int(v)
+	}
+	for i, v := range scenario.Data[120:128] {
+		scenario.Data120[i] = int(v)
 	}
 	scenario.MinSupplyType = int(scenario.Data[160])
 	scenario.MaxResupplyAmount = int(scenario.Data[164])

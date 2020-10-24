@@ -92,7 +92,7 @@ func ParseUnit(data [16]byte, unitNames []string, generals []General) (Unit, err
 	}
 	generalIndex := int(data[10])
 	if generalIndex >= len(generals) {
-		// there's problem with one El-Alamein unit having high general index
+		// there's problem with one El-Alamein and one Bulge unit having high general index
 		//return units, fmt.Errorf("Error parsing unit %d, %v", i, err)
 		fmt.Printf("Too large general index. Expected <%d, got %d\n", len(generals), generalIndex)
 		generalIndex = 0

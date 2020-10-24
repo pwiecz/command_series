@@ -16,6 +16,8 @@ type Generic struct {
 	tinyMapOffsets [9]int // Bytes [44:52]
 	MapOffsets     [6]int
 	TerrainTypes   [64]int // Bytes [64:128]
+	Dx152          [19]int //
+	Dy153          [19]int // Bytes [152:190] (Dx, Dy interleaved, overlaps following arrays)
 	Dx             [6]int  //
 	Dy             [6]int  // Bytes [176:188] (Dx,Dy interleaved)
 	// Offsets on a square map 16x16.
@@ -122,6 +124,13 @@ func ParseGeneric(reader io.Reader) (Generic, error) {
 		generic.Neighbours[2+(i%2)][i/2] = int(neighbour)
 	}
 
+	for i, dxdy := range data[152:190] {
+		if i%2 == 0 {
+			generic.Dx152[i/2] = int(int8(dxdy))
+		} else {
+			generic.Dy153[i/2] = int(int8(dxdy))
+		}
+	}
 	for i, dxdy := range data[176:188] {
 		if i%2 == 0 {
 			generic.Dx[i/2] = int(int8(dxdy))

@@ -287,7 +287,7 @@ nextUnit:
 			var bestDx, bestDy int
 			var v63 int
 			temp2 := (unit.MenCount + unit.EquipCount + 4) / 8
-			v61 := temp2 * ClampInt(s.mainGame.scenarioData.Data144[unit.Formation&7], 8, 99) / 8 * s.mainGame.scenarioData.Data112[s.terrainType(s.terrainAt(unit.X/2, unit.Y)&63)] / 8
+			v61 := temp2 * ClampInt(s.mainGame.scenarioData.Data144[unit.Formation&7], 8, 99) / 8 * s.mainGame.scenarioData.Data112[s.terrainTypeAt(unit.X, unit.Y)] / 8
 			if s.mainGame.scenarioData.UnitScores[unit.Type] > 7 {
 				temp2 = 1
 				v61 = 1
@@ -501,11 +501,47 @@ l24:
 	unit.OrderLower4Bits = s.function10(unit.Order, 1)
 	if s.mode == data.Attack {
 		arg1 := 16000
-		terrainType := s.terrainType(s.terrainAt(unit.X/2, unit.Y) & 63)
+		terrainType := s.terrainTypeAt(unit.X, unit.Y)
 		menCoeff := s.mainGame.scenarioData.Data96[terrainType] * unit.MenCount
 		equipCoeff := s.mainGame.scenarioData.Data104[terrainType] * unit.EquipCount * (s.mainGame.scenarioData.UnitScores[unit.Type] / 16) / 4
 		coeff := (menCoeff + equipCoeff) / 8 * (255 - unit.Fatigue) / 255 * (unit.Morale + int(int8(s.mainGame.scenarioData.Data0[unit.Type]&240))) / 128
 		temp2 := coeff * s.magicCoeff(s.mainGame.hexes.Arr144[:], unit.X, unit.Y, unit.Side) / 8
+		v := 0
+		if v9 > 0 {
+			if s.mainGame.scenarioData.UnitResupplyPerType[unit.Type]&7 < 3 {
+				v = 12
+			}
+		}
+		for i := v; i <= 18; i++ {
+			arg2 := 16001
+			nx := unit.X + s.mainGame.generic.Dx152[i]
+			ny := unit.Y + s.mainGame.generic.Dy153[i]
+			if s.ContainsUnitOfSide(nx, ny, 1-unit.Side) {
+				unit2, ok := s.FindUnit(nx, ny)
+				if !ok {
+					panic("")
+				}
+				terrainType := s.terrainTypeAt(unit2.X, unit2.Y)
+				menCoeff := s.mainGame.scenarioData.Data112[terrainType] * unit2.MenCount
+				equipCoeff := s.mainGame.scenarioData.Data120[terrainType] * unit2.EquipCount * (s.mainGame.scenarioData.Data16[unit.Type&15]&15) / 4
+				t := (menCoeff + equipCoeff) * s.mainGame.scenarioData.Data144[unit.Formation&7]/ 8
+				weather := s.weather
+				if s.isNight {
+					weather += 8
+				}
+				if s.mainGame.scenarioData.UnitMask[unit.Type] &4 != 0 {
+					weather /= 2
+				}
+				d := s.mainGame.scenarioData.UnitScores[unit.Type] + int((unit.State & 6) * 2) + 14 - weather
+				n := t / ClampInt(d, 1, 32)
+				arg2 = n * s.magicCoeff(s.mainGame.hexes.Arr144[:],unit2.X, unit2.Y, unit2.Side) / 8 * (255 - unit2.Fatigue) / 256 * unit2.Morale / 128
+			} else {
+				
+			}
+			if false {
+				fmt.Print(arg2)
+			}
+		}
 		if false {
 			fmt.Print(temp2, arg1)
 		}
@@ -518,29 +554,18 @@ end:
 // arr is one of 48 element arrays in Hexes
 func (s *ShowMap) magicCoeff(arr []int, x, y, side int) int {
 	var bitmaps [5]byte
-	for xA6FE := 1; xA6FE >= 0; xA6FE-- {
-		for i := 5; i >= 0; i-- {
-			bitmaps[0] <<= 2
-			bitmaps[3] <<= 2
-			nx := x + s.mainGame.generic.Dx[i]
-			ny := y + s.mainGame.generic.Dy[i]
-			if s.ContainsUnitOfSide(nx, ny, side) {
-				bitmaps[0]++
-			} else {
-				if xA6FE == 1 {
-					terr := s.terrainAt(nx/2, ny)&63
-					if terr < 48 { // what it really means? (no units there???)
-						if s.terrainType(terr) >= 7 {
-							bitmaps[3]++
-						}
-					}
-				}
-			}
-		}
-		side = 1 - side
-		if xA6FE == 1 {
-			bitmaps[1] = bitmaps[0]
-			bitmaps[4] = bitmaps[3]
+	for i := 5; i >= 0; i-- {
+		bitmaps[0] <<= 2
+		bitmaps[1] <<= 2
+		bitmaps[4] <<= 2
+		nx := x + s.mainGame.generic.Dx[i]
+		ny := y + s.mainGame.generic.Dy[i]
+		if s.ContainsUnitOfSide(nx, ny, 1-side) {
+			bitmaps[0]++
+		} else if s.ContainsUnitOfSide(nx, ny, side) {
+			bitmaps[1]++
+		} else if s.terrainTypeAt(nx, ny) >= 7 {
+			bitmaps[4]++
 		}
 	}
 
@@ -555,6 +580,7 @@ func (s *ShowMap) magicCoeff(arr []int, x, y, side int) int {
 
 	bitmaps[1] |= rotateRight6Bits(bitmaps[4])
 
+	xA70B := [16]int{0, 2, 1, 0, 4, 2, 1, 0, 3, 2, 1, 0, 5, 2, 1, 0}
 	var xA705 [6]int
 
 	for i := 0; i < 6; i++ {
@@ -566,8 +592,6 @@ func (s *ShowMap) magicCoeff(arr []int, x, y, side int) int {
 			}
 			bitmaps[Y] >>= 1
 		}
-
-		xA70B := [16]int{0, 2, 1, 0, 4, 2, 1, 0, 3, 2, 1, 0, 5, 2, 1, 0}
 
 		A := xA70B[xA6FE]
 		xA705[A]++
@@ -629,7 +653,7 @@ func (s *ShowMap) reinitSmallMapsAndSuch() {
 				}
 				v30 := unit.MenCount + unit.EquipCount
 				tmp := ClampInt(s.mainGame.scenarioData.Data144[unit.Formation&7], 8, 99) * v30 / 8
-				v29 := s.mainGame.scenarioData.Data112[s.terrainType(s.terrainAt(unit.X/2, unit.Y)&63)] * tmp / 8
+				v29 := s.mainGame.scenarioData.Data112[s.terrainTypeAt(unit.X, unit.Y)] * tmp / 8
 				if s.mainGame.scenarioData.UnitScores[unit.Type] >= 7 {
 					v29 = 4
 					v30 = 4
@@ -750,8 +774,7 @@ func (s *ShowMap) every12Hours() (reinforcements [2]bool) {
 					if unit.HalfDaysUntilAppear != 0 {
 						continue
 					}
-					shouldSpawnUnit := !s.ContainsUnitOfSide(unit.X, unit.Y, 0) &&
-						!s.ContainsUnitOfSide(unit.X, unit.Y, 1) &&
+					shouldSpawnUnit := !s.ContainsUnit(unit.X, unit.Y) &&
 						(unit.InvAppearProbability*rand.Intn(256))/256 > 0
 					if city, ok := s.FindCity(unit.X, unit.Y); ok && city.Owner != unit.Side {
 						shouldSpawnUnit = false
@@ -856,6 +879,10 @@ outerLoop:
 	return unit
 }
 
+func (s *ShowMap) ContainsUnit(x, y int) bool {
+	return s.ContainsUnitOfSide(x, y, 0) ||
+		s.ContainsUnitOfSide(x, y, 1)
+}
 func (s *ShowMap) ContainsUnitOfSide(x, y, side int) bool {
 	for _, unit := range s.mainGame.units[side] {
 		if (unit.State&128) != 0 && unit.X == x && unit.Y == y {
@@ -863,6 +890,17 @@ func (s *ShowMap) ContainsUnitOfSide(x, y, side int) bool {
 		}
 	}
 	return false
+}
+func (s *ShowMap) FindUnit(x, y int) (data.Unit, bool) {
+	for _, sideUnits := range s.mainGame.units {
+		for _, unit := range sideUnits {
+			if unit.X == x && unit.Y == y {
+				return unit, true
+			}
+		}
+	}
+	return data.Unit{}, false
+
 }
 func (s *ShowMap) FindCity(x, y int) (data.City, bool) {
 	for _, city := range s.mainGame.terrain.Cities {
@@ -876,13 +914,21 @@ func (s *ShowMap) terrainType(terrain byte) int {
 	return s.mainGame.generic.TerrainTypes[terrain&63]
 }
 
+func (s *ShowMap) terrainTypeAt(x, y int) int {
+	return s.terrainType(s.terrainAt(x, y))
+}
+
 // function17
 func (s *ShowMap) terrainAt(x, y int) byte {
-	if y >= 0 && y < len(s.mainGame.terrainMap.Terrain) &&
-		x >= 0 && x < len(s.mainGame.terrainMap.Terrain[y]) {
-		return s.mainGame.terrainMap.Terrain[y][x]
+	if !InRange(y, 0, len(s.mainGame.terrainMap.Terrain)) ||
+		!InRange(x, 0, len(s.mainGame.terrainMap.Terrain[y])) {
+		return 0;
 	}
-	return 0
+	if unit, ok := s.FindUnit(x, y); ok {
+		return byte(unit.Type + unit.ColorPalette * 64)
+	}
+	return s.mainGame.terrainMap.Terrain[y][x]
+
 }
 
 func (s *ShowMap) FindBestMoveFromTowards(supplyX, supplyY, unitX, unitY, unitType, variant int) (int, int, int) {
@@ -894,12 +940,12 @@ func (s *ShowMap) FindBestMoveFromTowards(supplyX, supplyY, unitX, unitY, unitTy
 	// with the unit tiles, but it *shouldn't* impact the logic here.
 	// also in original code there's map offset used not x,y coords.
 	// TODO: check if using just x/2 is ok
-	terrainType1 := s.terrainType(s.terrainAt(supplyX1/2, supplyY1) & 63)
+	terrainType1 := s.terrainTypeAt(supplyX1, supplyY1)
 	cost1 := s.mainGame.scenarioData.MoveCostPerTerrainTypesAndUnit[terrainType1][unitType]
 	neighbour2 := s.mainGame.generic.DxDyToNeighbour(dx, dy, 2*variant+1)
 	supplyX2 := supplyX + s.mainGame.generic.Dx[neighbour2]
 	supplyY2 := supplyY + s.mainGame.generic.Dy[neighbour2]
-	terrainType2 := s.terrainType(s.terrainAt(supplyX2/2, supplyY2) & 63)
+	terrainType2 := s.terrainTypeAt(supplyX2, supplyY2)
 	cost2 := s.mainGame.scenarioData.MoveCostPerTerrainTypesAndUnit[terrainType2][unitType]
 	if cost2 < cost1-rand.Intn(1) {
 		return supplyX2, supplyY2, cost2

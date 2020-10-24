@@ -80,7 +80,8 @@ func ParseMap(data io.Reader) (Map, error) {
 }
 
 // parseMapCrusade parses CRUSADE.MAP file from CiE and DitD games.
-// Two first bytes are used for determining dimensions of the map.
+// Two first bytes are used for determining dimensions of the map,
+// although it's hardcoded (at least the width to be 64 in other places in code).
 func parseMapCrusade(data io.Reader, width, height int) (Map, error) {
 	terrainMap := Map{
 		Width: width, Height: height,
@@ -91,7 +92,7 @@ func parseMapCrusade(data io.Reader, width, height int) (Map, error) {
 		terrainMap.Terrain[y] = make([]byte, rowLength)
 		_, err := io.ReadFull(data, terrainMap.Terrain[y])
 		if err != nil {
-			return terrainMap, err
+			return Map{}, err
 		}
 	}
 	return terrainMap, nil
