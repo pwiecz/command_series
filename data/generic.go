@@ -7,19 +7,19 @@ import "path"
 
 // Representation of data parsed from GENERIC.DTA file.
 type Generic struct {
-	DirectionToNeighbourIndex map[int]int
-	Neighbours                [4][12]int
+	DirectionToNeighbourIndex map[int]int // Data[0:19]
+	Neighbours                [4][12]int // Data[20:44], Data[128:152]
 	// Offsets on a 2-byte square map 4x4.
 	// First 0 offset to the origin field itself,
 	// then to its 4 neighbours in cardinal directions,
 	// then to its 4 neighbours in diagonal direction.
 	tinyMapOffsets [9]int // Bytes [44:52]
-	MapOffsets     [6]int
+	MapOffsets     [7]int // Bytes [53:60]
 	TerrainTypes   [64]int // Bytes [64:128]
 	Dx152          [19]int //
 	Dy153          [19]int // Bytes [152:190] (Dx, Dy interleaved, overlaps following arrays)
-	Dx             [6]int  //
-	Dy             [6]int  // Bytes [176:188] (Dx,Dy interleaved)
+	Dx             [7]int  //
+	Dy             [7]int  // Bytes [176:190] (Dx,Dy interleaved, overlaps following array)
 	// Offsets on a square map 16x16.
 	// First 0 offset to the origin field itself,
 	// then to its 4 neighbours in cardinal directions,
@@ -51,7 +51,6 @@ func (g Generic) DxDyToNeighbour(dx, dy, variant int) int {
 	}
 	return g.Neighbours[variant][neighbourIndex]
 }
-
 func (g Generic) SmallMapOffsets(i int) (dx int, dy int) {
 	offsetNum := g.smallMapOffsets[i]
 	if offsetNum >= 0 { /* dy >= 0 */
@@ -112,7 +111,7 @@ func ParseGeneric(reader io.Reader) (Generic, error) {
 		generic.tinyMapOffsets[i] = int(d)
 	}
 
-	for i, offset := range data[53:59] {
+	for i, offset := range data[53:60] {
 		generic.MapOffsets[i] = int(int8(offset))
 	}
 
@@ -131,7 +130,7 @@ func ParseGeneric(reader io.Reader) (Generic, error) {
 			generic.Dy153[i/2] = int(int8(dxdy))
 		}
 	}
-	for i, dxdy := range data[176:188] {
+	for i, dxdy := range data[176:190] {
 		if i%2 == 0 {
 			generic.Dx[i/2] = int(int8(dxdy))
 		} else {

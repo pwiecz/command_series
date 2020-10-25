@@ -6,9 +6,10 @@ import "os"
 
 // Representation of data parsed from {scenario}.DTA files.
 type ScenarioData struct {
-	Data  [512]byte
-	Data0 [16]int // Data[0:16] per unit type
+	Data   [512]byte
+	Data0  [16]int // Data[0:16] per unit type
 	Data16 [16]int // Data[16:32] per unit type
+	Data32 [16]int // Data[32:48] per unit type
 	// Score gained by destroying enemy unit of this type
 	UnitScores [16]int // Data[48:64]
 	// Various bits concerning unit types... not all clear yet
@@ -30,6 +31,7 @@ type ScenarioData struct {
 	MinutesPerTick                  int        // Data[168]
 	UnitUpdatesPerTimeIncrement     int        // Data[169]
 	Data176                         [16]int    // Data[176:190] four bytes per order (numbers 0-5)
+	Data192                         [8]int     // Data[192:200] per formation
 	UnitResupplyPerType             [16]int    // Data[200:216] top four bytes div 2
 	ResupplyRate                    [2]int     // Data[232,233]
 	MenReplacementRate              [2]int     // Data[234,235]
@@ -88,6 +90,9 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 	for i, v := range scenario.Data[16:32] {
 		scenario.Data16[i] = int(v)
 	}
+	for i, v := range scenario.Data[32:48] {
+		scenario.Data32[i] = int(v)
+	}
 	for i, v := range scenario.Data[48:64] {
 		scenario.UnitScores[i] = int(v)
 	}
@@ -116,6 +121,9 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 	scenario.UnitUpdatesPerTimeIncrement = int(scenario.Data[169])
 	for i, v := range scenario.Data[176:190] {
 		scenario.Data176[i] = int(v)
+	}
+	for i, v := range scenario.Data[192:200] {
+		scenario.Data192[i] = int(v)
 	}
 	for i, resupply := range scenario.Data[200:216] {
 		scenario.UnitResupplyPerType[i] = (int((resupply & 240) >> 1))

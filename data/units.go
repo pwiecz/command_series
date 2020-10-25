@@ -19,6 +19,7 @@ type Unit struct {
 	X, Y                 int
 	MenCount, EquipCount int
 	Formation            int
+	FormationHigher4Bits int
 	Type                 int
 	ColorPalette         int
 	Name                 string
@@ -64,6 +65,7 @@ func ParseUnit(data [16]byte, unitNames []string, generals []General) (Unit, err
 	unit.MenCount = int(data[3])
 	unit.EquipCount = int(data[4])
 	unit.Formation = int(data[5] & 15)
+	unit.FormationHigher4Bits = int(data[5] / 16)
 	unit.VariantBitmap = data[6]
 	unit.Type = int(data[7] & 15)
 	unit.ColorPalette = int(data[7] / 64)

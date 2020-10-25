@@ -8,12 +8,10 @@ import "io"
 import "os"
 import "path"
 
-// A representation of a hex map parsed from CRUSADE.MAP file as a two-dimensional array.
-// Terrain consists of Height rows. Even-numbered rows have Width elements.
-// Odd-numbered rows have Height elements.
+// A representation of a hex map parsed from CRUSADE.MAP file.
 type Map struct {
 	Width, Height int
-	Terrain       [][]byte
+	Terrain       []byte
 }
 
 func GetPalette(n int, palette [8]byte) []color.Color {
@@ -33,6 +31,10 @@ func GetPalette(n int, palette [8]byte) []color.Color {
 	return pal
 }
 
+func (m *Map) GetTile(x, y int) byte {
+	return m.Terrain[y*m.Width + x - y/2]
+}
+
 // GetImage constructs image.Image object from given set of tiles and given palette.
 func (m *Map) GetImage(tiles []*image.Paletted, palette [8]byte) (image.Image, error) {
 	if len(tiles) < 48 {
@@ -42,15 +44,15 @@ func (m *Map) GetImage(tiles []*image.Paletted, palette [8]byte) (image.Image, e
 	tileWidth := tileBounds.Max.X - tileBounds.Min.X
 	tileHeight := tileBounds.Max.Y - tileBounds.Min.Y
 	img := image.NewNRGBA(image.Rect(0, 0, tileWidth*m.Width, tileHeight*m.Height))
-	for y, row := range m.Terrain {
+	for y := 0; y < m.Height; y++ {
 		x0 := (y % 2) * 4
-		for x := 0; x < len(row); x++ {
-			tileNum := int(row[x] % 64)
+		for x := 0; x < m.Width - y%2; x++ {
+			tileNum := int(m.GetTile(x, y) % 64)
 			if tileNum >= len(tiles) {
 				return nil, fmt.Errorf("Too large tile number. Expected at most 48, got %d", tileNum)
 			}
 			repalettedImg := *tiles[tileNum]
-			repalettedImg.Palette = GetPalette(int(row[x]/64), palette)
+			repalettedImg.Palette = GetPalette(int(m.GetTile(x,y)/64), palette)
 			draw.Draw(img,
 				image.Rect(x0, y*tileHeight, x0+tileWidth, (y+1)*tileHeight),
 				&repalettedImg,
@@ -81,19 +83,21 @@ func ParseMap(data io.Reader) (Map, error) {
 
 // parseMapCrusade parses CRUSADE.MAP file from CiE and DitD games.
 // Two first bytes are used for determining dimensions of the map,
-// although it's hardcoded (at least the width to be 64 in other places in code).
+// although it's hardcoded (at least the width) to be 64 in other places in code.
 func parseMapCrusade(data io.Reader, width, height int) (Map, error) {
 	terrainMap := Map{
 		Width: width, Height: height,
-		Terrain: make([][]byte, height),
+		Terrain: make([]byte, 0, width*height),
 	}
+	
 	for y := 0; y < terrainMap.Height; y++ {
 		rowLength := terrainMap.Width - y%2
-		terrainMap.Terrain[y] = make([]byte, rowLength)
-		_, err := io.ReadFull(data, terrainMap.Terrain[y])
+		row := make([]byte, rowLength)
+		_, err := io.ReadFull(data, row)
 		if err != nil {
 			return Map{}, err
 		}
+		terrainMap.Terrain = append(terrainMap.Terrain, row...)
 	}
 	return terrainMap, nil
 }
@@ -123,7 +127,7 @@ func parseMapConflict(data io.Reader) (Map, error) {
 			fmt.Printf("Read only %d bytes of map\n", n)
 			break
 		}
-		terrainMap.Terrain = append(terrainMap.Terrain, row)
+		terrainMap.Terrain = append(terrainMap.Terrain, row...)
 		terrainMap.Height++
 	}
 	return terrainMap, nil

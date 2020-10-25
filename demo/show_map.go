@@ -454,9 +454,9 @@ nextUnit:
 				supplyUse *= 2
 			}
 			if unit.SupplyLevel < supplyUse {
-				unit2 := s.mainGame.units[unit.Side][unit.Formation/16] // ?
+				unit2 := s.mainGame.units[unit.Side][unit.FormationHigher4Bits]
 				if unit2.State&128 == 0 {
-					unit2 = s.mainGame.units[unit.Side][unit2.Formation/16] // ?
+					unit2 = s.mainGame.units[unit.Side][unit2.FormationHigher4Bits]
 				}
 				unit.ObjectiveX = unit2.X
 				unit.ObjectiveY = unit2.Y
@@ -486,8 +486,8 @@ nextUnit:
 					s.map0[unit.Side][sx+bestDx][sy+bestDy] += temp2 / 2
 				}
 				s.map3[unit.Side][sx+bestDx][sy+bestDy] += temp2 / 2
-				unit.ObjectiveY = (((sy+bestDy)&240)/4 /*+ 2 * randbyte() / 256*/ + 1) & 63
-				unit.ObjectiveX = ((((sy+bestDy)&15)*4 /*+ 2 * randByte() / 256*/ +1)*2 + (unit.ObjectiveY & 1)) & 127
+				unit.ObjectiveY = (((sy+bestDy)&240)/4 + rand.Intn(2)/256 + 1) & 63
+				unit.ObjectiveX = ((((sy+bestDy)&15)*4+rand.Intn(2)/256+1)*2 + (unit.ObjectiveY & 1)) & 127
 				s.mode = data.Move
 				if v9 != 0 {
 					unit.Order = data.Defend
@@ -523,32 +523,281 @@ l24:
 				}
 				terrainType := s.terrainTypeAt(unit2.X, unit2.Y)
 				menCoeff := s.mainGame.scenarioData.Data112[terrainType] * unit2.MenCount
-				equipCoeff := s.mainGame.scenarioData.Data120[terrainType] * unit2.EquipCount * (s.mainGame.scenarioData.Data16[unit.Type&15]&15) / 4
-				t := (menCoeff + equipCoeff) * s.mainGame.scenarioData.Data144[unit.Formation&7]/ 8
+				equipCoeff := s.mainGame.scenarioData.Data120[terrainType] * unit2.EquipCount * (s.mainGame.scenarioData.Data16[unit.Type&15] & 15) / 4
+				t := (menCoeff + equipCoeff) * s.mainGame.scenarioData.Data144[unit.Formation&7] / 8
 				weather := s.weather
 				if s.isNight {
 					weather += 8
 				}
-				if s.mainGame.scenarioData.UnitMask[unit.Type] &4 != 0 {
+				if s.mainGame.scenarioData.UnitMask[unit.Type]&4 != 0 {
 					weather /= 2
 				}
-				d := s.mainGame.scenarioData.UnitScores[unit.Type] + int((unit.State & 6) * 2) + 14 - weather
+				d := s.mainGame.scenarioData.UnitScores[unit.Type] + int((unit.State&6)*2) + 14 - weather
 				n := t / ClampInt(d, 1, 32)
-				arg2 = n * s.magicCoeff(s.mainGame.hexes.Arr144[:],unit2.X, unit2.Y, unit2.Side) / 8 * (255 - unit2.Fatigue) / 256 * unit2.Morale / 128
+				arg2 = n * s.magicCoeff(s.mainGame.hexes.Arr144[:], unit2.X, unit2.Y, unit2.Side) / 8 * (255 - unit2.Fatigue) / 256 * unit2.Morale / 128
 			} else {
-				
+				t := s.terrainAt(nx, ny)
+				if i == 18 {
+					t = s.mapTerrainAt(unit.X, unit.Y)
+				}
+				tt := s.terrainType(t)
+				var v int
+				if unit.MenCount > unit.EquipCount {
+					v = s.mainGame.scenarioData.Data96[tt]
+				} else {
+					v = s.mainGame.scenarioData.Data104[tt]
+				}
+				if tt < 7 {
+					// temperarily hide the unit while we compute sth
+					s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2].State = unit.State & 127
+					arg2 = temp2 - s.magicCoeff(s.mainGame.hexes.Arr48[:], nx, ny, unit.Side)*2 + v
+					// unhide the unit
+					s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2].State = unit.State
+				}
 			}
-			if false {
-				fmt.Print(arg2)
+			if i < 12 {
+				arg2 *= 2
+			}
+			if city, ok := s.FindCity(nx, ny); ok {
+				if city.Owner != unit.Side {
+					if city.VictoryPoints > 0 {
+						v := -city.VictoryPoints
+						if s.ContainsUnitOfSide(nx, ny, 1-unit.Side) {
+							v += arg2
+						}
+						arg2 = v
+					}
+				}
+			}
+			if arg2-1 < arg1 {
+				arg1 = arg2
+				unit.ObjectiveX = nx
+				unit.ObjectiveY = ny
 			}
 		}
-		if false {
-			fmt.Print(temp2, arg1)
+	}
+	if s.mode == data.Reserve {
+		unit.ObjectiveX = 0
+	}
+	if s.mode == data.Defend {
+		if unit.ObjectiveX > 0 {
+			unit.ObjectiveX = unit.X
+			unit.ObjectiveY = unit.Y
+		}
+		// temperarily hide the unit while we compute sth
+		s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2].State &= 127
+		arg1 := -17536 // 48000
+		var bestI int
+		var arg1_6 int
+		for i := 0; i <= 6; i++ {
+			ix := s.CoordsToMapIndex(unit.X, unit.Y) + s.mainGame.generic.MapOffsets[i]
+			if !InRange(ix, 0, len(s.mainGame.terrainMap.Terrain)) {
+				continue
+			}
+			var v int
+			tt := s.terrainType(s.mainGame.terrainMap.Terrain[ix]) // terrainTypeAtIndex()?
+			if tt == 7 {
+				v = -128
+			} else {
+				r := s.mainGame.scenarioData.Data112[tt]
+				nx := unit.X + s.mainGame.generic.Dx[i]
+				ny := unit.Y + s.mainGame.generic.Dy[i]
+				v = r + s.magicCoeff(s.mainGame.hexes.Arr0[:], nx, ny, unit.Side)
+				if city, ok := s.FindCity(nx, ny); ok {
+					if s.ContainsUnitOfSide(nx, ny, unit.Side) {
+						v += city.VictoryPoints
+					}
+				}
+				if (s.mainGame.scenarioData.UnitScores[unit.Type]&248)+SignInt(unit.Fatigue-96+int(int8(s.mainGame.hexes.Arr3[unit.Side][unit.GeneralIndex][2]&240))/4) > 0 {
+					v = r + s.magicCoeff(s.mainGame.hexes.Arr96[:], nx, ny, unit.Side)
+				}
+			}
+			if v+1 > arg1 {
+				arg1 = v
+				bestI = i
+			}
+			if i == 6 {
+				arg1_6 = v
+			}
+		}
+		s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2].State |= 128
+		v := s.mainGame.scenarioData.Data144[unit.Formation&7] - 8
+		if false { // if full intelligence?? (unit.Side+1)&auto >>>4 > 0
+			v *= 2
+		}
+		if v > arg1-arg1_6 {
+			bestI = 6
+		}
+		if bestI < 6 {
+			unit.ObjectiveX = unit.X + s.mainGame.generic.Dx[bestI]
+			unit.ObjectiveY = unit.Y + s.mainGame.generic.Dy[bestI]
+		} else {
+			unit.OrderLower4Bits = s.function10(unit.Order, 1)
+		}
+	}
+	{
+		t := s.mainGame.scenarioData.Data32[unit.Type]
+		temp2 := (t & 31) * 2
+		if temp2 > 0 {
+			w := s.weather
+			if s.isNight {
+				w += 8
+			}
+			if (t&8)+w < 10 {
+				if 32-unit.Fatigue/4 > 0 {
+					for i := 0; i <= 32-unit.Fatigue/4; i++ {
+						unit2 := s.mainGame.units[1-unit.Side][rand.Intn(64)]
+						if unit2.State&6 > 0 {
+							if AbsInt(unit.X-unit2.X)/2+AbsInt(unit.Y-unit2.Y) <= temp2 {
+								unit.ObjectiveX = unit2.X
+								unit.ObjectiveY = unit2.Y
+								unit.Order = unit.Order | 2
+								unit.Formation = int(s.mainGame.scenarioData.Data[178])
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 l21:
+	s.update = unit.Side
+	v9 = 0
+	if unit.SupplyLevel == 0 {
+		v9 = 7
+	}
+	{
+		v57 := 25
+		var v49, sx, sy, arg1 int
+		for {
+			mvAdd := 0
+			if unit.ObjectiveX == 0 {
+				break
+			}
+			distance := s.function15(unit)
+			i := s.mainGame.scenarioData.Data32[unit.Type]
+			if distance > 0 {
+				if distance < (i&31)*2+1 {
+					if unit.Order == data.Attack {
+						v49 = 0
+						sx = unit.ObjectiveX
+						sy = unit.ObjectiveY
+						unit.FormationHigher4Bits |= 8
+						arg1 = 7
+					}
+				}
+			}
+		l5:
+			temp := function8(unit.ObjectiveX-unit.X, unit.ObjectiveY-unit.Y)
+			if temp == 0 {
+				unit.ObjectiveX = 0
+				unit.OrderLower4Bits = s.function10(unit.Order, 1)
+				break
+			}
+			unit.OrderLower4Bits = s.function10(unit.Order, 0)
+			if /* sth with controlling player || */ unit.State&32 > 0 {
+				if distance == 1 && unit.Order == data.Defend {
+					if unit.State&1 > 0 {
+						unit.OrderLower4Bits = s.function10(unit.Order, 1)
+					}
+				}
+			}
+			ix, offset, moveCost := s.function6(temp, mvAdd, unit.X, unit.Y, unit.Type)
+			if offset < 0 || offset >= len(s.mainGame.generic.Dx) {
+				fmt.Println(ix, offset, moveCost)
+			}
+			sx := unit.X + s.mainGame.generic.Dx[offset]
+			sy := unit.Y + s.mainGame.generic.Dy[offset]
+			if i&64 > 0 {
+				sx = unit.ObjectiveX
+				sy = unit.ObjectiveY
+				ix = s.CoordsToMapIndex(sx, sy)
+				tt := s.terrainTypeAtIndex(ix)
+				moveCost = s.mainGame.scenarioData.MoveCostPerTerrainTypesAndUnit[tt][unit.Type]
+				mvAdd = 1
+			}
+			if s.ContainsUnitOfSide(sx, sy, unit.Side) {
+				moveCost = 0
+			}
+			if s.ContainsUnitOfSide(sx, sy, 1-unit.Side) {
+				moveCost = -1
+			}
+			if moveCost < 1 {
+				if unit.Order != data.Attack || moveCost != -1 {
+					if AbsInt(unit.ObjectiveX-unit.X)+AbsInt(unit.ObjectiveY-unit.Y) > 2 {
+						if mvAdd == 0 {
+							mvAdd = 2
+							goto l5
+						}
+					}
+				}
+			}
+			if moveCost < 1 {
+				goto l2
+			}
+			v := s.mainGame.scenarioData.Data192[unit.Formation] * moveCost / 8
+			if unit.State&16 != 0 {
+				v *= s.mainGame.scenarioData.UnitResupplyPerType[unit.Type] & 7
+				v /= 8
+			}
+			v *= (512 - unit.Fatigue) / 32
+			v *= s.mainGame.hexes.Arr3[unit.Side][unit.GeneralIndex][3] & 15
+			v /= 16
+			if unit.SupplyLevel == 0 {
+				v /= 2
+			}
+			w := 1024
+			if s.mainGame.scenarioData.UnitMask[unit.Type]&4 != 0 {
+				weather := s.weather
+				if s.isNight {
+					weather += 8
+				}
+				w += weather * 128
+			}
+			w /= 8
+			temp = w / (v + 1)
+
+			///
+			break
+		}
+		if false {
+			fmt.Println(v57, v49, sx, sy, arg1)
+		}
+	}
+l2:
 end:
 	s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2] = unit
+}
+
+func (s *ShowMap) CoordsToMapIndex(x, y int) int {
+	return y*s.mainGame.terrainMap.Width + x/2 - y/2
+}
+
+// TODO: deduplicate this function and FindBestMoveFromTowards()
+func (s *ShowMap) function6(offsetIx, add, x, y, unitType int) (int, int, int) {
+	ni := s.mainGame.generic.DirectionToNeighbourIndex[offsetIx]
+	neigh1 := s.mainGame.generic.Neighbours[add][ni]
+	offset1 := s.mainGame.generic.MapOffsets[neigh1]
+	ix1 := s.CoordsToMapIndex(x, y) + offset1
+	if !InRange(ix1, 0, len(s.mainGame.terrainMap.Terrain)) {
+		return 0, 0, 0
+	}
+	tt1 := s.terrainTypeAtIndex(ix1)
+	mc1 := s.mainGame.scenarioData.MoveCostPerTerrainTypesAndUnit[tt1][unitType]
+
+	neigh2 := s.mainGame.generic.Neighbours[add+1][ni]
+	offset2 := s.mainGame.generic.MapOffsets[neigh2]
+	ix2 := s.CoordsToMapIndex(x, y) + offset2
+	if !InRange(ix2, 0, len(s.mainGame.terrainMap.Terrain)) {
+		return 0, 0, 0
+	}
+	tt2 := s.terrainTypeAtIndex(ix2)
+	mc2 := s.mainGame.scenarioData.MoveCostPerTerrainTypesAndUnit[tt2][unitType]
+
+	if mc2 > mc1-rand.Intn(2) {
+		return ix2, neigh2, mc2
+	}
+	return ix1, neigh1, mc1
 }
 
 // arr is one of 48 element arrays in Hexes
@@ -612,6 +861,9 @@ func rotateRight6Bits(num byte) byte {
 	return num
 }
 
+func function8(dx, dy int) int {
+	return SignInt(dy)*5 + SignInt(dx-dy)*3 + SignInt(dx+dy)
+}
 func (s *ShowMap) function10(order data.OrderType, offset int) byte {
 	if offset < 0 || offset >= 4 {
 		panic(offset)
@@ -619,6 +871,16 @@ func (s *ShowMap) function10(order data.OrderType, offset int) byte {
 	return byte(s.mainGame.scenarioData.Data176[int(order)*4+offset])
 }
 
+// distance to objective
+func (s *ShowMap) function15(unit data.Unit) int {
+	dx := unit.ObjectiveX - unit.X
+	dy := unit.ObjectiveY - unit.Y
+	if AbsInt(dy) > AbsInt(dx)/2 {
+		return AbsInt(dy)
+	} else {
+		return (AbsInt(dx) + AbsInt(dy) + 1) / 2
+	}
+}
 func (s *ShowMap) function26(x, y int, val int, index int) int {
 	v := s.mainGame.generic.Data214[((x/4)&1)*2+((y/2)&1)*18+index]
 	if ((((x/2)&3)+1)&2)+((((y)&3)+1)&2) == 4 {
@@ -645,7 +907,7 @@ func (s *ShowMap) reinitSmallMapsAndSuch() {
 					v13 += 1
 				} else {
 					v16 += unit.MenCount + unit.EquipCount
-					if false { // if full intelligence??
+					if false { // if full intelligence?? (unit.Side+1)&auto >>>4 > 0
 						if unit.State&64 == 0 {
 							continue
 						}
@@ -910,6 +1172,8 @@ func (s *ShowMap) FindCity(x, y int) (data.City, bool) {
 	}
 	return data.City{}, false
 }
+
+// function17
 func (s *ShowMap) terrainType(terrain byte) int {
 	return s.mainGame.generic.TerrainTypes[terrain&63]
 }
@@ -917,18 +1181,34 @@ func (s *ShowMap) terrainType(terrain byte) int {
 func (s *ShowMap) terrainTypeAt(x, y int) int {
 	return s.terrainType(s.terrainAt(x, y))
 }
+func (s *ShowMap) terrainTypeAtIndex(ix int) int {
+	return s.terrainType(s.terrainAtIndex(ix))
+}
 
-// function17
 func (s *ShowMap) terrainAt(x, y int) byte {
-	if !InRange(y, 0, len(s.mainGame.terrainMap.Terrain)) ||
-		!InRange(x, 0, len(s.mainGame.terrainMap.Terrain[y])) {
-		return 0;
-	}
 	if unit, ok := s.FindUnit(x, y); ok {
-		return byte(unit.Type + unit.ColorPalette * 64)
+		return byte(unit.Type + unit.ColorPalette*64)
 	}
-	return s.mainGame.terrainMap.Terrain[y][x]
+	return s.mapTerrainAt(x, y)
+}
+func (s *ShowMap) terrainAtIndex(ix int) byte {
+	for _, sideUnits := range s.mainGame.units {
+		for _, unit := range sideUnits {
+			if s.CoordsToMapIndex(unit.X, unit.Y) == ix {
+				return byte(unit.Type + unit.ColorPalette*64)
+			}
+		}
+	}
+	return s.mainGame.terrainMap.Terrain[ix]
+}
 
+func (s *ShowMap) mapTerrainAt(x, y int) byte {
+	x /= 2
+	if !InRange(y, 0, s.mainGame.terrainMap.Height) ||
+		!InRange(x, 0, s.mainGame.terrainMap.Width-y%2) {
+		return 0
+	}
+	return s.mainGame.terrainMap.GetTile(x, y)
 }
 
 func (s *ShowMap) FindBestMoveFromTowards(supplyX, supplyY, unitX, unitY, unitType, variant int) (int, int, int) {
@@ -939,7 +1219,6 @@ func (s *ShowMap) FindBestMoveFromTowards(supplyX, supplyY, unitX, unitY, unitTy
 	// in the original code the source and target spots in the terrain map are filled
 	// with the unit tiles, but it *shouldn't* impact the logic here.
 	// also in original code there's map offset used not x,y coords.
-	// TODO: check if using just x/2 is ok
 	terrainType1 := s.terrainTypeAt(supplyX1, supplyY1)
 	cost1 := s.mainGame.scenarioData.MoveCostPerTerrainTypesAndUnit[terrainType1][unitType]
 	neighbour2 := s.mainGame.generic.DxDyToNeighbour(dx, dy, 2*variant+1)
