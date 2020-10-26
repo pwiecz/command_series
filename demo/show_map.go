@@ -50,6 +50,8 @@ type ShowMap struct {
 	citiesHeld      [2]int // 29927 + 15 + side*2
 	menLost         [2]int // 29927 + side*2
 	tanksLost       [2]int // 29927 + 4 + side*2
+	score13         [2]int // 29927 + 13 + side*2 victory points held?
+	score21         [2]int // 29927 + 21 + side*2 sth with capturing cities?
 	flashback       [][]data.FlashbackUnit
 	map0            [2][16][16]int // 0
 	map1            [2][16][16]int // 0x200
@@ -177,6 +179,10 @@ func (s *ShowMap) resetMaps() {
 
 func (s *ShowMap) updateUnit() {
 	unitState := 0
+	weather := s.weather
+	if s.isNight {
+		weather += 8
+	}
 nextUnit:
 	s.lastUpdatedUnit = (s.lastUpdatedUnit + 1) % 128
 	unit := s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2]
@@ -416,7 +422,7 @@ nextUnit:
 					if city, ok := s.FindCity(unit.X, unit.Y); ok {
 						if city.VictoryPoints > 0 {
 							if v51 > 0 {
-								v9 = 2
+								v9 = 2 // have met strong resistenance (?)
 							}
 						}
 					}
@@ -525,14 +531,11 @@ l24:
 				menCoeff := s.mainGame.scenarioData.Data112[terrainType] * unit2.MenCount
 				equipCoeff := s.mainGame.scenarioData.Data120[terrainType] * unit2.EquipCount * (s.mainGame.scenarioData.Data16[unit.Type&15] & 15) / 4
 				t := (menCoeff + equipCoeff) * s.mainGame.scenarioData.Data144[unit.Formation&7] / 8
-				weather := s.weather
-				if s.isNight {
-					weather += 8
-				}
+				w := 2
 				if s.mainGame.scenarioData.UnitMask[unit.Type]&4 != 0 {
-					weather /= 2
+					w /= 2
 				}
-				d := s.mainGame.scenarioData.UnitScores[unit.Type] + int((unit.State&6)*2) + 14 - weather
+				d := s.mainGame.scenarioData.UnitScores[unit.Type] + int((unit.State&6)*2) + 14 - w
 				n := t / ClampInt(d, 1, 32)
 				arg2 = n * s.magicCoeff(s.mainGame.hexes.Arr144[:], unit2.X, unit2.Y, unit2.Side) / 8 * (255 - unit2.Fatigue) / 256 * unit2.Morale / 128
 			} else {
@@ -639,11 +642,7 @@ l24:
 		t := s.mainGame.scenarioData.Data32[unit.Type]
 		temp2 := (t & 31) * 2
 		if temp2 > 0 {
-			w := s.weather
-			if s.isNight {
-				w += 8
-			}
-			if (t&8)+w < 10 {
+			if (t&8)+weather < 10 {
 				if 32-unit.Fatigue/4 > 0 {
 					for i := 0; i <= 32-unit.Fatigue/4; i++ {
 						unit2 := s.mainGame.units[1-unit.Side][rand.Intn(64)]
@@ -652,7 +651,7 @@ l24:
 								unit.ObjectiveX = unit2.X
 								unit.ObjectiveY = unit2.Y
 								unit.Order = unit.Order | 2
-								unit.Formation = int(s.mainGame.scenarioData.Data[178])
+								unit.Formation = s.mainGame.scenarioData.Data178
 							}
 						}
 					}
@@ -664,17 +663,18 @@ l21:
 	s.update = unit.Side
 	v9 = 0
 	if unit.SupplyLevel == 0 {
-		v9 = 7
+		v9 = 7 // have exhausted our supplies
 	}
 	{
 		v57 := 25
+		var distance int
 		var v49, sx, sy, arg1 int
 		for {
 			mvAdd := 0
 			if unit.ObjectiveX == 0 {
 				break
 			}
-			distance := s.function15(unit)
+			distance = s.function15(unit)
 			i := s.mainGame.scenarioData.Data32[unit.Type]
 			if distance > 0 {
 				if distance < (i&31)*2+1 {
@@ -706,8 +706,8 @@ l21:
 			if offset < 0 || offset >= len(s.mainGame.generic.Dx) {
 				fmt.Println(ix, offset, moveCost)
 			}
-			sx := unit.X + s.mainGame.generic.Dx[offset]
-			sy := unit.Y + s.mainGame.generic.Dy[offset]
+			sx = unit.X + s.mainGame.generic.Dx[offset]
+			sy = unit.Y + s.mainGame.generic.Dy[offset]
 			if i&64 > 0 {
 				sx = unit.ObjectiveX
 				sy = unit.ObjectiveY
@@ -733,7 +733,7 @@ l21:
 				}
 			}
 			if moveCost < 1 {
-				goto l2
+				break
 			}
 			v := s.mainGame.scenarioData.Data192[unit.Formation] * moveCost / 8
 			if unit.State&16 != 0 {
@@ -748,27 +748,192 @@ l21:
 			}
 			w := 1024
 			if s.mainGame.scenarioData.UnitMask[unit.Type]&4 != 0 {
-				weather := s.weather
-				if s.isNight {
-					weather += 8
-				}
 				w += weather * 128
 			}
 			w /= 8
 			temp = w / (v + 1)
-
-			///
+			if temp > v57 {
+				if rand.Intn(temp) > v57 {
+					break
+				}
+			}
+			v57 -= temp
+			if true /* todo: player controlled or sth */ {
+				//function28
+			} else if unit.State&65 > 0 {
+				//function28
+			}
+			unit.X = sx
+			unit.Y = sy
+			// function29: add unit tile to map
+			dist := s.function15(unit)
+			if dist == 0 {
+				unit.ObjectiveX = 0
+				unit.OrderLower4Bits = s.function10(unit.Order, 1)
+				if unit.Order == data.Defend || unit.Order == data.Move {
+					if unit.State&32 == 0 {
+						v9 = 6 // reached our objective, awaiting further orders
+					}
+				}
+			}
+			unit.Fatigue = ClampInt(unit.Fatigue+s.mainGame.scenarioData.Data173, 0, 255)
+			if s.function16(unit) {
+				v9 = 5 // have captured ....
+				break
+			}
+			if v57 > 0 {
+				if s.countNeighbourUnits(unit.X, unit.Y, 1-unit.Side) > 0 {
+					unit.State |= 17
+				} else {
+					unit.State &= 254
+				}
+				// function29 (add own tile to map - no need here?)
+				// todo: check conditions when unit should be visible
+				continue
+			}
 			break
 		}
+		// l2:
 		if false {
-			fmt.Println(v57, v49, sx, sy, arg1)
+			fmt.Println(v57, v49, arg1)
 		}
+		unit.SupplyLevel = ClampInt(unit.SupplyLevel-2, 0, 255)
+		t := unit.State & 1
+		if rand.Intn(s.mainGame.scenarioData.Data252[unit.Side]) > 0 {
+			unit.State &= 232
+		} else {
+			unit.State &= 168
+		}
+		for i := 0; i < 6; i++ {
+			if unit2, ok := s.FindUnit(unit.X+s.mainGame.generic.Dx[i], unit.Y+s.mainGame.generic.Dy[i]); ok && unit2.Side == 1-unit.Side {
+				// show unit2 on map
+				unit2.State = unit2.State | 65
+				// todo: save unit2
+				s.mainGame.units[unit2.Side][unit2.Index] = unit2
+				if s.mainGame.scenarioData.UnitScores[unit2.Type] > 8 {
+					if true /* controlled by X */ {
+						sx = unit2.X
+						sy = unit2.Y
+						unit.Order = data.Attack
+						arg1 = 7
+						//						arg2 = i
+					}
+					unit2Mask := s.mainGame.scenarioData.UnitMask[unit2.Type]
+					if unit2Mask&128 == 0 {
+						unit.State = unit.State | 16
+					}
+					if unit2Mask&64 == 0 { // unit cannot move ???
+						unit.State = unit.State | 65
+						if t == 0 {
+							v9 = 4 // in contact with enemy forces
+						}
+					}
+				}
+			}
+		}
+		// function29 - add unit tile to map
+		//	l11:
+		if unit.ObjectiveX == 0 {
+			goto end
+		}
+		if unit.Order != data.Attack {
+			goto end
+		}
+		if arg1 < 7 {
+			goto end
+		}
+		if distance == 1 {
+			if s.ContainsUnitOfSide(sx, sy, unit.Side) {
+				unit.ObjectiveX = 0
+				goto end
+			}
+		}
+		unit.OrderLower4Bits = s.function10(unit.Order, 2)
+		if unit.Fatigue > 64 {
+			goto end
+		}
+		if unit.SupplyLevel == 0 {
+			goto end
+		}
+		if !s.ContainsUnitOfSide(sx, sy, 1-unit.Side) {
+			goto end
+		}
+		if unit.Formation&7 != s.mainGame.scenarioData.Data178 {
+			goto end
+		}
+		if unit.FormationHigher4Bits&8 == 0 {
+			// * function28
+			// * show unit on map
+			// * function14
+		} else if s.mainGame.scenarioData.Data32[unit.Type]&8 > 0 {
+			if weather > 3 {
+				// sth
+				goto end
+			}
+			// function27
+		}
+		v9 = 1
+		// [53767] = 0
+		unit.State |= 65
+		unit2, ok := s.FindUnit(sx, sy)
+		if !ok || unit2.Side != 1-unit.Side {
+			panic("")
+		}
+		arg1 = s.terrainTypeAt(unit.X, unit.Y)
+		v := s.mainGame.scenarioData.Data96[arg1] * s.mainGame.scenarioData.Data128[unit.Formation&7] * unit.MenCount / 32
+		if unit.FormationHigher4Bits&8 > 0 {
+			v = 0
+		}
+		v2 := s.mainGame.scenarioData.Data104[arg1] * s.mainGame.scenarioData.Data136[unit.Formation&7] * (s.mainGame.scenarioData.Data16[unit.Type] / 16) / 2 * unit.EquipCount / 64
+		if unit.FormationHigher4Bits&8 > 0 {
+			if s.mainGame.scenarioData.Data32[unit.Type]&8 > 0 {
+				w := 4 - weather
+				if w < 1 {
+					goto end
+				}
+				v2 = v2 * w / 4
+			}
+		}
+		v = (v + v2) * unit.Morale / 255 * (255 - unit.Fatigue) / 128
+		v = v * (s.mainGame.hexes.Arr3[unit.Side][unit.GeneralIndex][1] & 15) / 16
+		v = v * s.magicCoeff(s.mainGame.hexes.Arr144[:], unit.X, unit.Y, unit.Side) / 8
+		v++
+		tt2 := s.terrainTypeAt(unit2.X, unit2.Y)
+		if s.mainGame.scenarioData.UnitScores[unit2.Type]&258 > 0 {
+			unit.State |= 4
+		}
+		menCoeff := s.mainGame.scenarioData.Data112[tt2] * s.mainGame.scenarioData.Data144[unit2.Formation&7] * unit2.MenCount / 32
+		equipCoeff := s.mainGame.scenarioData.Data104[tt2] * s.mainGame.scenarioData.Data152[unit2.Formation&7] * (s.mainGame.scenarioData.Data16[unit2.Type] & 15) / 2 * unit2.EquipCount / 64
+		w := (menCoeff + equipCoeff) * unit2.Morale / 256 * (240 - unit2.Fatigue/2) / 128 * (s.mainGame.hexes.Arr3[1-unit.Side][unit2.GeneralIndex][2] & 15) / 16
+		if unit2.SupplyLevel == 0 {
+			w = w * s.mainGame.scenarioData.Data167 / 8
+		}
+		w *= s.magicCoeff(s.mainGame.hexes.Arr144[:], unit2.X, unit2.Y, 1-unit.Side) / 8
+		w++
+		d := w / 16 / v
+		if s.mainGame.scenarioData.UnitMask[unit.Type]&4 == 0 {
+			d += weather
+		}
+		arg1 = ClampInt(w, 0, 63)
 	}
-l2:
 end:
 	s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2] = unit
 }
 
+// Has unit captured a city
+func (s *ShowMap) function16(unit data.Unit) bool {
+	if city, ok := s.FindCity(unit.X, unit.Y); ok {
+		if city.Owner != unit.Side {
+			// msg = 5
+			city.Owner = unit.Side
+			s.score13[unit.Side] += city.VictoryPoints
+			s.score13[1-unit.Side] -= city.VictoryPoints
+			s.score21[unit.Side] += city.VictoryPoints & 1
+			return true
+		}
+	}
+	return false
+}
 func (s *ShowMap) CoordsToMapIndex(x, y int) int {
 	return y*s.mainGame.terrainMap.Width + x/2 - y/2
 }

@@ -36,6 +36,8 @@ type Unit struct {
 
 	Fatigue                int
 	ObjectiveX, ObjectiveY int
+
+	Index int
 }
 
 type FlashbackUnit struct {
@@ -130,6 +132,7 @@ func ParseUnits(data io.Reader, unitNames [2][]string, generals [2][]General) ([
 			return [2][]Unit{}, fmt.Errorf("Error parsing unit %d, %v", i, err)
 		}
 		unit.Side = side
+		unit.Index = len(units[i/64])
 		units[i/64] = append(units[i/64], unit)
 		if numRead < 16 {
 			break

@@ -20,7 +20,10 @@ type ScenarioData struct {
 	Data104          [8]int   // Data[104:112] per terrain type
 	Data112          [8]int   // Data[112:120] sth per terrain type
 	Data120          [8]int   // Data[120:128] per terrain type
-	Data144          [8]int   // Data[144:152] sth per formation
+	Data128          [8]int   // Data[128:136] per formation&7
+	Data136          [8]int   // Data[136:144] per formation&7
+	Data144          [8]int   // Data[144:152] sth per formation&7
+	Data152          [8]int   // Data[152:160] sth per formation&7
 	// Units with type >=MinSupplyType can provide supply to other units.
 	// Such units can receive supplies only from units with larger type numbers.
 	MinSupplyType          int // Data[160]
@@ -28,14 +31,18 @@ type ScenarioData struct {
 	MaxSupplyTransportCost int // Data[165]
 	// On average that many supplies will be used by each unit every day.
 	ProbabilityOfUnitsUsingSupplies int        // Data[166]
+	Data167                         int        // Data[167]
 	MinutesPerTick                  int        // Data[168]
 	UnitUpdatesPerTimeIncrement     int        // Data[169]
+	Data173                         int        // Data[173] (a fatigue increase)
+	Data178                         int        // Resusing value from array below (some kind of default formation?)
 	Data176                         [16]int    // Data[176:190] four bytes per order (numbers 0-5)
 	Data192                         [8]int     // Data[192:200] per formation
 	UnitResupplyPerType             [16]int    // Data[200:216] top four bytes div 2
 	ResupplyRate                    [2]int     // Data[232,233]
 	MenReplacementRate              [2]int     // Data[234,235]
 	EquipReplacementRate            [2]int     // Data[236,237]
+	Data252                         [2]int     // Data[252:254] per side
 	MoveCostPerTerrainTypesAndUnit  [8][16]int // Data[255:383]
 	// Every chunk of four bytes list possible weather for a year's quarter.
 	PossibleWeather [16]byte       // Data[384:400]
@@ -113,15 +120,30 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 	for i, v := range scenario.Data[120:128] {
 		scenario.Data120[i] = int(v)
 	}
+	for i, v := range scenario.Data[128:136] {
+		scenario.Data128[i] = int(v)
+	}
+	for i, v := range scenario.Data[136:144] {
+		scenario.Data136[i] = int(v)
+	}
+	for i, v := range scenario.Data[144:152] {
+		scenario.Data144[i] = int(v)
+	}
+	for i, v := range scenario.Data[152:160] {
+		scenario.Data152[i] = int(v)
+	}
 	scenario.MinSupplyType = int(scenario.Data[160])
 	scenario.MaxResupplyAmount = int(scenario.Data[164])
 	scenario.MaxSupplyTransportCost = int(scenario.Data[165])
 	scenario.ProbabilityOfUnitsUsingSupplies = int(scenario.Data[166])
+	scenario.Data167 = int(scenario.Data[167])
 	scenario.MinutesPerTick = int(scenario.Data[168])
 	scenario.UnitUpdatesPerTimeIncrement = int(scenario.Data[169])
+	scenario.Data173 = int(scenario.Data[173])
 	for i, v := range scenario.Data[176:190] {
 		scenario.Data176[i] = int(v)
 	}
+	scenario.Data178 = int(scenario.Data[178])
 	for i, v := range scenario.Data[192:200] {
 		scenario.Data192[i] = int(v)
 	}
@@ -134,6 +156,8 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 	scenario.MenReplacementRate[1] = int(scenario.Data[235])
 	scenario.EquipReplacementRate[0] = int(scenario.Data[236])
 	scenario.EquipReplacementRate[1] = int(scenario.Data[237])
+	scenario.Data252[0] = int(scenario.Data[252])
+	scenario.Data252[1] = int(scenario.Data[253])
 	for terrainType := 0; terrainType < 8; terrainType++ {
 		for unitType, cost := range scenario.Data[255+16*terrainType : 255+16*(terrainType+1)] {
 			scenario.MoveCostPerTerrainTypesAndUnit[terrainType][unitType] = int(cost)
