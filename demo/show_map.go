@@ -1521,7 +1521,7 @@ func (s *ShowMap) FindBestMoveFromTowards(supplyX, supplyY, unitX, unitY, unitTy
 	supplyY2 := supplyY + s.mainGame.generic.Dy[neighbour2]
 	terrainType2 := s.terrainTypeAt(supplyX2, supplyY2)
 	cost2 := s.mainGame.scenarioData.MoveCostPerTerrainTypesAndUnit[terrainType2][unitType]
-	if cost2 < cost1-Rand(1) {
+	if cost2 < cost1-Rand(2) {
 		return supplyX2, supplyY2, cost2
 	}
 	return supplyX1, supplyY1, cost1
