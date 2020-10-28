@@ -336,7 +336,7 @@ nextUnit:
 					} else {
 						v48 = -Clamp((v52+1)*8/(unit.MenCount+1)-8, 0, 16)
 					}
-					v48 += int(int8((s.mainGame.hexes.Arr3[unit.Side][unit.GeneralIndex][1]&240))>>4) + int(int8(s.mainGame.scenarioData.Data[unit.Type]))/16
+					v48 += int(int8((s.mainGame.hexes.Arr3[unit.Side][unit.GeneralIndex][1]&240))>>4) + int(int8(s.mainGame.scenarioData.Data0[unit.Type]))/16
 					var v55 int
 					if unit.EquipCount > v16 {
 						v55 = Clamp((unit.EquipCount+1)*8/(v16+1)-7, 0, 16)
@@ -400,7 +400,7 @@ nextUnit:
 							}
 							v50 += v
 						}
-						if v55+(int(int8(s.mainGame.hexes.Arr3[unit.Side][unit.GeneralIndex][2]&240))>>4)+(int(int8((s.mainGame.scenarioData.Data[unit.Type]&15)<<4))>>4) < -9 {
+						if v55+(int(int8(s.mainGame.hexes.Arr3[unit.Side][unit.GeneralIndex][2]&240))>>4)+(int(int8((s.mainGame.scenarioData.Data0[unit.Type]&15)<<4))>>4) < -9 {
 							if j == i {
 								unit.Fatigue = unit.Fatigue + 256
 							}
@@ -1309,34 +1309,34 @@ func (s *ShowMap) everyHour() {
 func (s *ShowMap) every12Hours() (reinforcements [2]bool) {
 	s.supplyLevels[0] += s.mainGame.scenarioData.ResupplyRate[0]
 	s.supplyLevels[1] += s.mainGame.scenarioData.ResupplyRate[1]
-	if s.isNight { // if it's midnight
-		for _, sideUnits := range s.mainGame.units {
-			for i, unit := range sideUnits {
-				if unit.State&128 != 0 {
+	for _, sideUnits := range s.mainGame.units {
+		for i, unit := range sideUnits {
+			if unit.State&128 != 0 {
+				if s.isNight { // if it's midnight
 					unit = s.resupplyUnit(unit)
-				} else {
-					if unit.HalfDaysUntilAppear == 0 {
-						continue
-					}
-					unit.HalfDaysUntilAppear--
-					if unit.HalfDaysUntilAppear != 0 {
-						continue
-					}
-					shouldSpawnUnit := !s.ContainsUnit(unit.X, unit.Y) &&
-						Rand(unit.InvAppearProbability) > 0
-					if city, ok := s.FindCity(unit.X, unit.Y); ok && city.Owner != unit.Side {
-						shouldSpawnUnit = false
-					}
-					if shouldSpawnUnit {
-						unit.State |= 128
-						reinforcements[unit.Side] = true
-						fmt.Println("Reinforcement ", unit.X, unit.Y)
-					} else {
-						unit.HalfDaysUntilAppear = 1
-					}
 				}
-				sideUnits[i] = unit
+			} else {
+				if unit.HalfDaysUntilAppear == 0 {
+					continue
+				}
+				unit.HalfDaysUntilAppear--
+				if unit.HalfDaysUntilAppear != 0 {
+					continue
+				}
+				shouldSpawnUnit := !s.ContainsUnit(unit.X, unit.Y) &&
+					Rand(unit.InvAppearProbability) > 0
+				if city, ok := s.FindCity(unit.X, unit.Y); ok && city.Owner != unit.Side {
+					shouldSpawnUnit = false
+				}
+				if shouldSpawnUnit {
+					unit.State |= 128
+					reinforcements[unit.Side] = true
+					fmt.Println("Reinforcement ", unit.X, unit.Y)
+				} else {
+					unit.HalfDaysUntilAppear = 1
+				}
 			}
+			sideUnits[i] = unit
 		}
 	}
 	for _, sideUnits := range s.mainGame.units {

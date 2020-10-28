@@ -17,12 +17,12 @@ type ScenarioData struct {
 	UnitMask         [16]byte // Data[80:96] (per unit type)
 	UnitUsesSupplies [16]bool // bits 3 of bytes Data[80:96]
 	UnitCanMove      [16]bool // bits 6 of bytes Data[80:96]
-	Data96           [8]int   // Data[96:104] per terrain type
-	Data104          [8]int   // Data[104:112] per terrain type
+	Data96           [8]int   // Data[96:104] per terrain type - men attack coefficient
+	Data104          [8]int   // Data[104:112] per terrain type - equip attack coefficient
 	Data112          [8]int   // Data[112:120] sth per terrain type
 	Data120          [8]int   // Data[120:128] per terrain type
-	Data128          [8]int   // Data[128:136] per formation&7
-	Data136          [8]int   // Data[136:144] per formation&7
+	Data128          [8]int   // Data[128:136] per formation&7 - men attack coefficient
+	Data136          [8]int   // Data[136:144] per formation&7 - equip attack coefficient
 	Data144          [8]int   // Data[144:152] sth per formation&7
 	Data152          [8]int   // Data[152:160] sth per formation&7
 	// Units with type >=MinSupplyType can provide supply to other units.
@@ -38,7 +38,6 @@ type ScenarioData struct {
 	MinutesPerTick                  int        // Data[168]
 	UnitUpdatesPerTimeIncrement     int        // Data[169]
 	Data173                         int        // Data[173] (a fatigue increase)
-	Data178                         int        // Resusing value from array below (some kind of default formation?)
 	Data176                         [4][4]int  // Data[176:190] four bytes per order (numbers 0-5)
 	Data192                         [8]int     // Data[192:200] per formation
 	UnitResupplyPerType             [16]int    // Data[200:216] top four bytes div 2
