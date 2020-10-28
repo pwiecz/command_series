@@ -684,8 +684,8 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 			a := Sum{f.top(), Num{int(v.offset)}}
 			r := ReadByteExpr{a}
 			f.popNAndPush(1, r)
-		case MulRandShiftRight8:
-			f.funcCall(o, "MUL_RAND_SHR8", 1, NUMBER)
+		case Rand:
+			f.funcCall(o, "RAND", 1, NUMBER)
 		case Abs:
 			f.funcCall(o, "ABS", 1, NUMBER)
 		case Sign:

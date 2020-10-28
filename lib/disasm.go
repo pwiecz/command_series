@@ -49,7 +49,7 @@ func (d *decoder) noArgOpCode(opcode byte) Opcode {
 	case 0x0E:
 		return And0xFF{}
 	case 0x10:
-		return MulRandShiftRight8{}
+		return Rand{}
 	case 0x12:
 		return Abs{}
 	case 0x14:

@@ -164,11 +164,11 @@ func (r ReadByteWithOffset) String() string          { return fmt.Sprintf("READ_
 func (r ReadByteWithOffset) StackEffect() (int, int) { return 1, 1 }
 func (r ReadByteWithOffset) HasSideEffects() bool    { return false }
 
-type MulRandShiftRight8 struct{}
+type Rand struct{}
 
-func (m MulRandShiftRight8) String() string          { return "MUL_RAND_SHR8" }
-func (m MulRandShiftRight8) StackEffect() (int, int) { return 1, 1 }
-func (m MulRandShiftRight8) HasSideEffects() bool    { return false }
+func (m Rand) String() string          { return "RAND" }
+func (m Rand) StackEffect() (int, int) { return 1, 1 }
+func (m Rand) HasSideEffects() bool    { return false } // todo: it has side effects, fix it
 
 type Abs struct{}
 
