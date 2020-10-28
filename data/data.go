@@ -12,6 +12,7 @@ type ScenarioData struct {
 	Data32 [16]int // Data[32:48] per unit type
 	// Score gained by destroying enemy unit of this type
 	UnitScores [16]int // Data[48:64]
+	Data64     [16]int // Data[64:80]
 	// Various bits concerning unit types... not all clear yet
 	UnitMask         [16]byte // Data[80:96] (per unit type)
 	UnitUsesSupplies [16]bool // bits 3 of bytes Data[80:96]
@@ -27,6 +28,8 @@ type ScenarioData struct {
 	// Units with type >=MinSupplyType can provide supply to other units.
 	// Such units can receive supplies only from units with larger type numbers.
 	MinSupplyType          int // Data[160]
+	Data162                int // Data[162] some generic supply use (while attacking?)
+	Data163                int // Data[163] some generic supply use (while being attacked?)
 	MaxResupplyAmount      int // Data[164]
 	MaxSupplyTransportCost int // Data[165]
 	// On average that many supplies will be used by each unit every day.
@@ -36,9 +39,10 @@ type ScenarioData struct {
 	UnitUpdatesPerTimeIncrement     int        // Data[169]
 	Data173                         int        // Data[173] (a fatigue increase)
 	Data178                         int        // Resusing value from array below (some kind of default formation?)
-	Data176                         [16]int    // Data[176:190] four bytes per order (numbers 0-5)
+	Data176                         [4][4]int  // Data[176:190] four bytes per order (numbers 0-5)
 	Data192                         [8]int     // Data[192:200] per formation
 	UnitResupplyPerType             [16]int    // Data[200:216] top four bytes div 2
+	Data216                         [16]int    // Data[216:232]
 	ResupplyRate                    [2]int     // Data[232,233]
 	MenReplacementRate              [2]int     // Data[234,235]
 	EquipReplacementRate            [2]int     // Data[236,237]
@@ -103,6 +107,9 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 	for i, v := range scenario.Data[48:64] {
 		scenario.UnitScores[i] = int(v)
 	}
+	for i, v := range scenario.Data[64:80] {
+		scenario.Data64[i] = int(v)
+	}
 	copy(scenario.UnitMask[:], scenario.Data[80:])
 	for i, v := range scenario.UnitMask {
 		scenario.UnitUsesSupplies[i] = v&8 == 0
@@ -133,6 +140,8 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 		scenario.Data152[i] = int(v)
 	}
 	scenario.MinSupplyType = int(scenario.Data[160])
+	scenario.Data162 = int(scenario.Data[162])
+	scenario.Data163 = int(scenario.Data[163])
 	scenario.MaxResupplyAmount = int(scenario.Data[164])
 	scenario.MaxSupplyTransportCost = int(scenario.Data[165])
 	scenario.ProbabilityOfUnitsUsingSupplies = int(scenario.Data[166])
@@ -141,14 +150,16 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 	scenario.UnitUpdatesPerTimeIncrement = int(scenario.Data[169])
 	scenario.Data173 = int(scenario.Data[173])
 	for i, v := range scenario.Data[176:190] {
-		scenario.Data176[i] = int(v)
+		scenario.Data176[i/4][i%4] = int(v)
 	}
-	scenario.Data178 = int(scenario.Data[178])
 	for i, v := range scenario.Data[192:200] {
 		scenario.Data192[i] = int(v)
 	}
 	for i, resupply := range scenario.Data[200:216] {
 		scenario.UnitResupplyPerType[i] = (int((resupply & 240) >> 1))
+	}
+	for i, v := range scenario.Data[216:232] {
+		scenario.Data216[i] = int(v)
 	}
 	scenario.ResupplyRate[0] = int(scenario.Data[232]) * 2
 	scenario.ResupplyRate[1] = int(scenario.Data[233]) * 2

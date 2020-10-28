@@ -1,13 +1,15 @@
 package main
 
-func AbsInt(i int) int {
+import "math/rand"
+
+func Abs(i int) int {
 	if i >= 0 {
 		return i
 	}
 	return -i
 }
 
-func ClampInt(v, min, max int) int {
+func Clamp(v, min, max int) int {
 	if v <= min {
 		return min
 	}
@@ -17,7 +19,7 @@ func ClampInt(v, min, max int) int {
 	return v
 }
 
-func SignInt(v int) int {
+func Sign(v int) int {
 	if v > 0 {
 		return 1
 	}
@@ -32,4 +34,10 @@ func InRange(v, min, max int) bool {
 		return false
 	}
 	return true
+}
+func Rand(n int) int {
+	if n == 0 {
+		return 0
+	}
+	return rand.Intn(n)
 }
