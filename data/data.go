@@ -6,11 +6,12 @@ import "os"
 
 // Representation of data parsed from {scenario}.DTA files.
 type ScenarioData struct {
-	Data      [512]byte
-	Data0Low  [16]int // Data[0:16] per unit type (lower 4 bits)
-	Data0High [16]int // Data[0:16] per unit type (higher 4 bits)
-	Data16    [16]int // Data[16:32] per unit type
-	Data32    [16]int // Data[32:48] per unit type
+	Data       [512]byte
+	Data0Low   [16]int // Data[0:16] per unit type (lower 4 bits)
+	Data0High  [16]int // Data[0:16] per unit type (higher 4 bits)
+	Data16Low  [16]int // Data[16:32] per unit type (lower 4 bits)
+	Data16High [16]int // Data[16:32] per unit type (higher 4 bits)
+	Data32     [16]int // Data[32:48] per unit type
 	// Score gained by destroying enemy unit of this type
 	UnitScores [16]int // Data[48:64]
 	Data64     [16]int // Data[64:80]
@@ -97,10 +98,11 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 	}
 	for i, v := range scenario.Data[0:16] {
 		scenario.Data0Low[i] = int(int8(v*16)) / 16
-		scenario.Data0High[i] = int(int8(v & 240))
+		scenario.Data0High[i] = int(int8(v & 240)) / 16
 	}
 	for i, v := range scenario.Data[16:32] {
-		scenario.Data16[i] = int(v)
+		scenario.Data16Low[i] = int(v & 15)
+		scenario.Data16High[i] = int(v / 16)
 	}
 	for i, v := range scenario.Data[32:48] {
 		scenario.Data32[i] = int(v)
