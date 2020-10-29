@@ -6,10 +6,11 @@ import "os"
 
 // Representation of data parsed from {scenario}.DTA files.
 type ScenarioData struct {
-	Data   [512]byte
-	Data0  [16]int // Data[0:16] per unit type
-	Data16 [16]int // Data[16:32] per unit type
-	Data32 [16]int // Data[32:48] per unit type
+	Data      [512]byte
+	Data0Low  [16]int // Data[0:16] per unit type (lower 4 bits)
+	Data0High [16]int // Data[0:16] per unit type (higher 4 bits)
+	Data16    [16]int // Data[16:32] per unit type
+	Data32    [16]int // Data[32:48] per unit type
 	// Score gained by destroying enemy unit of this type
 	UnitScores [16]int // Data[48:64]
 	Data64     [16]int // Data[64:80]
@@ -33,20 +34,20 @@ type ScenarioData struct {
 	MaxResupplyAmount      int // Data[164]
 	MaxSupplyTransportCost int // Data[165]
 	// On average that many supplies will be used by each unit every day.
-	ProbabilityOfUnitsUsingSupplies int        // Data[166]
-	Data167                         int        // Data[167]
-	MinutesPerTick                  int        // Data[168]
-	UnitUpdatesPerTimeIncrement     int        // Data[169]
-	Data173                         int        // Data[173] (a fatigue increase)
-	Data176                         [4][4]int  // Data[176:190] four bytes per order (numbers 0-5)
-	Data192                         [8]int     // Data[192:200] per formation
-	UnitResupplyPerType             [16]int    // Data[200:216] top four bytes div 2
-	Data216                         [16]int    // Data[216:232]
-	ResupplyRate                    [2]int     // Data[232,233]
-	MenReplacementRate              [2]int     // Data[234,235]
-	EquipReplacementRate            [2]int     // Data[236,237]
-	Data252                         [2]int     // Data[252:254] per side
-	MoveCostPerTerrainTypesAndUnit  [8][16]int // Data[255:383]
+	AvgDailySupplyUse              int        // Data[166]
+	Data167                        int        // Data[167]
+	MinutesPerTick                 int        // Data[168]
+	UnitUpdatesPerTimeIncrement    int        // Data[169]
+	Data173                        int        // Data[173] (a fatigue increase)
+	Data176                        [4][4]int  // Data[176:190] four bytes per order (numbers 0-5)
+	Data192                        [8]int     // Data[192:200] per formation
+	UnitResupplyPerType            [16]int    // Data[200:216] top four bytes div 2
+	Data216                        [16]int    // Data[216:232]
+	ResupplyRate                   [2]int     // Data[232,233]
+	MenReplacementRate             [2]int     // Data[234,235]
+	EquipReplacementRate           [2]int     // Data[236,237]
+	Data252                        [2]int     // Data[252:254] per side
+	MoveCostPerTerrainTypesAndUnit [8][16]int // Data[255:383]
 	// Every chunk of four bytes list possible weather for a year's quarter.
 	PossibleWeather [16]byte       // Data[384:400]
 	DaytimePalette  [8]byte        // Data[400:408]
@@ -95,7 +96,8 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 		return scenario, err
 	}
 	for i, v := range scenario.Data[0:16] {
-		scenario.Data0[i] = int(v)
+		scenario.Data0Low[i] = int(int8(v*16)) / 16
+		scenario.Data0High[i] = int(int8(v & 240))
 	}
 	for i, v := range scenario.Data[16:32] {
 		scenario.Data16[i] = int(v)
@@ -143,7 +145,7 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 	scenario.Data163 = int(scenario.Data[163])
 	scenario.MaxResupplyAmount = int(scenario.Data[164])
 	scenario.MaxSupplyTransportCost = int(scenario.Data[165])
-	scenario.ProbabilityOfUnitsUsingSupplies = int(scenario.Data[166])
+	scenario.AvgDailySupplyUse = int(scenario.Data[166])
 	scenario.Data167 = int(scenario.Data[167])
 	scenario.MinutesPerTick = int(scenario.Data[168])
 	scenario.UnitUpdatesPerTimeIncrement = int(scenario.Data[169])
