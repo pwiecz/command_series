@@ -45,9 +45,9 @@ func (g *Game) onScenarioSelected(selectedScenario int) {
 	g.subGame = NewVariantsLoading(g.scenarios[selectedScenario], g)
 }
 
-func (g *Game) Update(screen *ebiten.Image) error {
+func (g *Game) Update() error {
 	if g.subGame != nil {
-		return g.subGame.Update(screen)
+		return g.subGame.Update()
 	}
 	return nil
 }

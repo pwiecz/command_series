@@ -57,7 +57,7 @@ func NewScenarioSelection(scenarios []data.Scenario, font *data.Font, scenarioSe
 	}
 }
 
-func (s *ScenarioSelection) Update(*ebiten.Image) error {
+func (s *ScenarioSelection) Update() error {
 	for i, button := range s.buttons {
 		if button.Update() || (i < 10 && inpututil.IsKeyJustReleased(numToKey(i+1))) {
 			s.scenarioSelected(i)
@@ -95,7 +95,7 @@ func NewVariantSelection(mainGame *Game) *VariantSelection {
 	return &VariantSelection{buttons: buttons, mainGame: mainGame}
 }
 
-func (s *VariantSelection) Update(*ebiten.Image) error {
+func (s *VariantSelection) Update() error {
 	for i, button := range s.buttons {
 		if button.Update() || (i < 10 && inpututil.IsKeyJustReleased(numToKey(i+1))) {
 			s.mainGame.selectedVariant = i
@@ -133,7 +133,7 @@ func NewGameLoading(gameDirname string, gameLoaded func([]data.Scenario, data.Sp
 	}
 }
 
-func (l *GameLoading) Update(*ebiten.Image) error {
+func (l *GameLoading) Update() error {
 	if l.loadingDone == nil {
 		l.loadingDone = make(chan error)
 		go func() {
@@ -195,7 +195,7 @@ func NewVariantsLoading(scenario data.Scenario, mainGame *Game) *VariantsLoading
 		scenario: scenario,
 	}
 }
-func (l *VariantsLoading) Update(*ebiten.Image) error {
+func (l *VariantsLoading) Update() error {
 	if l.loadingDone == nil {
 		l.loadingDone = make(chan error)
 		go func() {
@@ -258,7 +258,7 @@ func NewVariantLoading(mainGame *Game) *VariantLoading {
 		mainGame: mainGame,
 	}
 }
-func (l *VariantLoading) Update(*ebiten.Image) error {
+func (l *VariantLoading) Update() error {
 	if l.loadingDone == nil {
 		l.loadingDone = make(chan error)
 		go func() {

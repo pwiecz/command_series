@@ -97,14 +97,11 @@ func (s *ShowMap) createMapImage() {
 	if err != nil {
 		panic(err)
 	}
-	mapEImage, err := ebiten.NewImageFromImage(mapImage, ebiten.FilterNearest)
-	if err != nil {
-		panic(err)
-	}
+	mapEImage := ebiten.NewImageFromImage(mapImage)
 	s.mapImage = mapEImage
 }
 
-func (s *ShowMap) Update(screen *ebiten.Image) error {
+func (s *ShowMap) Update() error {
 	if s.idleTicksLeft > 0 {
 		s.idleTicksLeft--
 		return nil
@@ -112,7 +109,7 @@ func (s *ShowMap) Update(screen *ebiten.Image) error {
 	s.unitsUpdated++
 	if s.unitsUpdated <= s.mainGame.scenarioData.UnitUpdatesPerTimeIncrement/2 {
 		s.updateUnit()
-		return s.Update(screen)
+		return s.Update()
 	}
 	s.unitsUpdated = 0
 	s.minute += s.mainGame.scenarioData.MinutesPerTick
@@ -1573,10 +1570,7 @@ func (s *ShowMap) Draw(screen *ebiten.Image) {
 			} else {
 				unitImg.Palette = data.GetPalette(unit.ColorPalette, s.mainGame.scenarioData.NightPalette)
 			}
-			unitEImg, err := ebiten.NewImageFromImage(&unitImg, ebiten.FilterNearest)
-			if err != nil {
-				panic(err)
-			}
+			unitEImg := ebiten.NewImageFromImage(&unitImg)
 			originalGeoM := opts.GeoM
 			opts.GeoM.Translate(float64(unit.X)*4, float64(unit.Y)*8)
 			screen.DrawImage(unitEImg, opts)

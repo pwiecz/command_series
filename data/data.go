@@ -98,7 +98,7 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 	}
 	for i, v := range scenario.Data[0:16] {
 		scenario.Data0Low[i] = int(int8(v*16)) / 16
-		scenario.Data0High[i] = int(int8(v & 240)) / 16
+		scenario.Data0High[i] = int(int8(v&240)) / 16
 	}
 	for i, v := range scenario.Data[16:32] {
 		scenario.Data16Low[i] = int(v & 15)
