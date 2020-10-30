@@ -16,17 +16,17 @@ type ScenarioData struct {
 	UnitScores [16]int // Data[48:64]
 	Data64     [16]int // Data[64:80]
 	// Various bits concerning unit types... not all clear yet
-	UnitMask         [16]byte // Data[80:96] (per unit type)
-	UnitUsesSupplies [16]bool // bits 3 of bytes Data[80:96]
-	UnitCanMove      [16]bool // bits 6 of bytes Data[80:96]
-	Data96           [8]int   // Data[96:104] per terrain type - men attack coefficient
-	Data104          [8]int   // Data[104:112] per terrain type - equip attack coefficient
-	Data112          [8]int   // Data[112:120] sth per terrain type
-	Data120          [8]int   // Data[120:128] per terrain type
-	Data128          [8]int   // Data[128:136] per formation&7 - men attack coefficient
-	Data136          [8]int   // Data[136:144] per formation&7 - equip attack coefficient
-	Data144          [8]int   // Data[144:152] sth per formation&7
-	Data152          [8]int   // Data[152:160] sth per formation&7
+	UnitMask             [16]byte // Data[80:96] (per unit type)
+	UnitUsesSupplies     [16]bool // bits 3 of bytes Data[80:96]
+	UnitCanMove          [16]bool // bits 6 of bytes Data[80:96]
+	TerrainMenAttack     [8]int   // Data[96:104]
+	TerrainTankAttack    [8]int   // Data[104:112]
+	TerrainMenDefence    [8]int   // Data[112:120]
+	TerrainTankDefence   [8]int   // Data[120:128]
+	FormationMenAttack   [8]int   // Data[128:136]
+	FormationTankAttack  [8]int   // Data[136:144]
+	FormationMenDefence  [8]int   // Data[144:152]
+	FormationTankDefence [8]int   // Data[152:160]
 	// Units with type >=MinSupplyType can provide supply to other units.
 	// Such units can receive supplies only from units with larger type numbers.
 	MinSupplyType          int // Data[160]
@@ -119,28 +119,28 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 		scenario.UnitCanMove[i] = v&64 == 0
 	}
 	for i, v := range scenario.Data[96:104] {
-		scenario.Data96[i] = int(v)
+		scenario.TerrainMenAttack[i] = int(v)
 	}
 	for i, v := range scenario.Data[104:112] {
-		scenario.Data104[i] = int(v)
+		scenario.TerrainTankAttack[i] = int(v)
 	}
 	for i, v := range scenario.Data[112:120] {
-		scenario.Data112[i] = int(v)
+		scenario.TerrainMenDefence[i] = int(v)
 	}
 	for i, v := range scenario.Data[120:128] {
-		scenario.Data120[i] = int(v)
+		scenario.TerrainTankDefence[i] = int(v)
 	}
 	for i, v := range scenario.Data[128:136] {
-		scenario.Data128[i] = int(v)
+		scenario.FormationMenAttack[i] = int(v)
 	}
 	for i, v := range scenario.Data[136:144] {
-		scenario.Data136[i] = int(v)
+		scenario.FormationTankAttack[i] = int(v)
 	}
 	for i, v := range scenario.Data[144:152] {
-		scenario.Data144[i] = int(v)
+		scenario.FormationMenDefence[i] = int(v)
 	}
 	for i, v := range scenario.Data[152:160] {
-		scenario.Data152[i] = int(v)
+		scenario.FormationTankDefence[i] = int(v)
 	}
 	scenario.MinSupplyType = int(scenario.Data[160])
 	scenario.Data162 = int(scenario.Data[162])

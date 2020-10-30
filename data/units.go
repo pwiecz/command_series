@@ -15,11 +15,12 @@ const (
 
 type Unit struct {
 	Side                 int  // 0 or 1
-	State                byte // bit 15 - is added to game, bit 5 - local command, bit 4 - has contact with enemy, bit 3 - is there no supply line to unit
+	State                byte // bit 15 - is added to game, bit 5 - local command, bit 4 - has contact with enemy, bit 3 - is there no supply line to unit, bit 1 - has contact with enemy?
 	X, Y                 int
 	MenCount, EquipCount int
 	Formation            int
-	FormationHigher4Bits int
+	SupplyUnit           int // Index of this unit's supply unit
+	FormationTopBit bool
 	Type                 int
 	ColorPalette         int
 	Name                 string
@@ -67,7 +68,8 @@ func ParseUnit(data [16]byte, unitNames []string, generals []General) (Unit, err
 	unit.MenCount = int(data[3])
 	unit.EquipCount = int(data[4])
 	unit.Formation = int(data[5] & 15)
-	unit.FormationHigher4Bits = int(data[5] / 16)
+	unit.SupplyUnit = int((data[5] / 16) & 7)
+	unit.FormationTopBit = data[5] & 128 != 0
 	unit.VariantBitmap = data[6]
 	unit.Type = int(data[7] & 15)
 	unit.ColorPalette = int(data[7] / 64)

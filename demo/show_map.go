@@ -231,50 +231,48 @@ nextUnit:
 				v30 += s.map0[1-unit.Side][sx+dx][sy+dy]
 			}
 		}
-		if v30 == 0 {
-			if s.mainGame.scenarioData.UnitScores[unit.Type] == 0 && unit.State&8 == 0 {
-				tx, ty := unit.X/32, unit.Y/16
-				//unit.X /= 4
-				//unit.Y /= 4
-				arg1 := -17536 // 0xBB80
-				bestI := 0
-				bestX, bestY := 0, 0
-				for i := 0; i < 9; i++ {
-					//t := s.mainGame.generic.Data44[i]
-					//if !InRange(Sign(int(int8((t&6)*32)))*8+unit.X+1, 1, 33) {
-					//	panic("")
-					//}
-					//if !InRange(Sign((int(int8(t))+2)/8)*4+unit.Y+1, 1, 17) {
-					//	panic("")
-					//}
-					dx, dy := s.mainGame.generic.TinyMapOffsets(i)
-					x, y := tx+dx, ty+dy
-					if !InRange(x, 0, 4) || !InRange(y, 0, 4) {
-						continue
-					}
-					val := (s.map2_1[unit.Side][x][y] + s.map2_1[1-unit.Side][x][y]) * 16 / Clamp(s.map2_0[unit.Side][x][y]-s.map2_0[1-unit.Side][x][y], 10, 9999)
-					tmp := val * s.function26(unit.X/4, unit.Y/4, i) / 8
-					if i == 0 {
-						tmp *= 2
-					}
-					if tmp > arg1 {
-						arg1 = tmp
-						bestI = i
-						bestX, bestY = x, y
-					}
+		if v30 == 0 && s.mainGame.scenarioData.UnitScores[unit.Type] == 0 && unit.State&8 == 0 {
+			tx, ty := unit.X/32, unit.Y/16
+			//unit.X /= 4
+			//unit.Y /= 4
+			arg1 := -17536 // 0xBB80
+			bestI := 0
+			bestX, bestY := 0, 0
+			for i := 0; i < 9; i++ {
+				//t := s.mainGame.generic.Data44[i]
+				//if !InRange(Sign(int(int8((t&6)*32)))*8+unit.X+1, 1, 33) {
+				//	panic("")
+				//}
+				//if !InRange(Sign((int(int8(t))+2)/8)*4+unit.Y+1, 1, 17) {
+				//	panic("")
+				//}
+				dx, dy := s.mainGame.generic.TinyMapOffsets(i)
+				x, y := tx+dx, ty+dy
+				if !InRange(x, 0, 4) || !InRange(y, 0, 4) {
+					continue
 				}
-				// reload the unit as its coords have been overwritten
-				//unit = s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2]
-				if bestI > 0 {
-					unit.OrderLower4Bits = 0
-					unit.Order = 0
-					v30 = (unit.MenCount + unit.EquipCount + 8) / 16
-					s.map2_0[unit.Side][tx][ty] = Abs(s.map2_0[unit.Side][bestX][bestY] - v30)
-					s.map2_0[unit.Side][bestX][bestY] += v30
-					unit.ObjectiveX = bestX*32 + 16 // ((v20&6)*16)|16
-					unit.ObjectiveY = bestY*16 + 8  // ((v20&24)*2)| 8
-					goto l21
+				val := (s.map2_1[unit.Side][x][y] + s.map2_1[1-unit.Side][x][y]) * 16 / Clamp(s.map2_0[unit.Side][x][y]-s.map2_0[1-unit.Side][x][y], 10, 9999)
+				tmp := val * s.function26(unit.X/4, unit.Y/4, i) / 8
+				if i == 0 {
+					tmp *= 2
 				}
+				if tmp > arg1 {
+					arg1 = tmp
+					bestI = i
+					bestX, bestY = x, y
+				}
+			}
+			// reload the unit as its coords have been overwritten
+			//unit = s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2]
+			if bestI > 0 {
+				unit.OrderLower4Bits = 0
+				unit.Order = 0
+				v30 = (unit.MenCount + unit.EquipCount + 8) / 16
+				s.map2_0[unit.Side][tx][ty] = Abs(s.map2_0[unit.Side][bestX][bestY] - v30)
+				s.map2_0[unit.Side][bestX][bestY] += v30
+				unit.ObjectiveX = bestX*32 + 16 // ((v20&6)*16)|16
+				unit.ObjectiveY = bestY*16 + 8  // ((v20&24)*2)| 8
+				goto l21
 			}
 		}
 		{
@@ -284,8 +282,9 @@ nextUnit:
 			var bestDx, bestDy int
 			var v63 int
 			temp2 := (unit.MenCount + unit.EquipCount + 4) / 8
-			v61 := temp2 * Clamp(s.mainGame.scenarioData.Data144[unit.Formation&7], 8, 99) / 8 * s.mainGame.scenarioData.Data112[s.terrainTypeAt(unit.X, unit.Y)] / 8
+			v61 := temp2 * Clamp(s.mainGame.scenarioData.FormationMenDefence[unit.Formation&7], 8, 99) / 8 * s.mainGame.scenarioData.TerrainMenDefence[s.terrainTypeAt(unit.X, unit.Y)] / 8
 			if s.mainGame.scenarioData.UnitScores[unit.Type] > 7 {
+				// special units - air wings or supply units
 				temp2 = 1
 				v61 = 1
 			}
@@ -447,13 +446,14 @@ nextUnit:
 			unit = unitCopy // revert modified unit
 			unit.OrderLower4Bits |= 8
 			supplyUse := s.mainGame.scenarioData.AvgDailySupplyUse
+			// there is no supply line to unit
 			if unit.State&8 > 0 {
 				supplyUse *= 2
 			}
 			if unit.SupplyLevel < supplyUse {
-				unit2 := s.mainGame.units[unit.Side][unit.FormationHigher4Bits]
+				unit2 := s.mainGame.units[unit.Side][unit.SupplyUnit]
 				if unit2.State&128 == 0 {
-					unit2 = s.mainGame.units[unit.Side][unit2.FormationHigher4Bits]
+					unit2 = s.mainGame.units[unit.Side][unit2.SupplyUnit]
 				}
 				unit.ObjectiveX = unit2.X
 				unit.ObjectiveY = unit2.Y
@@ -499,8 +499,8 @@ l24:
 	if mode == data.Attack {
 		arg1 := 16000
 		terrainType := s.terrainTypeAt(unit.X, unit.Y)
-		menCoeff := s.mainGame.scenarioData.Data96[terrainType] * unit.MenCount
-		equipCoeff := s.mainGame.scenarioData.Data104[terrainType] * unit.EquipCount * (s.mainGame.scenarioData.UnitScores[unit.Type] / 16) / 4
+		menCoeff := s.mainGame.scenarioData.TerrainMenAttack[terrainType] * unit.MenCount
+		equipCoeff := s.mainGame.scenarioData.TerrainTankAttack[terrainType] * unit.EquipCount * (s.mainGame.scenarioData.UnitScores[unit.Type] / 16) / 4
 		coeff := (menCoeff + equipCoeff) / 8 * (255 - unit.Fatigue) / 255 * (unit.Morale + s.mainGame.scenarioData.Data0High[unit.Type]/16) / 128
 		temp2 := coeff * s.magicCoeff(s.mainGame.hexes.Arr144[:], unit.X, unit.Y, unit.Side) / 8
 		v := 0
@@ -519,9 +519,9 @@ l24:
 					panic("")
 				}
 				terrainType := s.terrainTypeAt(unit2.X, unit2.Y)
-				menCoeff := s.mainGame.scenarioData.Data112[terrainType] * unit2.MenCount
-				equipCoeff := s.mainGame.scenarioData.Data120[terrainType] * unit2.EquipCount * s.mainGame.scenarioData.Data16Low[unit.Type] / 4
-				t := (menCoeff + equipCoeff) * s.mainGame.scenarioData.Data144[unit.Formation&7] / 8
+				menCoeff := s.mainGame.scenarioData.TerrainMenDefence[terrainType] * unit2.MenCount
+				equipCoeff := s.mainGame.scenarioData.TerrainTankDefence[terrainType] * unit2.EquipCount * s.mainGame.scenarioData.Data16Low[unit.Type] / 4
+				t := (menCoeff + equipCoeff) * s.mainGame.scenarioData.FormationMenDefence[unit.Formation&7] / 8
 				w := 2
 				if s.mainGame.scenarioData.UnitMask[unit.Type]&4 != 0 {
 					w /= 2
@@ -537,9 +537,9 @@ l24:
 				tt := s.terrainType(t)
 				var v int
 				if unit.MenCount > unit.EquipCount {
-					v = s.mainGame.scenarioData.Data96[tt]
+					v = s.mainGame.scenarioData.TerrainMenAttack[tt]
 				} else {
-					v = s.mainGame.scenarioData.Data104[tt]
+					v = s.mainGame.scenarioData.TerrainTankAttack[tt]
 				}
 				if tt < 7 {
 					// temperarily hide the unit while we compute sth
@@ -593,7 +593,7 @@ l24:
 			if tt == 7 {
 				v = -128
 			} else {
-				r := s.mainGame.scenarioData.Data112[tt]
+				r := s.mainGame.scenarioData.TerrainMenDefence[tt]
 				nx := unit.X + s.mainGame.generic.Dx[i]
 				ny := unit.Y + s.mainGame.generic.Dy[i]
 				v = r + s.magicCoeff(s.mainGame.hexes.Arr0[:], nx, ny, unit.Side)
@@ -615,7 +615,7 @@ l24:
 			}
 		}
 		s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2].State |= 128
-		v := s.mainGame.scenarioData.Data144[unit.Formation&7] - 8
+		v := s.mainGame.scenarioData.FormationMenDefence[unit.Formation&7] - 8
 		if false { // if full intelligence?? (unit.Side+1)&auto >>>4 > 0
 			v *= 2
 		}
@@ -659,7 +659,7 @@ l21:
 	{
 		v57 := 25
 		var distance int
-		var v49, sx, sy, arg1 int
+		var sx, sy, arg1 int
 		for {
 			mvAdd := 0
 			if unit.ObjectiveX == 0 {
@@ -668,10 +668,9 @@ l21:
 			distance = s.function15(unit)
 			i := s.mainGame.scenarioData.Data32[unit.Type]
 			if distance > 0 && distance < (i&31)*2+1 && unit.Order == data.Attack {
-				v49 = 0
 				sx = unit.ObjectiveX
 				sy = unit.ObjectiveY
-				unit.FormationHigher4Bits |= 8
+				unit.FormationTopBit = true
 				arg1 = 7
 			}
 		l5:
@@ -718,7 +717,7 @@ l21:
 			if moveCost < 1 {
 				break
 			}
-			v := s.mainGame.scenarioData.Data192[unit.Formation] * moveCost / 8
+			v := s.mainGame.scenarioData.Data192[unit.Formation&7] * moveCost / 8
 			if unit.State&16 != 0 {
 				v *= s.mainGame.scenarioData.UnitResupplyPerType[unit.Type] & 7
 				v /= 8
@@ -735,10 +734,8 @@ l21:
 			}
 			w /= 8
 			temp = w / (v + 1)
-			if temp > v57 {
-				if Rand(temp) > v57 {
-					break
-				}
+			if temp > v57 && Rand(temp) > v57 {
+				break
 			}
 			v57 -= temp
 			if true /* todo: player controlled or sth */ {
@@ -776,11 +773,8 @@ l21:
 			break
 		}
 		// l2:
-		if false {
-			fmt.Println(v57, v49, arg1)
-		}
 		unit.SupplyLevel = Clamp(unit.SupplyLevel-2, 0, 255)
-		t := unit.State & 1
+		wasInContactWithEnemy := unit.State&1 != 0
 		if Rand(s.mainGame.scenarioData.Data252[unit.Side]) > 0 {
 			unit.State &= 232
 		} else {
@@ -803,9 +797,9 @@ l21:
 					if unit2Mask&128 == 0 {
 						unit.State = unit.State | 16
 					}
-					if unit2Mask&64 == 0 { // unit cannot move ???
+					if unit2Mask&64 == 0 { // unit can move ?
 						unit.State = unit.State | 65
-						if t == 0 {
+						if !wasInContactWithEnemy {
 							unitState = 4 // in contact with enemy forces
 						}
 					}
@@ -839,10 +833,10 @@ l21:
 		if !s.ContainsUnitOfSide(sx, sy, 1-unit.Side) {
 			goto end
 		}
-		if unit.Formation&7 != s.mainGame.scenarioData.Data176[0][2] {
+		if unit.Formation != s.mainGame.scenarioData.Data176[0][2] {
 			goto end
 		}
-		if unit.FormationHigher4Bits&8 == 0 {
+		if unit.FormationTopBit {
 			// * function28
 			// * show unit on map
 			// * function14
@@ -861,12 +855,12 @@ l21:
 			panic("")
 		}
 		arg1 = s.terrainTypeAt(unit.X, unit.Y)
-		v := s.mainGame.scenarioData.Data96[arg1] * s.mainGame.scenarioData.Data128[unit.Formation&7] * unit.MenCount / 32
-		if unit.FormationHigher4Bits&8 > 0 {
+		v := s.mainGame.scenarioData.TerrainMenAttack[arg1] * s.mainGame.scenarioData.FormationMenAttack[unit.Formation&7] * unit.MenCount / 32
+		if unit.FormationTopBit {
 			v = 0
 		}
-		v2 := s.mainGame.scenarioData.Data104[arg1] * s.mainGame.scenarioData.Data136[unit.Formation&7] * s.mainGame.scenarioData.Data16High[unit.Type] / 2 * unit.EquipCount / 64
-		if unit.FormationHigher4Bits&8 > 0 {
+		v2 := s.mainGame.scenarioData.TerrainTankAttack[arg1] * s.mainGame.scenarioData.FormationTankAttack[unit.Formation&7] * s.mainGame.scenarioData.Data16High[unit.Type] / 2 * unit.EquipCount / 64
+		if unit.FormationTopBit {
 			if s.mainGame.scenarioData.Data32[unit.Type]&8 > 0 {
 				w := 4 - weather
 				if w < 1 {
@@ -880,11 +874,11 @@ l21:
 		v = v * s.magicCoeff(s.mainGame.hexes.Arr144[:], unit.X, unit.Y, unit.Side) / 8
 		v++
 		tt2 := s.terrainTypeAt(unit2.X, unit2.Y)
-		if s.mainGame.scenarioData.UnitScores[unit2.Type]&258 > 0 {
+		if s.mainGame.scenarioData.UnitScores[unit2.Type]&248 > 0 {
 			unit.State |= 4
 		}
-		menCoeff := s.mainGame.scenarioData.Data112[tt2] * s.mainGame.scenarioData.Data144[unit2.Formation&7] * unit2.MenCount / 32
-		equipCoeff := s.mainGame.scenarioData.Data104[tt2] * s.mainGame.scenarioData.Data152[unit2.Formation&7] * s.mainGame.scenarioData.Data16Low[unit2.Type] / 2 * unit2.EquipCount / 64
+		menCoeff := s.mainGame.scenarioData.TerrainMenDefence[tt2] * s.mainGame.scenarioData.FormationMenDefence[unit2.Formation&7] * unit2.MenCount / 32
+		equipCoeff := s.mainGame.scenarioData.TerrainTankAttack[tt2] * s.mainGame.scenarioData.FormationTankDefence[unit2.Formation&7] * s.mainGame.scenarioData.Data16Low[unit2.Type] / 2 * unit2.EquipCount / 64
 		w := (menCoeff + equipCoeff) * unit2.Morale / 256 * (240 - unit2.Fatigue/2) / 128 * (s.mainGame.hexes.Arr3[1-unit.Side][unit2.GeneralIndex][2] & 15) / 16
 		if unit2.SupplyLevel == 0 {
 			w = w * s.mainGame.scenarioData.Data167 / 8
@@ -896,7 +890,7 @@ l21:
 			d += weather
 		}
 		arg1 = Clamp(w, 0, 63)
-		if unit.FormationHigher4Bits&8 == 0 || s.mainGame.scenarioData.Data32[unit.Type]&128 == 0 {
+		if !unit.FormationTopBit || s.mainGame.scenarioData.Data32[unit.Type]&128 == 0 {
 			menLost := Clamp((Rand(unit.MenCount*arg1)+255)/512, 0, unit.MenCount)
 			s.menLost[unit.Side] += menLost
 			unit.MenCount -= menLost
@@ -924,71 +918,67 @@ l21:
 		s.tanksLost[1-unit.Side] += tanksLost2
 		unit2.SupplyLevel = Clamp(unit2.SupplyLevel-s.mainGame.scenarioData.Data163, 0, 255)
 
-		if !s.mainGame.scenarioData.UnitCanMove[unit2.Type] && unit.FormationHigher4Bits&8 == 0 {
-			t := arg1 - s.mainGame.scenarioData.Data0Low[unit2.Type]*2 + unit2.Fatigue/4
-			if t > 36 {
-				unit2.Morale = Abs(unit2.Morale - 1)
-				v = -128
-				oldX, oldY := unit2.X, unit2.Y
-				bestX, bestY := unit2.X, unit2.Y
-				// show unit2 on map
-				//...
-				if unit2.Fatigue > 128 {
-					u := s.mainGame.units[1-unit.Side][unit2.FormationHigher4Bits]
-					if u.State&128 > 0 {
-						unit2.Morale = Abs(unit2.Morale - s.countNeighbourUnits(unit2.X, unit2.Y, unit.Side)*4)
-						unit2.X = u.X
-						unit2.Y = u.Y
-						unit2.State = 0
-						unit2.ObjectiveX = 6
-						unit2.ObjectiveY = 6
-						unitState = 10 // have been overrun
-					}
+		if !s.mainGame.scenarioData.UnitCanMove[unit2.Type] && !unit.FormationTopBit &&
+			arg1-s.mainGame.scenarioData.Data0Low[unit2.Type]*2+unit2.Fatigue/4 > 36 {
+			unit2.Morale = Abs(unit2.Morale - 1)
+			v = -128
+			oldX, oldY := unit2.X, unit2.Y
+			bestX, bestY := unit2.X, unit2.Y
+			// show unit2 on map
+			//...
+			if unit2.Fatigue > 128 {
+				unit2SupplyUnit := s.mainGame.units[1-unit.Side][unit2.SupplyUnit]
+				if unit2SupplyUnit.State&128 > 0 {
+					unit2.Morale = Abs(unit2.Morale - s.countNeighbourUnits(unit2.X, unit2.Y, unit.Side)*4)
+					unit2.X = unit2SupplyUnit.X
+					unit2.Y = unit2SupplyUnit.Y
+					unit2.State = 0
+					unit2.ObjectiveX = 6
+					unit2.ObjectiveY = 6
+					unitState = 10 // have been overrun
 				}
-				for i := 0; i < 6; i++ {
-					nx := unit2.X + s.mainGame.generic.Dx[i]
-					ny := unit2.Y + s.mainGame.generic.Dy[i]
-					tt := s.terrainTypeAt(nx, ny)
-					r := s.mainGame.scenarioData.Data112[tt]
-					if s.mainGame.scenarioData.MoveCostPerTerrainTypesAndUnit[tt][unit2.Type] > 0 {
-						if !s.ContainsUnit(nx, ny) && !s.ContainsCity(nx, ny) {
-							r += s.magicCoeff(s.mainGame.hexes.Arr96[:], nx, ny, 1-unit.Side) * 4
-							if r > 11 {
-								if r+1 > v {
-									v = r
-									bestX, bestY = nx, ny
-								}
-							}
-						}
-					}
-				}
-				if unitState != 10 {
-					unit.ObjectiveX = bestX
-					unit.ObjectiveY = bestY
-				}
-				if bestX != oldX || bestY != oldY {
-					if unitState != 10 {
-						unitState = 9 // are retreating
-					}
-					if arg1 > 60 {
-						if s.magicCoeff(s.mainGame.hexes.Arr96[:], oldX, oldY, unit.Side) > -4 { /* check coordinates */
-							if s.mainGame.scenarioData.MoveCostPerTerrainTypesAndUnit[s.terrainTypeAt(oldX, oldY)][unit.Type] > 0 { // or the actual terrain ...
-								unit.X = oldX
-								unit.Y = oldY
-								if s.function16(unit) {
-									unitState = 5 // captured
-								}
-							}
-						}
-					}
-				} else {
-					unitState = 0
-				}
-				unit2.X, unit2.Y = bestX, bestY
-				unit2.Formation = s.mainGame.scenarioData.Data176[1][0]
-				unit2.Order = data.OrderType(s.mainGame.scenarioData.Data176[1][0] + 1)
-				unit2.State |= 32
 			}
+			for i := 0; i < 6; i++ {
+				nx := unit2.X + s.mainGame.generic.Dx[i]
+				ny := unit2.Y + s.mainGame.generic.Dy[i]
+				tt := s.terrainTypeAt(nx, ny)
+				r := s.mainGame.scenarioData.TerrainMenDefence[tt]
+				if s.mainGame.scenarioData.MoveCostPerTerrainTypesAndUnit[tt][unit2.Type] > 0 {
+					if !s.ContainsUnit(nx, ny) && !s.ContainsCity(nx, ny) {
+						r += s.magicCoeff(s.mainGame.hexes.Arr96[:], nx, ny, 1-unit.Side) * 4
+						if r > 11 && r >= v {
+							v = r
+							bestX, bestY = nx, ny
+						}
+					}
+				}
+			}
+			if unitState != 10 {
+				unit.ObjectiveX = bestX
+				unit.ObjectiveY = bestY
+			}
+			if bestX != oldX || bestY != oldY {
+				if unitState != 10 {
+					unitState = 9 // are retreating
+				}
+				if arg1 > 60 {
+					if s.magicCoeff(s.mainGame.hexes.Arr96[:], oldX, oldY, unit.Side) > -4 { /* check coordinates */
+						if s.mainGame.scenarioData.MoveCostPerTerrainTypesAndUnit[s.terrainTypeAt(oldX, oldY)][unit.Type] > 0 { // or the actual terrain ...
+							unit.X = oldX
+							unit.Y = oldY
+							if s.function16(unit) {
+								unitState = 5 // captured
+							}
+						}
+					}
+				}
+			} else {
+				unitState = 0
+			}
+			unit2.X, unit2.Y = bestX, bestY
+			unit2.Formation = s.mainGame.scenarioData.Data176[1][0]
+			unit2.Order = data.OrderType(s.mainGame.scenarioData.Data176[1][0] + 1)
+			unit2.State |= 32
 		}
 		a := arg1
 		if unitState == 9 { // are retreating
@@ -1001,21 +991,23 @@ l21:
 		s.mainGame.units[unit2.Side][unit2.Index] = unit2
 	}
 end:
-	temp := 0
-	dif := Sign((unit.Formation & 7) - int(unit.OrderLower4Bits))
-	if Abs(dif) > 0 {
-		temp = s.mainGame.scenarioData.Data216[4+dif*4+(unit.Formation&7)]
-		if temp > Rand(15) {
-			unit.FormationHigher4Bits = unit.FormationHigher4Bits & 7
-			unit.Formation -= dif // ????
+	for {
+		temp := 0
+		dif := Sign((unit.Formation & 7) - int(unit.OrderLower4Bits&7))
+		if Abs(dif) > 0 {
+			temp = s.mainGame.scenarioData.Data216[4+dif*4+(unit.Formation&7)]
+			if temp > Rand(15) {
+				unit.FormationTopBit = false
+				unit.Formation -= dif // ????
+			}
 		}
-	}
-	if temp&16 > 0 {
-		goto end
+		if temp&16 == 0 {
+			break
+		}
 	}
 	{
 		a := s.mainGame.scenarioData.Data64[unit.Type]
-		if unit.State&9 == 0 {
+		if unit.State&9 == 0 { // has supply line and is not in contact with enemy
 			a *= 2
 		}
 		unit.Fatigue = Clamp(unit.Fatigue-a, 0, 255)
@@ -1183,8 +1175,8 @@ func (s *ShowMap) reinitSmallMapsAndSuch() {
 					}
 				}
 				v30 := unit.MenCount + unit.EquipCount
-				tmp := Clamp(s.mainGame.scenarioData.Data144[unit.Formation&7], 8, 99) * v30 / 8
-				v29 := s.mainGame.scenarioData.Data112[s.terrainTypeAt(unit.X, unit.Y)] * tmp / 8
+				tmp := Clamp(s.mainGame.scenarioData.FormationMenDefence[unit.Formation&7], 8, 99) * v30 / 8
+				v29 := s.mainGame.scenarioData.TerrainMenDefence[s.terrainTypeAt(unit.X, unit.Y)] * tmp / 8
 				if s.mainGame.scenarioData.UnitScores[unit.Type] >= 7 {
 					v29 = 4
 					v30 = 4
@@ -1289,7 +1281,7 @@ func (s *ShowMap) everyHour() {
 
 	s.createMapImage()
 }
-func (s *ShowMap) every12Hours() (reinforcements [2]bool) {
+func (s *ShowMap) every12Hours() (reinforcements [2]bool, res int) {
 	s.supplyLevels[0] += s.mainGame.scenarioData.ResupplyRate[0]
 	s.supplyLevels[1] += s.mainGame.scenarioData.ResupplyRate[1]
 	for _, sideUnits := range s.mainGame.units {
@@ -1324,8 +1316,10 @@ func (s *ShowMap) every12Hours() (reinforcements [2]bool) {
 	}
 	for _, sideUnits := range s.mainGame.units {
 		for i, unit := range sideUnits {
-			m := unit.State & 136
-			if m^136 != 0 { // has supply line
+			if unit.State&136 > 0 {
+				res++
+			}
+			if (unit.State&136)^136 != 0 { // != 136 (inactive or has no supply line)
 				if unit.MenCount <= s.mainGame.scenarioData.MenCountLimit[unit.Type] {
 					unit.MenCount += Rand(s.mainGame.scenarioData.MenReplacementRate[unit.Side]+32) / 32
 				}
@@ -1345,7 +1339,7 @@ func (s *ShowMap) resupplyUnit(unit data.Unit) data.Unit {
 		!s.mainGame.scenarioData.UnitCanMove[unit.Type] {
 		return unit
 	}
-	unit.State |= 32
+	unit.State |= 8
 	minSupplyType := s.mainGame.scenarioData.MinSupplyType & 15
 	if unit.Type >= minSupplyType {
 		// headquarters can only gain supply from supply depots,
