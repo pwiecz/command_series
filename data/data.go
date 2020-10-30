@@ -15,7 +15,7 @@ type ScenarioData struct {
 	// Score gained by destroying enemy unit of this type
 	UnitScores [16]int // Data[48:64]
 	Data64     [16]int // Data[64:80]
-	// Various bits concerning unit types... not all clear yet
+	// Various bits concerning unit types... not all clear yet (&4 weather has no impact?)
 	UnitMask             [16]byte // Data[80:96] (per unit type)
 	UnitUsesSupplies     [16]bool // bits 3 of bytes Data[80:96]
 	UnitCanMove          [16]bool // bits 6 of bytes Data[80:96]

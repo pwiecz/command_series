@@ -520,13 +520,13 @@ l24:
 				}
 				terrainType := s.terrainTypeAt(unit2.X, unit2.Y)
 				menCoeff := s.mainGame.scenarioData.TerrainMenDefence[terrainType] * unit2.MenCount
-				equipCoeff := s.mainGame.scenarioData.TerrainTankDefence[terrainType] * unit2.EquipCount * s.mainGame.scenarioData.Data16Low[unit.Type] / 4
-				t := (menCoeff + equipCoeff) * s.mainGame.scenarioData.FormationMenDefence[unit.Formation&7] / 8
-				w := 2
+				equipCoeff := s.mainGame.scenarioData.TerrainTankDefence[terrainType] * unit2.EquipCount * s.mainGame.scenarioData.Data16Low[unit2.Type] / 4
+				t := (menCoeff + equipCoeff) * s.mainGame.scenarioData.FormationMenDefence[unit2.Formation&7] / 8
+				w := weather
 				if s.mainGame.scenarioData.UnitMask[unit.Type]&4 != 0 {
 					w /= 2
 				}
-				d := s.mainGame.scenarioData.UnitScores[unit.Type] + int((unit.State&6)*2) + 14 - w
+				d := s.mainGame.scenarioData.UnitScores[unit2.Type] + int((unit2.State&6)*2) + 14 - w
 				n := t / Clamp(d, 1, 32)
 				arg2 = n * s.magicCoeff(s.mainGame.hexes.Arr144[:], unit2.X, unit2.Y, unit2.Side) / 8 * (255 - unit2.Fatigue) / 256 * unit2.Morale / 128
 			} else {
@@ -632,20 +632,14 @@ l24:
 	{
 		t := s.mainGame.scenarioData.Data32[unit.Type]
 		temp2 := (t & 31) * 2
-		if temp2 > 0 {
-			if (t&8)+weather < 10 {
-				if 32-unit.Fatigue/4 > 0 {
-					for i := 0; i <= 32-unit.Fatigue/4; i++ {
-						unit2 := s.mainGame.units[1-unit.Side][Rand(64)]
-						if unit2.State&6 > 0 {
-							if Abs(unit.X-unit2.X)/2+Abs(unit.Y-unit2.Y) <= temp2 {
-								unit.ObjectiveX = unit2.X
-								unit.ObjectiveY = unit2.Y
-								unit.Order = unit.Order | 2
-								unit.Formation = s.mainGame.scenarioData.Data176[0][2]
-							}
-						}
-					}
+		if temp2 > 0 && (t&8)+weather < 10 && unit.Fatigue/4 < 32 {
+			for i := 0; i <= 32-unit.Fatigue/4; i++ {
+				unit2 := s.mainGame.units[1-unit.Side][Rand(64)]
+				if unit2.State&6 > 0 && Abs(unit.X-unit2.X)/2+Abs(unit.Y-unit2.Y) <= temp2 {
+					unit.ObjectiveX = unit2.X
+					unit.ObjectiveY = unit2.Y
+					unit.Order = unit.Order | 2
+					unit.Formation = s.mainGame.scenarioData.Data176[0][2]
 				}
 			}
 		}
@@ -918,7 +912,7 @@ l21:
 		s.tanksLost[1-unit.Side] += tanksLost2
 		unit2.SupplyLevel = Clamp(unit2.SupplyLevel-s.mainGame.scenarioData.Data163, 0, 255)
 
-		if !s.mainGame.scenarioData.UnitCanMove[unit2.Type] && !unit.FormationTopBit &&
+		if s.mainGame.scenarioData.UnitCanMove[unit2.Type] && !unit.FormationTopBit &&
 			arg1-s.mainGame.scenarioData.Data0Low[unit2.Type]*2+unit2.Fatigue/4 > 36 {
 			unit2.Morale = Abs(unit2.Morale - 1)
 			v = -128
@@ -1161,42 +1155,43 @@ func (s *ShowMap) reinitSmallMapsAndSuch() {
 				// goto l23
 				continue
 			}
-			if s.mainGame.scenarioData.UnitMask[unit.Type]&16 == 0 {
-				sx, sy := unit.X/8, unit.Y/4
-				if s.options.IsPlayerControlled(unit.Side) {
-					v15 += unit.MenCount + unit.EquipCount
-					v13 += 1
-				} else {
-					v16 += unit.MenCount + unit.EquipCount
-					if false { // if full intelligence?? (unit.Side+1)&auto >>>4 > 0
-						if unit.State&64 == 0 {
-							continue
-						}
+			if s.mainGame.scenarioData.UnitMask[unit.Type]&16 != 0 {
+				continue
+			}
+			sx, sy := unit.X/8, unit.Y/4
+			if s.options.IsPlayerControlled(unit.Side) {
+				v15 += unit.MenCount + unit.EquipCount
+				v13 += 1
+			} else {
+				v16 += unit.MenCount + unit.EquipCount
+				if false { // if full intelligence?? (unit.Side+1)&auto >>>4 > 0
+					if unit.State&64 == 0 {
+						continue
 					}
 				}
-				v30 := unit.MenCount + unit.EquipCount
-				tmp := Clamp(s.mainGame.scenarioData.FormationMenDefence[unit.Formation&7], 8, 99) * v30 / 8
-				v29 := s.mainGame.scenarioData.TerrainMenDefence[s.terrainTypeAt(unit.X, unit.Y)] * tmp / 8
-				if s.mainGame.scenarioData.UnitScores[unit.Type] >= 7 {
-					v29 = 4
-					v30 = 4
-				}
-				s.map0[unit.Side][sx][sy] += (v30 + 4) / 8
-				s.map3[unit.Side][sx][sy] = Clamp(s.map3[unit.Side][sx][sy]+(v29+4)/8, 0, 255)
-				if s.mainGame.scenarioData.AvgDailySupplyUse < unit.SupplyLevel-1 {
-					v29 = s.mainGame.scenarioData.UnitScores[unit.Type] / 4
-					if v29 > 0 {
-						for v30 = -1; v30 <= v29; v30++ {
-							for v6 := 0; v6 <= (Abs(v30)-Sign(Abs(v30)))*4; v6++ {
-								dx, dy := s.mainGame.generic.SmallMapOffsets(v6)
-								x, y := sx+dx, sy+dy
-								if !InRange(x, 0, 16) || !InRange(y, 0, 16) {
-									continue
-								}
+			}
+			v30 := unit.MenCount + unit.EquipCount
+			tmp := Clamp(s.mainGame.scenarioData.FormationMenDefence[unit.Formation&7], 8, 99) * v30 / 8
+			v29 := s.mainGame.scenarioData.TerrainMenDefence[s.terrainTypeAt(unit.X, unit.Y)] * tmp / 8
+			if s.mainGame.scenarioData.UnitScores[unit.Type] >= 7 {
+				v29 = 4
+				v30 = 4
+			}
+			s.map0[unit.Side][sx][sy] += (v30 + 4) / 8
+			s.map3[unit.Side][sx][sy] = Clamp(s.map3[unit.Side][sx][sy]+(v29+4)/8, 0, 255)
+			if s.mainGame.scenarioData.AvgDailySupplyUse < unit.SupplyLevel-1 {
+				v29 = s.mainGame.scenarioData.UnitScores[unit.Type] / 4
+				if v29 > 0 {
+					for v30 = -1; v30 <= v29; v30++ {
+						for v6 := 0; v6 <= (Abs(v30)-Sign(Abs(v30)))*4; v6++ {
+							dx, dy := s.mainGame.generic.SmallMapOffsets(v6)
+							x, y := sx+dx, sy+dy
+							if !InRange(x, 0, 16) || !InRange(y, 0, 16) {
+								continue
+							}
+							s.map1[unit.Side][x][y] += 2
+							if unit.State&2 != 0 {
 								s.map1[unit.Side][x][y] += 2
-								if unit.State&2 != 0 {
-									s.map1[unit.Side][x][y] += 2
-								}
 							}
 						}
 					}
