@@ -213,7 +213,7 @@ nextUnit:
 			goto l24
 		}
 	} else {
-		if unit.OrderLower4Bits&8 != 0 {
+		if unit.OrderBit4 {
 			mode = unit.Order
 			goto l24
 		}
@@ -265,7 +265,8 @@ nextUnit:
 			// reload the unit as its coords have been overwritten
 			//unit = s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2]
 			if bestI > 0 {
-				unit.OrderLower4Bits = 0
+				unit.OrderLower3Bits = 0
+				unit.OrderBit4 = false
 				unit.Order = 0
 				v30 = (unit.MenCount + unit.EquipCount + 8) / 16
 				s.map2_0[unit.Side][tx][ty] = Abs(s.map2_0[unit.Side][bestX][bestY] - v30)
@@ -282,7 +283,7 @@ nextUnit:
 			var bestDx, bestDy int
 			var v63 int
 			temp2 := (unit.MenCount + unit.EquipCount + 4) / 8
-			v61 := temp2 * Clamp(s.mainGame.scenarioData.FormationMenDefence[unit.Formation&7], 8, 99) / 8 * s.mainGame.scenarioData.TerrainMenDefence[s.terrainTypeAt(unit.X, unit.Y)] / 8
+			v61 := temp2 * Clamp(s.mainGame.scenarioData.FormationMenDefence[unit.Formation], 8, 99) / 8 * s.mainGame.scenarioData.TerrainMenDefence[s.terrainTypeAt(unit.X, unit.Y)] / 8
 			if s.mainGame.scenarioData.UnitScores[unit.Type] > 7 {
 				// special units - air wings or supply units
 				temp2 = 1
@@ -444,7 +445,7 @@ nextUnit:
 			}
 			// function18
 			unit = unitCopy // revert modified unit
-			unit.OrderLower4Bits |= 8
+			unit.OrderBit4 = true
 			supplyUse := s.mainGame.scenarioData.AvgDailySupplyUse
 			// there is no supply line to unit
 			if unit.State&8 > 0 {
@@ -462,7 +463,8 @@ nextUnit:
 					t = data.Defend
 				}
 				unit.Order = t
-				unit.OrderLower4Bits = 0
+				unit.OrderLower3Bits = 0
+				unit.OrderBit4 = false
 				goto l21
 			}
 			if unit.Fatigue/4 > arg1-v63 {
@@ -495,7 +497,7 @@ nextUnit:
 		}
 	}
 l24:
-	unit.OrderLower4Bits = s.function10(unit.Order, 1)
+	unit.OrderLower3Bits = s.function10(unit.Order, 1)
 	if mode == data.Attack {
 		arg1 := 16000
 		terrainType := s.terrainTypeAt(unit.X, unit.Y)
@@ -521,7 +523,7 @@ l24:
 				terrainType := s.terrainTypeAt(unit2.X, unit2.Y)
 				menCoeff := s.mainGame.scenarioData.TerrainMenDefence[terrainType] * unit2.MenCount
 				equipCoeff := s.mainGame.scenarioData.TerrainTankDefence[terrainType] * unit2.EquipCount * s.mainGame.scenarioData.Data16Low[unit2.Type] / 4
-				t := (menCoeff + equipCoeff) * s.mainGame.scenarioData.FormationMenDefence[unit2.Formation&7] / 8
+				t := (menCoeff + equipCoeff) * s.mainGame.scenarioData.FormationMenDefence[unit2.Formation] / 8
 				w := weather
 				if s.mainGame.scenarioData.UnitMask[unit.Type]&4 != 0 {
 					w /= 2
@@ -615,7 +617,7 @@ l24:
 			}
 		}
 		s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2].State |= 128
-		v := s.mainGame.scenarioData.FormationMenDefence[unit.Formation&7] - 8
+		v := s.mainGame.scenarioData.FormationMenDefence[unit.Formation] - 8
 		if false { // if full intelligence?? (unit.Side+1)&auto >>>4 > 0
 			v *= 2
 		}
@@ -626,16 +628,17 @@ l24:
 			unit.ObjectiveX = unit.X + s.mainGame.generic.Dx[bestI]
 			unit.ObjectiveY = unit.Y + s.mainGame.generic.Dy[bestI]
 		} else {
-			unit.OrderLower4Bits = s.function10(unit.Order, 1)
+			unit.OrderLower3Bits = s.function10(unit.Order, 1)
 		}
 	}
 	{
-		t := s.mainGame.scenarioData.Data32[unit.Type]
-		temp2 := (t & 31) * 2
-		if temp2 > 0 && (t&8)+weather < 10 && unit.Fatigue/4 < 32 {
+		// long range attack
+		d32 := s.mainGame.scenarioData.Data32[unit.Type]
+		attackRange := (d32 & 31) * 2
+		if attackRange > 0 && (d32&8)+weather < 10 && unit.Fatigue/4 < 32 {
 			for i := 0; i <= 32-unit.Fatigue/4; i++ {
 				unit2 := s.mainGame.units[1-unit.Side][Rand(64)]
-				if unit2.State&6 > 0 && Abs(unit.X-unit2.X)/2+Abs(unit.Y-unit2.Y) <= temp2 {
+				if unit2.State&6 > 0 && Abs(unit.X-unit2.X)/2+Abs(unit.Y-unit2.Y) <= attackRange {
 					unit.ObjectiveX = unit2.X
 					unit.ObjectiveY = unit2.Y
 					unit.Order = unit.Order | 2
@@ -660,8 +663,9 @@ l21:
 				break
 			}
 			distance = s.function15(unit)
-			i := s.mainGame.scenarioData.Data32[unit.Type]
-			if distance > 0 && distance < (i&31)*2+1 && unit.Order == data.Attack {
+			d32 := s.mainGame.scenarioData.Data32[unit.Type]
+			attackRange := (d32 & 31) * 2
+			if distance > 0 && distance <= attackRange && unit.Order == data.Attack {
 				sx = unit.ObjectiveX
 				sy = unit.ObjectiveY
 				unit.FormationTopBit = true
@@ -670,13 +674,13 @@ l21:
 		l5:
 			if unit.ObjectiveX == unit.X && unit.ObjectiveY == unit.Y {
 				unit.ObjectiveX = 0
-				unit.OrderLower4Bits = s.function10(unit.Order, 1)
+				unit.OrderLower3Bits = s.function10(unit.Order, 1)
 				break
 			}
-			unit.OrderLower4Bits = s.function10(unit.Order, 0)
+			unit.OrderLower3Bits = s.function10(unit.Order, 0)
 			if /* sth with controlling player || */ unit.State&32 > 0 {
 				if distance == 1 && unit.Order == data.Defend && unit.State&1 > 0 {
-					unit.OrderLower4Bits = s.function10(unit.Order, 1)
+					unit.OrderLower3Bits = s.function10(unit.Order, 1)
 				}
 			}
 			temp := function8(unit.ObjectiveX-unit.X, unit.ObjectiveY-unit.Y)
@@ -686,7 +690,7 @@ l21:
 			}
 			sx = unit.X + s.mainGame.generic.Dx[offset]
 			sy = unit.Y + s.mainGame.generic.Dy[offset]
-			if i&64 > 0 {
+			if d32&64 > 0 {
 				sx = unit.ObjectiveX
 				sy = unit.ObjectiveY
 				ix := s.CoordsToMapIndex(sx, sy)
@@ -711,7 +715,7 @@ l21:
 			if moveCost < 1 {
 				break
 			}
-			v := s.mainGame.scenarioData.Data192[unit.Formation&7] * moveCost / 8
+			v := s.mainGame.scenarioData.Data192[unit.Formation] * moveCost / 8
 			if unit.State&16 != 0 {
 				v *= s.mainGame.scenarioData.UnitResupplyPerType[unit.Type] & 7
 				v /= 8
@@ -722,11 +726,16 @@ l21:
 			if unit.SupplyLevel == 0 {
 				v /= 2
 			}
+			temp = v
+			if false /* DitD */ && v == 0 {
+				break
+			}
 			w := 1024
 			if s.mainGame.scenarioData.UnitMask[unit.Type]&4 != 0 {
 				w += weather * 128
 			}
 			w /= 8
+
 			temp = w / (v + 1)
 			if temp > v57 && Rand(temp) > v57 {
 				break
@@ -743,7 +752,7 @@ l21:
 			dist := s.function15(unit)
 			if dist == 0 {
 				unit.ObjectiveX = 0
-				unit.OrderLower4Bits = s.function10(unit.Order, 1)
+				unit.OrderLower3Bits = s.function10(unit.Order, 1)
 				if (unit.Order == data.Defend || unit.Order == data.Move) &&
 					unit.State&32 == 0 {
 					unitState = 6 // reached our objective, awaiting further orders
@@ -817,7 +826,7 @@ l21:
 				goto end
 			}
 		}
-		unit.OrderLower4Bits = s.function10(unit.Order, 2)
+		unit.OrderLower3Bits = s.function10(unit.Order, 2)
 		if unit.Fatigue > 64 {
 			goto end
 		}
@@ -849,11 +858,11 @@ l21:
 			panic("")
 		}
 		arg1 = s.terrainTypeAt(unit.X, unit.Y)
-		v := s.mainGame.scenarioData.TerrainMenAttack[arg1] * s.mainGame.scenarioData.FormationMenAttack[unit.Formation&7] * unit.MenCount / 32
+		v := s.mainGame.scenarioData.TerrainMenAttack[arg1] * s.mainGame.scenarioData.FormationMenAttack[unit.Formation] * unit.MenCount / 32
 		if unit.FormationTopBit {
 			v = 0
 		}
-		v2 := s.mainGame.scenarioData.TerrainTankAttack[arg1] * s.mainGame.scenarioData.FormationTankAttack[unit.Formation&7] * s.mainGame.scenarioData.Data16High[unit.Type] / 2 * unit.EquipCount / 64
+		v2 := s.mainGame.scenarioData.TerrainTankAttack[arg1] * s.mainGame.scenarioData.FormationTankAttack[unit.Formation] * s.mainGame.scenarioData.Data16High[unit.Type] / 2 * unit.EquipCount / 64
 		if unit.FormationTopBit {
 			if s.mainGame.scenarioData.Data32[unit.Type]&8 > 0 {
 				w := 4 - weather
@@ -871,8 +880,8 @@ l21:
 		if s.mainGame.scenarioData.UnitScores[unit2.Type]&248 > 0 {
 			unit.State |= 4
 		}
-		menCoeff := s.mainGame.scenarioData.TerrainMenDefence[tt2] * s.mainGame.scenarioData.FormationMenDefence[unit2.Formation&7] * unit2.MenCount / 32
-		equipCoeff := s.mainGame.scenarioData.TerrainTankAttack[tt2] * s.mainGame.scenarioData.FormationTankDefence[unit2.Formation&7] * s.mainGame.scenarioData.Data16Low[unit2.Type] / 2 * unit2.EquipCount / 64
+		menCoeff := s.mainGame.scenarioData.TerrainMenDefence[tt2] * s.mainGame.scenarioData.FormationMenDefence[unit2.Formation] * unit2.MenCount / 32
+		equipCoeff := s.mainGame.scenarioData.TerrainTankAttack[tt2] * s.mainGame.scenarioData.FormationTankDefence[unit2.Formation] * s.mainGame.scenarioData.Data16Low[unit2.Type] / 2 * unit2.EquipCount / 64
 		w := (menCoeff + equipCoeff) * unit2.Morale / 256 * (240 - unit2.Fatigue/2) / 128 * (s.mainGame.hexes.Arr3[1-unit.Side][unit2.GeneralIndex][2] & 15) / 16
 		if unit2.SupplyLevel == 0 {
 			w = w * s.mainGame.scenarioData.Data167 / 8
@@ -904,6 +913,9 @@ l21:
 		unit.Fatigue = Clamp(unit.Fatigue+arg1, 0, 255)
 		unit.SupplyLevel = Clamp(unit.SupplyLevel-s.mainGame.scenarioData.Data162, 0, 255)
 		arg1 = Clamp(v/16/w-weather, 0, 63)
+		if false /* DitD */ {
+			arg1 = Clamp(v/16/w-weather, 0, 128)
+		}
 		// function13(sx, sy)
 		// function4 - some delay?
 		menLost2 := Clamp((Rand(unit2.MenCount*arg1)+500)/512, 0, unit2.MenCount)
@@ -930,6 +942,11 @@ l21:
 					unit2.ObjectiveX = 6
 					unit2.ObjectiveY = 6
 					unitState = 10 // have been overrun
+					if false /* Ditd */ {
+						unit2.ObjectiveX = 4
+						unit2.ObjectiveY = 4
+						unit2.Fatigue = 130
+					}
 				}
 			}
 			for i := 0; i < 6; i++ {
@@ -985,26 +1002,24 @@ l21:
 		s.mainGame.units[unit2.Side][unit2.Index] = unit2
 	}
 end:
-	for {
-		temp := 0
-		dif := Sign((unit.Formation & 7) - int(unit.OrderLower4Bits&7))
-		if Abs(dif) > 0 {
-			temp = s.mainGame.scenarioData.Data216[4+dif*4+(unit.Formation&7)]
-			if temp > Rand(15) {
-				unit.FormationTopBit = false
-				unit.Formation -= dif // ????
-			}
+	for unit.Formation != unit.OrderLower3Bits {
+		// changing to target formation???
+		dif := Sign((unit.Formation & 7) - unit.OrderLower3Bits)
+		temp := s.mainGame.scenarioData.Data216[4+dif*4+unit.Formation]
+		if temp > Rand(15) {
+			unit.FormationTopBit = false
+			unit.Formation -= dif // ????
 		}
 		if temp&16 == 0 {
 			break
 		}
 	}
 	{
-		a := s.mainGame.scenarioData.Data64[unit.Type]
+		recovery := s.mainGame.scenarioData.RecoveryRate[unit.Type]
 		if unit.State&9 == 0 { // has supply line and is not in contact with enemy
-			a *= 2
+			recovery *= 2
 		}
-		unit.Fatigue = Clamp(unit.Fatigue-a, 0, 255)
+		unit.Fatigue = Clamp(unit.Fatigue-recovery, 0, 255)
 	}
 	s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2] = unit
 	return
@@ -1119,11 +1134,11 @@ func rotateRight6Bits(num byte) byte {
 func function8(dx, dy int) int {
 	return Sign(dy)*5 + Sign(dx-dy)*3 + Sign(dx+dy)
 }
-func (s *ShowMap) function10(order data.OrderType, offset int) byte {
+func (s *ShowMap) function10(order data.OrderType, offset int) int {
 	if offset < 0 || offset >= 4 {
 		panic(offset)
 	}
-	return byte(s.mainGame.scenarioData.Data176[int(order)][offset])
+	return s.mainGame.scenarioData.Data176[int(order)][offset]
 }
 
 // distance to objective
@@ -1171,7 +1186,7 @@ func (s *ShowMap) reinitSmallMapsAndSuch() {
 				}
 			}
 			v30 := unit.MenCount + unit.EquipCount
-			tmp := Clamp(s.mainGame.scenarioData.FormationMenDefence[unit.Formation&7], 8, 99) * v30 / 8
+			tmp := Clamp(s.mainGame.scenarioData.FormationMenDefence[unit.Formation], 8, 99) * v30 / 8
 			v29 := s.mainGame.scenarioData.TerrainMenDefence[s.terrainTypeAt(unit.X, unit.Y)] * tmp / 8
 			if s.mainGame.scenarioData.UnitScores[unit.Type] >= 7 {
 				v29 = 4
@@ -1282,7 +1297,7 @@ func (s *ShowMap) every12Hours() (reinforcements [2]bool, res int) {
 	for _, sideUnits := range s.mainGame.units {
 		for i, unit := range sideUnits {
 			if unit.State&128 != 0 {
-				if s.isNight { // if it's midnight
+				if s.isNight { // if it's midnight (in CiV - opposite)
 					unit = s.resupplyUnit(unit)
 				}
 			} else {
@@ -1290,20 +1305,19 @@ func (s *ShowMap) every12Hours() (reinforcements [2]bool, res int) {
 					continue
 				}
 				unit.HalfDaysUntilAppear--
-				if unit.HalfDaysUntilAppear != 0 {
-					continue
-				}
-				shouldSpawnUnit := !s.ContainsUnit(unit.X, unit.Y) &&
-					Rand(unit.InvAppearProbability) > 0
-				if city, ok := s.FindCity(unit.X, unit.Y); ok && city.Owner != unit.Side {
-					shouldSpawnUnit = false
-				}
-				if shouldSpawnUnit {
-					unit.State |= 128
-					reinforcements[unit.Side] = true
-					fmt.Println("Reinforcement ", unit.X, unit.Y)
-				} else {
-					unit.HalfDaysUntilAppear = 1
+				if unit.HalfDaysUntilAppear == 0 {
+					shouldSpawnUnit := !s.ContainsUnit(unit.X, unit.Y) &&
+						Rand(unit.InvAppearProbability) == 0
+					if city, ok := s.FindCity(unit.X, unit.Y); ok && city.Owner != unit.Side {
+						shouldSpawnUnit = false
+					}
+					if shouldSpawnUnit {
+						unit.State |= 128
+						reinforcements[unit.Side] = true
+						fmt.Println("Reinforcement ", unit.X, unit.Y)
+					} else {
+						unit.HalfDaysUntilAppear = 1
+					}
 				}
 			}
 			sideUnits[i] = unit
@@ -1311,10 +1325,10 @@ func (s *ShowMap) every12Hours() (reinforcements [2]bool, res int) {
 	}
 	for _, sideUnits := range s.mainGame.units {
 		for i, unit := range sideUnits {
-			if unit.State&136 > 0 {
+			if unit.State&136 > 0 { // active or no supply line
 				res++
 			}
-			if (unit.State&136)^136 != 0 { // != 136 (inactive or has no supply line)
+			if (unit.State&136)^136 != 0 { // (inactive or has supply line)
 				if unit.MenCount <= s.mainGame.scenarioData.MenCountLimit[unit.Type] {
 					unit.MenCount += Rand(s.mainGame.scenarioData.MenReplacementRate[unit.Side]+32) / 32
 				}
@@ -1329,7 +1343,7 @@ func (s *ShowMap) every12Hours() (reinforcements [2]bool, res int) {
 }
 
 func (s *ShowMap) resupplyUnit(unit data.Unit) data.Unit {
-	unit.OrderLower4Bits &= 7
+	unit.OrderBit4 = false
 	if !s.mainGame.scenarioData.UnitUsesSupplies[unit.Type] ||
 		!s.mainGame.scenarioData.UnitCanMove[unit.Type] {
 		return unit
@@ -1504,6 +1518,7 @@ func (s *ShowMap) FindBestMoveFromTowards(supplyX, supplyY, unitX, unitY, unitTy
 }
 
 func (s *ShowMap) everyDay() {
+	fmt.Println("every day")
 	var flashback []data.FlashbackUnit
 	for _, sideUnits := range s.mainGame.units {
 		for _, unit := range sideUnits {

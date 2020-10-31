@@ -11,10 +11,10 @@ type ScenarioData struct {
 	Data0High  [16]int // Data[0:16] per unit type (higher 4 bits)
 	Data16Low  [16]int // Data[16:32] per unit type (lower 4 bits)
 	Data16High [16]int // Data[16:32] per unit type (higher 4 bits)
-	Data32     [16]int // Data[32:48] per unit type
+	Data32     [16]int // Data[32:48] per unit type (&31 attack range)
 	// Score gained by destroying enemy unit of this type
 	UnitScores [16]int // Data[48:64]
-	Data64     [16]int // Data[64:80]
+	RecoveryRate     [16]int // Data[64:80]
 	// Various bits concerning unit types... not all clear yet (&4 weather has no impact?)
 	UnitMask             [16]byte // Data[80:96] (per unit type)
 	UnitUsesSupplies     [16]bool // bits 3 of bytes Data[80:96]
@@ -111,7 +111,7 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 		scenario.UnitScores[i] = int(v)
 	}
 	for i, v := range scenario.Data[64:80] {
-		scenario.Data64[i] = int(v)
+		scenario.RecoveryRate[i] = int(v)
 	}
 	copy(scenario.UnitMask[:], scenario.Data[80:])
 	for i, v := range scenario.UnitMask {

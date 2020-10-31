@@ -20,11 +20,12 @@ type Unit struct {
 	MenCount, EquipCount int
 	Formation            int
 	SupplyUnit           int // Index of this unit's supply unit
-	FormationTopBit bool
+	FormationTopBit      bool
 	Type                 int
 	ColorPalette         int
 	Name                 string
-	OrderLower4Bits      byte
+	OrderLower3Bits      int // Target formation???
+	OrderBit4            bool
 	Order                OrderType
 	GeneralIndex         int
 	General              General
@@ -67,9 +68,9 @@ func ParseUnit(data [16]byte, unitNames []string, generals []General) (Unit, err
 	unit.Y = int(data[2])
 	unit.MenCount = int(data[3])
 	unit.EquipCount = int(data[4])
-	unit.Formation = int(data[5] & 15)
+	unit.Formation = int(data[5] & 7) // formation's bit 4 seems unused
 	unit.SupplyUnit = int((data[5] / 16) & 7)
-	unit.FormationTopBit = data[5] & 128 != 0
+	unit.FormationTopBit = data[5]&128 != 0
 	unit.VariantBitmap = data[6]
 	unit.Type = int(data[7] & 15)
 	unit.ColorPalette = int(data[7] / 64)
@@ -81,7 +82,8 @@ func ParseUnit(data [16]byte, unitNames []string, generals []General) (Unit, err
 		nameIndex = 0
 	}
 	unit.Name = unitNames[nameIndex]
-	unit.OrderLower4Bits = data[9] & 15
+	unit.OrderLower3Bits = int(data[9] & 7)
+	unit.OrderBit4 = data[9]&8 != 0
 	order := data[9] & 48
 	switch order {
 	case 0:
