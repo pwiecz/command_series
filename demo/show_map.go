@@ -265,7 +265,7 @@ nextUnit:
 			// reload the unit as its coords have been overwritten
 			//unit = s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2]
 			if bestI > 0 {
-				unit.OrderLower3Bits = 0
+				unit.TargetFormation = 0
 				unit.OrderBit4 = false
 				unit.Order = 0
 				v30 = (unit.MenCount + unit.EquipCount + 8) / 16
@@ -463,7 +463,7 @@ nextUnit:
 					t = data.Defend
 				}
 				unit.Order = t
-				unit.OrderLower3Bits = 0
+				unit.TargetFormation = 0
 				unit.OrderBit4 = false
 				goto l21
 			}
@@ -497,7 +497,7 @@ nextUnit:
 		}
 	}
 l24:
-	unit.OrderLower3Bits = s.function10(unit.Order, 1)
+	unit.TargetFormation = s.function10(unit.Order, 1)
 	if mode == data.Attack {
 		arg1 := 16000
 		terrainType := s.terrainTypeAt(unit.X, unit.Y)
@@ -628,7 +628,7 @@ l24:
 			unit.ObjectiveX = unit.X + s.mainGame.generic.Dx[bestI]
 			unit.ObjectiveY = unit.Y + s.mainGame.generic.Dy[bestI]
 		} else {
-			unit.OrderLower3Bits = s.function10(unit.Order, 1)
+			unit.TargetFormation = s.function10(unit.Order, 1)
 		}
 	}
 	{
@@ -674,13 +674,13 @@ l21:
 		l5:
 			if unit.ObjectiveX == unit.X && unit.ObjectiveY == unit.Y {
 				unit.ObjectiveX = 0
-				unit.OrderLower3Bits = s.function10(unit.Order, 1)
+				unit.TargetFormation = s.function10(unit.Order, 1)
 				break
 			}
-			unit.OrderLower3Bits = s.function10(unit.Order, 0)
+			unit.TargetFormation = s.function10(unit.Order, 0)
 			if /* sth with controlling player || */ unit.State&32 > 0 {
 				if distance == 1 && unit.Order == data.Defend && unit.State&1 > 0 {
-					unit.OrderLower3Bits = s.function10(unit.Order, 1)
+					unit.TargetFormation = s.function10(unit.Order, 1)
 				}
 			}
 			temp := function8(unit.ObjectiveX-unit.X, unit.ObjectiveY-unit.Y)
@@ -752,7 +752,7 @@ l21:
 			dist := s.function15(unit)
 			if dist == 0 {
 				unit.ObjectiveX = 0
-				unit.OrderLower3Bits = s.function10(unit.Order, 1)
+				unit.TargetFormation = s.function10(unit.Order, 1)
 				if (unit.Order == data.Defend || unit.Order == data.Move) &&
 					unit.State&32 == 0 {
 					unitState = 6 // reached our objective, awaiting further orders
@@ -826,7 +826,7 @@ l21:
 				goto end
 			}
 		}
-		unit.OrderLower3Bits = s.function10(unit.Order, 2)
+		unit.TargetFormation = s.function10(unit.Order, 2)
 		if unit.Fatigue > 64 {
 			goto end
 		}
@@ -1002,9 +1002,9 @@ l21:
 		s.mainGame.units[unit2.Side][unit2.Index] = unit2
 	}
 end:
-	for unit.Formation != unit.OrderLower3Bits {
+	for unit.Formation != unit.TargetFormation {
 		// changing to target formation???
-		dif := Sign((unit.Formation & 7) - unit.OrderLower3Bits)
+		dif := Sign((unit.Formation & 7) - unit.TargetFormation)
 		temp := s.mainGame.scenarioData.Data216[4+dif*4+unit.Formation]
 		if temp > Rand(15) {
 			unit.FormationTopBit = false

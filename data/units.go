@@ -24,7 +24,7 @@ type Unit struct {
 	Type                 int
 	ColorPalette         int
 	Name                 string
-	OrderLower3Bits      int // Target formation???
+	TargetFormation      int
 	OrderBit4            bool
 	Order                OrderType
 	GeneralIndex         int
@@ -82,7 +82,7 @@ func ParseUnit(data [16]byte, unitNames []string, generals []General) (Unit, err
 		nameIndex = 0
 	}
 	unit.Name = unitNames[nameIndex]
-	unit.OrderLower3Bits = int(data[9] & 7)
+	unit.TargetFormation = int(data[9] & 7)
 	unit.OrderBit4 = data[9]&8 != 0
 	order := data[9] & 48
 	switch order {
