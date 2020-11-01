@@ -670,6 +670,7 @@ l21:
 				sy = unit.ObjectiveY
 				unit.FormationTopBit = true
 				arg1 = 7
+				break
 			}
 		l5:
 			if unit.ObjectiveX == unit.X && unit.ObjectiveY == unit.Y {
@@ -742,9 +743,9 @@ l21:
 			}
 			v57 -= temp
 			if true /* todo: player controlled or sth */ {
-				//function28
+				//function28(offset) - animate function move?
 			} else if unit.State&65 > 0 {
-				//function28
+				//function28(offset) - animate function move?
 			}
 			unit.X = sx
 			unit.Y = sy
@@ -794,7 +795,7 @@ l21:
 						sy = unit2.Y
 						unit.Order = data.Attack
 						arg1 = 7
-						//						arg2 = i
+						// arg2 = i
 					}
 					unit2Mask := s.mainGame.scenarioData.UnitMask[unit2.Type]
 					if unit2Mask&128 == 0 {
@@ -840,15 +841,15 @@ l21:
 			goto end
 		}
 		if unit.FormationTopBit {
-			// * function28
+			// * function28 - animate unit move
 			// * show unit on map
-			// * function14
+			// * function14 - play sound??
 		} else if s.mainGame.scenarioData.Data32[unit.Type]&8 > 0 {
 			if weather > 3 {
-				// sth
+				// sth with sound (silence???)
 				goto end
 			}
-			// function27
+			// function27 - play some sound?
 		}
 		unitState = 1 // are attacking
 		// [53767] = 0
@@ -1008,7 +1009,7 @@ end:
 		temp := s.mainGame.scenarioData.Data216[4+dif*4+unit.Formation]
 		if temp > Rand(15) {
 			unit.FormationTopBit = false
-			unit.Formation -= dif // ????
+			unit.Formation -= dif
 		}
 		if temp&16 == 0 {
 			break
@@ -1321,6 +1322,7 @@ func (s *ShowMap) every12Hours() (reinforcements [2]bool, res int) {
 				}
 			}
 			sideUnits[i] = unit
+			//[53249] = 0
 		}
 	}
 	for _, sideUnits := range s.mainGame.units {
@@ -1365,6 +1367,7 @@ outerLoop:
 			continue
 		}
 		supplyX, supplyY := supplyUnit.X, supplyUnit.Y
+		// if unit should be visible show it.
 		supplyTransportBudget := s.mainGame.scenarioData.MaxSupplyTransportCost
 		if unit.Type == s.mainGame.scenarioData.MinSupplyType&15 {
 			supplyTransportBudget *= 2
@@ -1373,7 +1376,7 @@ outerLoop:
 			dx, dy := unit.X-supplyX, unit.Y-supplyY
 			if Abs(dx)+Abs(dy) < 3 {
 				supplyLevel := s.supplyLevels[unit.Side]
-				if supplyLevel != 0 {
+				if supplyLevel > 0 {
 					unitResupply := s.mainGame.scenarioData.UnitResupplyPerType[unit.Type]
 					maxResupply := Clamp(
 						(supplyLevel-unit.SupplyLevel*2)/16,
@@ -1383,6 +1386,9 @@ outerLoop:
 					unit.SupplyLevel += unitResupply
 					s.supplyLevels[unit.Side] = supplyLevel - unitResupply
 					unit.State &= 247
+				} else {
+					// not sure if it's needed...
+					s.supplyLevels[unit.Side] = 0
 				}
 				break outerLoop
 			} else {
