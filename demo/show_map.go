@@ -108,7 +108,46 @@ func (s *ShowMap) Update() error {
 	}
 	s.unitsUpdated++
 	if s.unitsUpdated <= s.mainGame.scenarioData.UnitUpdatesPerTimeIncrement/2 {
-		s.updateUnit()
+		msg := s.updateUnit()
+		if msg != 0 {
+			unit := s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2]
+			if true /* current player's unit */ {
+				fmt.Println("MESSAGE FROM", unit.Name, s.mainGame.scenarioData.UnitTypes[unit.Type], ":")
+				fmt.Print("  'WE ")
+				switch msg {
+				case 1:
+					// actually the objective does not have to be at the opposite unit.
+					if unit2, ok := s.FindUnit(unit.ObjectiveX, unit.ObjectiveY); unit2.Side == 1-unit.Side && ok {
+						fmt.Println("ARE ATTACKING. ENEMY IS IN", s.mainGame.scenarioData.Formations[unit2.Formation], "FORMATION. (...)'")
+					} else {
+						fmt.Println("ARE ATTACKING.'")
+					}
+				case 2:
+					fmt.Println("HAVE MET STRONG RESISTANCE")
+					fmt.Println("  HEAVY LOSSES, ATTACK MUST BE HALTED.'")
+				case 3:
+					fmt.Println("MUST SURRENDER.'")
+				case 4:
+					fmt.Println("ARE IN CONTACT WITH ENEMY FORCES.'")
+				case 5:
+					if city, ok := s.FindCity(unit.X, unit.Y); ok {
+						fmt.Println("HAVE CAPTURED", city.Name+"'")
+					} else {
+						panic("no city")
+					}
+				case 6:
+					fmt.Println("HAVE REACHED OUT OBJECTIVE. AWAITING FURTHER ORDERS.'")
+				case 7:
+					fmt.Println("HAVE EXHAUSTED OUT SUPPLIES.'")
+				case 8:
+					fmt.Println("ARE RETREATING.'")
+				case 9:
+					fmt.Println("HAVE BEEN OVERRUN.'")
+				default:
+					panic(fmt.Sprintf("Unknown message: %d", msg))
+				}
+			}
+		}
 		return s.Update()
 	}
 	s.unitsUpdated = 0
@@ -443,7 +482,7 @@ nextUnit:
 				}
 				break
 			}
-			// function18
+			// function18: potentially exit the whole update here
 			unit = unitCopy // revert modified unit
 			unit.OrderBit4 = true
 			supplyUse := s.mainGame.scenarioData.AvgDailySupplyUse
@@ -618,7 +657,7 @@ l24:
 		}
 		s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2].State |= 128
 		v := s.mainGame.scenarioData.FormationMenDefence[unit.Formation] - 8
-		if false { // if full intelligence?? (unit.Side+1)&auto >>>4 > 0
+		if (unit.Side+1)&s.options.Num() > 0 {
 			v *= 2
 		}
 		if v > arg1-arg1_6 {
@@ -679,7 +718,7 @@ l21:
 				break
 			}
 			unit.TargetFormation = s.function10(unit.Order, 0)
-			if /* sth with controlling player || */ unit.State&32 > 0 {
+			if ((unit.Side+1)&s.options.Num()) > 0 || unit.State&32 > 0 {
 				if distance == 1 && unit.Order == data.Defend && unit.State&1 > 0 {
 					unit.TargetFormation = s.function10(unit.Order, 1)
 				}
@@ -742,7 +781,7 @@ l21:
 				break
 			}
 			v57 -= temp
-			if true /* todo: player controlled or sth */ {
+			if (unit.Side+1)&(s.options.Num()/4) == 0 {
 				//function28(offset) - animate function move?
 			} else if unit.State&65 > 0 {
 				//function28(offset) - animate function move?
@@ -790,7 +829,7 @@ l21:
 				unit2.State = unit2.State | 65
 				s.mainGame.units[unit2.Side][unit2.Index] = unit2
 				if s.mainGame.scenarioData.UnitScores[unit2.Type] > 8 {
-					if true /* controlled by X */ {
+					if (unit.Side+1)&(s.options.Num()) > 0 {
 						sx = unit2.X
 						sy = unit2.Y
 						unit.Order = data.Attack
@@ -828,16 +867,10 @@ l21:
 			}
 		}
 		unit.TargetFormation = s.function10(unit.Order, 2)
-		if unit.Fatigue > 64 {
-			goto end
-		}
-		if unit.SupplyLevel == 0 {
-			goto end
-		}
-		if !s.ContainsUnitOfSide(sx, sy, 1-unit.Side) {
-			goto end
-		}
-		if unit.Formation != s.mainGame.scenarioData.Data176[0][2] {
+		if unit.Fatigue > 64 ||
+			unit.SupplyLevel == 0 ||
+			!s.ContainsUnitOfSide(sx, sy, 1-unit.Side) ||
+			unit.Formation != s.mainGame.scenarioData.Data176[0][2] {
 			goto end
 		}
 		if unit.FormationTopBit {
@@ -1167,20 +1200,20 @@ func (s *ShowMap) reinitSmallMapsAndSuch() {
 	v16 := 0
 	for _, sideUnits := range s.mainGame.units {
 		for _, unit := range sideUnits {
-			if unit.State&128 == 0 {
-				// goto l23
-				continue
-			}
-			if s.mainGame.scenarioData.UnitMask[unit.Type]&16 != 0 {
+			if unit.State&128 == 0 ||
+				s.mainGame.scenarioData.UnitMask[unit.Type]&16 != 0 {
 				continue
 			}
 			sx, sy := unit.X/8, unit.Y/4
+			if !InRange(sx, 0, 16) || !InRange(sy, 0, 16) {
+				continue
+			}
 			if s.options.IsPlayerControlled(unit.Side) {
 				v15 += unit.MenCount + unit.EquipCount
 				v13 += 1
 			} else {
 				v16 += unit.MenCount + unit.EquipCount
-				if false { // if full intelligence?? (unit.Side+1)&auto >>>4 > 0
+				if (unit.Side+1)&(s.options.Num()/16) > 0 {
 					if unit.State&64 == 0 {
 						continue
 					}
@@ -1215,7 +1248,7 @@ func (s *ShowMap) reinitSmallMapsAndSuch() {
 			}
 		}
 	}
-	// function18();
+	// function18(): potentially exit the whole update here
 	for _, city := range s.mainGame.terrain.Cities {
 		if city.Owner != 0 || city.VictoryPoints != 0 {
 			sx, sy := city.X/8, city.Y/4
@@ -1235,14 +1268,14 @@ func (s *ShowMap) reinitSmallMapsAndSuch() {
 			}
 		}
 	}
-	// function18();
+	// function18(): potentially exit the whole update here
 	for x := 0; x < 16; x++ {
 		for y := 0; y < 16; y++ {
 			s.map1[0][x][y] = s.map1[0][x][y] * s.mainGame.terrain.Coeffs[x][y] / 8
 			s.map1[1][x][y] = s.map1[1][x][y] * s.mainGame.terrain.Coeffs[x][y] / 8
 		}
 	}
-	// function18();
+	// function18(): potentially exit the whole update here
 	for side := 0; side < 2; side++ {
 		for x := 0; x < 16; x++ {
 			for y := 0; y < 16; y++ {
@@ -1251,7 +1284,7 @@ func (s *ShowMap) reinitSmallMapsAndSuch() {
 			}
 		}
 	}
-	// function18();
+	// function18(): potentially exit the whole update here
 }
 
 func (s *ShowMap) countNeighbourUnits(x, y, side int) int {
@@ -1269,7 +1302,10 @@ func (s *ShowMap) countNeighbourUnits(x, y, side int) int {
 
 func (s *ShowMap) everyHour() {
 	if s.hour == 12 {
-		s.every12Hours()
+		reinforcements, _ := s.every12Hours()
+		if reinforcements[0] || reinforcements[1] {
+			fmt.Println("REINFORCEMENTS!")
+		}
 	}
 	sunriseOffset := int(math.Abs(6.-float64(s.month)) / 2.)
 	s.isNight = s.hour < 5+sunriseOffset || s.hour > 20-sunriseOffset
@@ -1315,7 +1351,6 @@ func (s *ShowMap) every12Hours() (reinforcements [2]bool, res int) {
 					if shouldSpawnUnit {
 						unit.State |= 128
 						reinforcements[unit.Side] = true
-						fmt.Println("Reinforcement ", unit.X, unit.Y)
 					} else {
 						unit.HalfDaysUntilAppear = 1
 					}
@@ -1524,7 +1559,6 @@ func (s *ShowMap) FindBestMoveFromTowards(supplyX, supplyY, unitX, unitY, unitTy
 }
 
 func (s *ShowMap) everyDay() {
-	fmt.Println("every day")
 	var flashback []data.FlashbackUnit
 	for _, sideUnits := range s.mainGame.units {
 		for _, unit := range sideUnits {
