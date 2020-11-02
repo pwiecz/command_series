@@ -91,7 +91,8 @@ func (s Sum) BaseMemoryAddress() (byte, bool) {
 	if s.arg1.Type() == ADDRESS {
 		return s.arg1.BaseMemoryAddress()
 	}
-	panic("Don't know yet")
+	//panic("Don't know yet: " + s.String())
+	return 0, false
 }
 func (s Sum) ReadsFromMemoryAddress(addr byte) bool {
 	return s.arg0.ReadsFromMemoryAddress(addr) ||
