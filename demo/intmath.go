@@ -9,6 +9,12 @@ func Abs(i int) int {
 	return -i
 }
 
+func Min(i0, i1 int) int {
+	if i0 <= i1 {
+		return i0
+	}
+	return i1
+}
 func Clamp(v, min, max int) int {
 	if v <= min {
 		return min

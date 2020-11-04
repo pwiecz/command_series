@@ -108,44 +108,12 @@ func (s *ShowMap) Update() error {
 	}
 	s.unitsUpdated++
 	if s.unitsUpdated <= s.mainGame.scenarioData.UnitUpdatesPerTimeIncrement/2 {
-		msg := s.updateUnit()
-		if msg != 0 {
-			unit := s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2]
+		message := s.updateUnit()
+		if message != nil {
+			unit := message.Unit()
 			if true /* current player's unit */ {
-				fmt.Println("MESSAGE FROM", unit.Name, s.mainGame.scenarioData.UnitTypes[unit.Type], ":")
-				fmt.Print("  'WE ")
-				switch msg {
-				case 1:
-					// actually the objective does not have to be at the opposite unit.
-					if unit2, ok := s.FindUnit(unit.ObjectiveX, unit.ObjectiveY); unit2.Side == 1-unit.Side && ok {
-						fmt.Println("ARE ATTACKING. ENEMY IS IN", s.mainGame.scenarioData.Formations[unit2.Formation], "FORMATION. (...)'")
-					} else {
-						fmt.Println("ARE ATTACKING.'")
-					}
-				case 2:
-					fmt.Println("HAVE MET STRONG RESISTANCE")
-					fmt.Println("  HEAVY LOSSES, ATTACK MUST BE HALTED.'")
-				case 3:
-					fmt.Println("MUST SURRENDER.'")
-				case 4:
-					fmt.Println("ARE IN CONTACT WITH ENEMY FORCES.'")
-				case 5:
-					if city, ok := s.FindCity(unit.X, unit.Y); ok {
-						fmt.Println("HAVE CAPTURED", city.Name+"'")
-					} else {
-						panic("no city")
-					}
-				case 6:
-					fmt.Println("HAVE REACHED OUT OBJECTIVE. AWAITING FURTHER ORDERS.'")
-				case 7:
-					fmt.Println("HAVE EXHAUSTED OUT SUPPLIES.'")
-				case 8:
-					fmt.Println("ARE RETREATING.'")
-				case 9:
-					fmt.Println("HAVE BEEN OVERRUN.'")
-				default:
-					panic(fmt.Sprintf("Unknown message: %d", msg))
-				}
+				fmt.Printf("\nMESSAGE FROM ...\n%s: %s:\n", unit.Name, s.mainGame.scenarioData.UnitTypes[unit.Type])
+				fmt.Printf("'%s'\n", message.String())
 			}
 		}
 		return s.Update()
@@ -211,7 +179,7 @@ func (s *ShowMap) resetMaps() {
 	}
 }
 
-func (s *ShowMap) updateUnit() (unitState int) {
+func (s *ShowMap) updateUnit() (message Message) {
 	var mode data.OrderType
 	weather := s.weather
 	if s.isNight {
@@ -226,7 +194,7 @@ nextUnit:
 	var v9 int
 	if unit.MenCount+unit.EquipCount < 7 ||
 		unit.Fatigue == 255 {
-		unitState = 3 // surrender
+		message = WeMustSurrender{unit}
 		unit.State = 0
 		unit.HalfDaysUntilAppear = 0
 		s.citiesHeld[1-unit.Side] += s.mainGame.scenarioData.UnitScores[unit.Type]
@@ -688,9 +656,9 @@ l24:
 	}
 l21:
 	s.update = unit.Side
-	unitState = 0
+	message = nil
 	if unit.SupplyLevel == 0 {
-		unitState = 7 // have exhausted our supplies
+		message = WeHaveExhaustedSupplies{unit}
 	}
 	{
 		v57 := 25
@@ -795,12 +763,12 @@ l21:
 				unit.TargetFormation = s.function10(unit.Order, 1)
 				if (unit.Order == data.Defend || unit.Order == data.Move) &&
 					unit.State&32 == 0 {
-					unitState = 6 // reached our objective, awaiting further orders
+					message = WeHaveReachedOurObjective{unit}
 				}
 			}
 			unit.Fatigue = Clamp(unit.Fatigue+s.mainGame.scenarioData.Data173, 0, 255)
-			if s.function16(unit) {
-				unitState = 5 // have captured ....
+			if city, captured := s.function16(unit); captured {
+				message = WeHaveCaptured{unit, city}
 				break
 			}
 			if v57 > 0 {
@@ -843,7 +811,7 @@ l21:
 					if unit2Mask&64 == 0 { // unit can move ?
 						unit.State = unit.State | 65
 						if !wasInContactWithEnemy {
-							unitState = 4 // in contact with enemy forces
+							message = WeAreInContactWithEnemy{unit}
 						}
 					}
 				}
@@ -851,13 +819,9 @@ l21:
 		}
 		// function29 - add unit tile to map
 		//	l11:
-		if unit.ObjectiveX == 0 {
-			goto end
-		}
-		if unit.Order != data.Attack {
-			goto end
-		}
-		if arg1 < 7 {
+		if unit.ObjectiveX == 0 ||
+			unit.Order != data.Attack ||
+			arg1 < 7 {
 			goto end
 		}
 		if distance == 1 {
@@ -879,12 +843,11 @@ l21:
 			// * function14 - play sound??
 		} else if s.mainGame.scenarioData.Data32[unit.Type]&8 > 0 {
 			if weather > 3 {
-				// sth with sound (silence???)
+				// [53767] = 0 sth with sound (silence???)
 				goto end
 			}
 			// function27 - play some sound?
 		}
-		unitState = 1 // are attacking
 		// [53767] = 0
 		unit.State |= 65
 		unit2, ok := s.FindUnit(sx, sy)
@@ -892,6 +855,7 @@ l21:
 			panic("")
 		}
 		arg1 = s.terrainTypeAt(unit.X, unit.Y)
+		message = WeAreAttacking{unit, unit2, arg1 /* placeholder value */, s.mainGame.scenarioData.Formations}
 		v := s.mainGame.scenarioData.TerrainMenAttack[arg1] * s.mainGame.scenarioData.FormationMenAttack[unit.Formation] * unit.MenCount / 32
 		if unit.FormationTopBit {
 			v = 0
@@ -926,7 +890,7 @@ l21:
 		if s.mainGame.scenarioData.UnitMask[unit.Type]&4 == 0 {
 			d += weather
 		}
-		arg1 = Clamp(w, 0, 63)
+		arg1 = Clamp(d, 0, 63)
 		if !unit.FormationTopBit || s.mainGame.scenarioData.Data32[unit.Type]&128 == 0 {
 			menLost := Clamp((Rand(unit.MenCount*arg1)+255)/512, 0, unit.MenCount)
 			s.menLost[unit.Side] += menLost
@@ -940,7 +904,7 @@ l21:
 			unit2.State |= 2
 			if arg1 > 32 {
 				unit.Order = data.Defend // ? ^48
-				unitState = 2            // heavy losses, attack must be halted
+				message = WeHaveMetStrongResistance{unit}
 				unit.Morale = Abs(unit.Morale - 2)
 			}
 		}
@@ -961,9 +925,7 @@ l21:
 		if s.mainGame.scenarioData.UnitCanMove[unit2.Type] && !unit.FormationTopBit &&
 			arg1-s.mainGame.scenarioData.Data0Low[unit2.Type]*2+unit2.Fatigue/4 > 36 {
 			unit2.Morale = Abs(unit2.Morale - 1)
-			v = -128
 			oldX, oldY := unit2.X, unit2.Y
-			bestX, bestY := unit2.X, unit2.Y
 			// show unit2 on map
 			//...
 			if unit2.Fatigue > 128 {
@@ -973,16 +935,18 @@ l21:
 					unit2.X = unit2SupplyUnit.X
 					unit2.Y = unit2SupplyUnit.Y
 					unit2.State = 0
-					unit2.ObjectiveX = 6
-					unit2.ObjectiveY = 6
-					unitState = 10 // have been overrun
+					unit2.HalfDaysUntilAppear = 6
+					unit2.InvAppearProbability = 6
 					if false /* Ditd */ {
-						unit2.ObjectiveX = 4
-						unit2.ObjectiveY = 4
+						unit2.HalfDaysUntilAppear = 4
+						unit2.InvAppearProbability = 4
 						unit2.Fatigue = 130
 					}
+					message = WeHaveBeenOverrun{unit2}
 				}
 			}
+			v = -128
+			bestX, bestY := unit2.X, unit2.Y
 			for i := 0; i < 6; i++ {
 				nx := unit2.X + s.mainGame.generic.Dx[i]
 				ny := unit2.Y + s.mainGame.generic.Dy[i]
@@ -998,44 +962,50 @@ l21:
 					}
 				}
 			}
-			if unitState != 10 {
+			if _, ok := message.(WeHaveBeenOverrun); !ok {
 				unit.ObjectiveX = bestX
 				unit.ObjectiveY = bestY
 			}
+			// unit2 is retreating, unit one is chasing (and maybe capturing a city)
 			if bestX != oldX || bestY != oldY {
-				if unitState != 10 {
-					unitState = 9 // are retreating
+				if _, ok := message.(WeHaveBeenOverrun); !ok {
+					message = WeAreRetreating{unit2}
 				}
 				if arg1 > 60 {
 					if s.magicCoeff(s.mainGame.hexes.Arr96[:], oldX, oldY, unit.Side) > -4 { /* check coordinates */
 						if s.mainGame.scenarioData.MoveCostPerTerrainTypesAndUnit[s.terrainTypeAt(oldX, oldY)][unit.Type] > 0 { // or the actual terrain ...
 							unit.X = oldX
 							unit.Y = oldY
-							if s.function16(unit) {
-								unitState = 5 // captured
+							if city, captured := s.function16(unit); captured {
+								message = WeHaveCaptured{unit, city}
 							}
 						}
 					}
 				}
 			} else {
-				unitState = 0
+				message = nil
 			}
 			unit2.X, unit2.Y = bestX, bestY
 			unit2.Formation = s.mainGame.scenarioData.Data176[1][0]
 			unit2.Order = data.OrderType(s.mainGame.scenarioData.Data176[1][0] + 1)
 			unit2.State |= 32
 		}
+
 		a := arg1
-		if unitState == 9 { // are retreating
+		if _, ok := message.(WeAreRetreating); ok { // are retreating
 			a /= 2
 		}
 		unit2.Fatigue = Clamp(unit2.Fatigue+a, 0, 255)
+
 		if arg1 < 24 {
 			unit2.Morale = Clamp(unit2.Morale+1, 0, 250)
 		}
 		s.mainGame.units[unit2.Side][unit2.Index] = unit2
+		if attack, ok := message.(WeAreAttacking); ok {
+			message = WeAreAttacking{attack.unit, attack.enemy, arg1, attack.formationNames}
+		}
 	}
-end:
+end: // l3
 	for unit.Formation != unit.TargetFormation {
 		// changing to target formation???
 		dif := Sign((unit.Formation & 7) - unit.TargetFormation)
@@ -1060,7 +1030,7 @@ end:
 }
 
 // Has unit captured a city
-func (s *ShowMap) function16(unit data.Unit) bool {
+func (s *ShowMap) function16(unit data.Unit) (data.City, bool) {
 	if city, ok := s.FindCity(unit.X, unit.Y); ok {
 		if city.Owner != unit.Side {
 			// msg = 5
@@ -1068,10 +1038,10 @@ func (s *ShowMap) function16(unit data.Unit) bool {
 			s.score13[unit.Side] += city.VictoryPoints
 			s.score13[1-unit.Side] -= city.VictoryPoints
 			s.score21[unit.Side] += city.VictoryPoints & 1
-			return true
+			return city, true
 		}
 	}
-	return false
+	return data.City{}, false
 }
 func (s *ShowMap) CoordsToMapIndex(x, y int) int {
 	return y*s.mainGame.terrainMap.Width + x/2 - y/2
