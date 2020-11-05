@@ -8,7 +8,7 @@ type Message interface {
 	String() string
 }
 
-type WeAreAttacking struct {
+type WeAreAttacking struct { // MSG = 1
 	unit           data.Unit
 	enemy          data.Unit // todo: it may not to up to date, should it be pointer(index) of a unit?
 	outcome        int
@@ -22,7 +22,7 @@ func (a WeAreAttacking) String() string {
 		a.formationNames[a.enemy.Formation], losses[Min(a.outcome/11, 3)])
 }
 
-type WeHaveMetStrongResistance struct {
+type WeHaveMetStrongResistance struct { // MSG = 2
 	unit data.Unit
 }
 
@@ -31,7 +31,7 @@ func (m WeHaveMetStrongResistance) String() string {
 	return "WE HAVE MET STRONG RESISTANCE\nHEAVY LOSSES, ATTACK MUST BE HALTED."
 }
 
-type WeMustSurrender struct {
+type WeMustSurrender struct { // MSG = 3
 	unit data.Unit
 }
 
@@ -40,7 +40,7 @@ func (m WeMustSurrender) String() string {
 	return "WE MUST SURRENDER"
 }
 
-type WeAreInContactWithEnemy struct {
+type WeAreInContactWithEnemy struct { // MSG = 4
 	unit data.Unit
 }
 
@@ -49,7 +49,7 @@ func (c WeAreInContactWithEnemy) String() string {
 	return "WE ARE IN CONTACT WITH ENEMY FORCES."
 }
 
-type WeHaveCaptured struct {
+type WeHaveCaptured struct { // MSG = 5
 	unit data.Unit
 	city data.City
 }
@@ -59,7 +59,7 @@ func (c WeHaveCaptured) String() string {
 	return fmt.Sprintf("WE HAVE CAPTURED %s", c.city.Name)
 }
 
-type WeHaveReachedOurObjective struct {
+type WeHaveReachedOurObjective struct { // MSG = 6
 	unit data.Unit
 }
 
@@ -68,7 +68,7 @@ func (r WeHaveReachedOurObjective) String() string {
 	return "WE HAVE REACHED OUR OBJECTIVE.\nAWAITING FURTHER ORDERS."
 }
 
-type WeHaveExhaustedSupplies struct {
+type WeHaveExhaustedSupplies struct { // MSG = 7
 	unit data.Unit
 }
 
@@ -77,7 +77,7 @@ func (e WeHaveExhaustedSupplies) String() string {
 	return "WE HAVE EXHAUSTED OUR SUPPLIES."
 }
 
-type WeAreRetreating struct {
+type WeAreRetreating struct { // MSG = 9
 	unit data.Unit
 }
 
@@ -86,7 +86,7 @@ func (r WeAreRetreating) String() string {
 	return "WE ARE RETREATING."
 }
 
-type WeHaveBeenOverrun struct {
+type WeHaveBeenOverrun struct { // MSG = 10
 	unit data.Unit
 }
 

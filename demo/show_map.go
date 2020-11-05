@@ -79,6 +79,7 @@ func NewShowMap(g *Game) *ShowMap {
 		lastUpdatedUnit: 127,
 		citiesHeld:      variant.CitiesHeld,
 	}
+	s.options.AlliedCommander = 1
 	s.init()
 	s.everyHour()
 	return s
@@ -113,7 +114,8 @@ func (s *ShowMap) Update() error {
 		message := s.updateUnit()
 		if message != nil {
 			unit := message.Unit()
-			if true /* current player's unit */ {
+			if (unit.Side == 0 && s.options.AlliedCommander > 0) ||
+				(unit.Side == 1 && s.options.GermanCommander > 0) {
 				fmt.Printf("\nMESSAGE FROM ...\n%s %s:\n", unit.Name, s.mainGame.scenarioData.UnitTypes[unit.Type])
 				fmt.Printf("'%s'\n", message.String())
 			}
@@ -195,6 +197,7 @@ nextUnit:
 		goto nextUnit
 	}
 	var v9 int
+	var arg1 int
 	if unit.MenCount+unit.EquipCount < 7 ||
 		unit.Fatigue == 255 {
 		s.hideUnit(unit)
@@ -246,7 +249,7 @@ nextUnit:
 			tx, ty := unit.X/32, unit.Y/16
 			//unit.X /= 4
 			//unit.Y /= 4
-			arg1 := -17536 // 0xBB80
+			arg1 = -17536 // 0xBB80
 			bestI := 0
 			bestX, bestY := 0, 0
 			for i := 0; i < 9; i++ {
@@ -278,7 +281,7 @@ nextUnit:
 			if bestI > 0 {
 				unit.TargetFormation = 0
 				unit.OrderBit4 = false
-				unit.Order = 0
+				unit.Order = data.Reserve
 				v30 = (unit.MenCount + unit.EquipCount + 8) / 16
 				s.map2_0[unit.Side][tx][ty] = Abs(s.map2_0[unit.Side][bestX][bestY] - v30)
 				s.map2_0[unit.Side][bestX][bestY] += v30
@@ -289,7 +292,7 @@ nextUnit:
 		}
 		{
 			v58 := s.mainGame.hexes.Arr3[unit.Side][unit.GeneralIndex][0]
-			arg1 := -17536 // 0xBB80
+			arg1 = -17536 // 0xBB80
 			//var bestI int
 			var bestDx, bestDy int
 			var v63 int
@@ -510,7 +513,7 @@ nextUnit:
 l24:
 	unit.TargetFormation = s.function10(unit.Order, 1)
 	if mode == data.Attack {
-		arg1 := 16000
+		arg1 = 16000
 		terrainType := s.terrainType(unit.Terrain)
 		menCoeff := s.mainGame.scenarioData.TerrainMenAttack[terrainType] * unit.MenCount
 		equipCoeff := s.mainGame.scenarioData.TerrainTankAttack[terrainType] * unit.EquipCount * (s.mainGame.scenarioData.UnitScores[unit.Type] / 16) / 4
@@ -593,7 +596,7 @@ l24:
 		}
 		// temperarily hide the unit while we compute sth
 		s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2].State &= 127
-		arg1 := -17536 // 48000
+		arg1 = -17536 // 48000
 		var bestI int
 		var arg1_6 int
 		for i := 0; i <= 6; i++ {
@@ -671,7 +674,7 @@ l21:
 	{
 		v57 := 25
 		var distance int
-		var sx, sy, arg1 int
+		var sx, sy int
 		for {
 			mvAdd := 0
 			if unit.ObjectiveX == 0 {
@@ -701,9 +704,6 @@ l21:
 			}
 			temp := function8(unit.ObjectiveX-unit.X, unit.ObjectiveY-unit.Y)
 			offset, moveCost := s.function6(temp, mvAdd, unit.X, unit.Y, unit.Type)
-			if offset < 0 || offset >= len(s.mainGame.generic.Dx) {
-				fmt.Println(offset, moveCost)
-			}
 			sx = unit.X + s.mainGame.generic.Dx[offset]
 			sy = unit.Y + s.mainGame.generic.Dy[offset]
 			if d32&64 > 0 {
@@ -800,7 +800,7 @@ l21:
 		}
 		for i := 0; i < 6; i++ {
 			if unit2, ok := s.FindUnit(unit.X+s.mainGame.generic.Dx[i], unit.Y+s.mainGame.generic.Dy[i]); ok && unit2.Side == 1-unit.Side {
-				// show unit2 on map
+				s.showUnit(unit2)
 				unit2.State = unit2.State | 65
 				s.mainGame.units[unit2.Side][unit2.Index] = unit2
 				if s.mainGame.scenarioData.UnitScores[unit2.Type] > 8 {
@@ -935,8 +935,6 @@ l21:
 			unit2.Morale = Abs(unit2.Morale - 1)
 			oldX, oldY := unit2.X, unit2.Y
 			s.hideUnit(unit2)
-			// show unit2 on map
-			//...
 			if unit2.Fatigue > 128 {
 				unit2SupplyUnit := s.mainGame.units[1-unit.Side][unit2.SupplyUnit]
 				if unit2SupplyUnit.State&128 > 0 {
@@ -1542,7 +1540,7 @@ func (s *ShowMap) hideAllUnits() {
 func (s *ShowMap) showAllVisibleUnits() {
 	for _, sideUnits := range s.mainGame.units {
 		for i, unit := range sideUnits {
-			if unit.State & 128 == 0 {
+			if unit.State&128 == 0 {
 				continue
 			}
 			sideUnits[i].Terrain = s.terrainAt(unit.X, unit.Y)
