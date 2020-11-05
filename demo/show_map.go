@@ -89,9 +89,11 @@ func (s *ShowMap) createMapImage() {
 	var err error
 	if !s.isNight {
 		mapImage, err = s.mainGame.terrainMap.GetImage(s.mainGame.sprites.TerrainTiles[:],
+			s.mainGame.sprites.UnitSymbolSprites[:],
 			s.mainGame.scenarioData.DaytimePalette)
 	} else {
 		mapImage, err = s.mainGame.terrainMap.GetImage(s.mainGame.sprites.TerrainTiles[:],
+			s.mainGame.sprites.UnitSymbolSprites[:],
 			s.mainGame.scenarioData.NightPalette)
 	}
 	if err != nil {
@@ -112,7 +114,7 @@ func (s *ShowMap) Update() error {
 		if message != nil {
 			unit := message.Unit()
 			if true /* current player's unit */ {
-				fmt.Printf("\nMESSAGE FROM ...\n%s: %s:\n", unit.Name, s.mainGame.scenarioData.UnitTypes[unit.Type])
+				fmt.Printf("\nMESSAGE FROM ...\n%s %s:\n", unit.Name, s.mainGame.scenarioData.UnitTypes[unit.Type])
 				fmt.Printf("'%s'\n", message.String())
 			}
 		}
@@ -157,6 +159,7 @@ func (s *ShowMap) init() {
 			s.mainGame.terrain.Cities[i] = city
 		}
 	}
+	s.showAllVisibleUnits()
 }
 
 func (s *ShowMap) resetMaps() {
@@ -194,6 +197,7 @@ nextUnit:
 	var v9 int
 	if unit.MenCount+unit.EquipCount < 7 ||
 		unit.Fatigue == 255 {
+		s.hideUnit(unit)
 		message = WeMustSurrender{unit}
 		unit.State = 0
 		unit.HalfDaysUntilAppear = 0
@@ -507,7 +511,7 @@ l24:
 	unit.TargetFormation = s.function10(unit.Order, 1)
 	if mode == data.Attack {
 		arg1 := 16000
-		terrainType := s.terrainTypeAt(unit.X, unit.Y)
+		terrainType := s.terrainType(unit.Terrain)
 		menCoeff := s.mainGame.scenarioData.TerrainMenAttack[terrainType] * unit.MenCount
 		equipCoeff := s.mainGame.scenarioData.TerrainTankAttack[terrainType] * unit.EquipCount * (s.mainGame.scenarioData.UnitScores[unit.Type] / 16) / 4
 		coeff := (menCoeff + equipCoeff) / 8 * (255 - unit.Fatigue) / 255 * (unit.Morale + s.mainGame.scenarioData.Data0High[unit.Type]/16) / 128
@@ -527,7 +531,7 @@ l24:
 				if !ok {
 					panic("")
 				}
-				terrainType := s.terrainTypeAt(unit2.X, unit2.Y)
+				terrainType := s.terrainType(unit2.Terrain)
 				menCoeff := s.mainGame.scenarioData.TerrainMenDefence[terrainType] * unit2.MenCount
 				equipCoeff := s.mainGame.scenarioData.TerrainTankDefence[terrainType] * unit2.EquipCount * s.mainGame.scenarioData.Data16Low[unit2.Type] / 4
 				t := (menCoeff + equipCoeff) * s.mainGame.scenarioData.FormationMenDefence[unit2.Formation] / 8
@@ -541,7 +545,7 @@ l24:
 			} else {
 				t := s.terrainAt(nx, ny)
 				if i == 18 {
-					t = s.mapTerrainAt(unit.X, unit.Y)
+					t = unit.Terrain
 				}
 				tt := s.terrainType(t)
 				var v int
@@ -593,12 +597,16 @@ l24:
 		var bestI int
 		var arg1_6 int
 		for i := 0; i <= 6; i++ {
-			ix := s.CoordsToMapIndex(unit.X, unit.Y) + s.mainGame.generic.MapOffsets[i]
+			ix := s.coordsToMapIndex(unit.X, unit.Y) + s.mainGame.generic.MapOffsets[i]
 			if !InRange(ix, 0, len(s.mainGame.terrainMap.Terrain)) {
 				continue
 			}
 			var v int
-			tt := s.terrainType(s.mainGame.terrainMap.Terrain[ix]) // terrainTypeAtIndex()?
+			ter := s.terrainAtIndex(ix)
+			if i == 6 {
+				ter = unit.Terrain
+			}
+			tt := s.terrainType(ter)
 			if tt == 7 {
 				v = -128
 			} else {
@@ -625,7 +633,7 @@ l24:
 		}
 		s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2].State |= 128
 		v := s.mainGame.scenarioData.FormationMenDefence[unit.Formation] - 8
-		if (unit.Side+1)&s.options.Num() > 0 {
+		if (unit.Side+1)&s.options.Num() == 0 {
 			v *= 2
 		}
 		if v > arg1-arg1_6 {
@@ -701,7 +709,7 @@ l21:
 			if d32&64 > 0 {
 				sx = unit.ObjectiveX
 				sy = unit.ObjectiveY
-				ix := s.CoordsToMapIndex(sx, sy)
+				ix := s.coordsToMapIndex(sx, sy)
 				tt := s.terrainTypeAtIndex(ix)
 				moveCost = s.mainGame.scenarioData.MoveCostPerTerrainTypesAndUnit[tt][unit.Type]
 				mvAdd = 1
@@ -749,14 +757,14 @@ l21:
 				break
 			}
 			v57 -= temp
-			if (unit.Side+1)&(s.options.Num()/4) == 0 {
-				//function28(offset) - animate function move?
-			} else if unit.State&65 > 0 {
+			if (unit.Side+1)&(s.options.Num()/4) == 0 || unit.State&65 > 0 {
 				//function28(offset) - animate function move?
 			}
+			s.hideUnit(unit)
 			unit.X = sx
 			unit.Y = sy
-			// function29: add unit tile to map
+			unit.Terrain = s.terrainAt(unit.X, unit.Y)
+			s.function29_showUnit(unit)
 			dist := s.function15(unit)
 			if dist == 0 {
 				unit.ObjectiveX = 0
@@ -777,8 +785,7 @@ l21:
 				} else {
 					unit.State &= 254
 				}
-				// function29 (add own tile to map - no need here?)
-				// todo: check conditions when unit should be visible
+				s.function29_showUnit(unit)
 				continue
 			}
 			break
@@ -797,7 +804,7 @@ l21:
 				unit2.State = unit2.State | 65
 				s.mainGame.units[unit2.Side][unit2.Index] = unit2
 				if s.mainGame.scenarioData.UnitScores[unit2.Type] > 8 {
-					if (unit.Side+1)&(s.options.Num()) > 0 {
+					if (unit.Side+1)&s.options.Num() > 0 {
 						sx = unit2.X
 						sy = unit2.Y
 						unit.Order = data.Attack
@@ -817,7 +824,7 @@ l21:
 				}
 			}
 		}
-		// function29 - add unit tile to map
+		s.function29_showUnit(unit)
 		//	l11:
 		if unit.ObjectiveX == 0 ||
 			unit.Order != data.Attack ||
@@ -839,6 +846,7 @@ l21:
 		}
 		if unit.FormationTopBit {
 			// * function28 - animate unit move
+			s.showUnit(unit)
 			// * show unit on map
 			// * function14 - play sound??
 		} else if s.mainGame.scenarioData.Data32[unit.Type]&8 > 0 {
@@ -854,7 +862,7 @@ l21:
 		if !ok || unit2.Side != 1-unit.Side {
 			panic("")
 		}
-		arg1 = s.terrainTypeAt(unit.X, unit.Y)
+		arg1 = s.terrainType(unit.Terrain)
 		message = WeAreAttacking{unit, unit2, arg1 /* placeholder value */, s.mainGame.scenarioData.Formations}
 		v := s.mainGame.scenarioData.TerrainMenAttack[arg1] * s.mainGame.scenarioData.FormationMenAttack[unit.Formation] * unit.MenCount / 32
 		if unit.FormationTopBit {
@@ -874,7 +882,7 @@ l21:
 		v = v * (s.mainGame.hexes.Arr3[unit.Side][unit.GeneralIndex][1] & 15) / 16
 		v = v * s.magicCoeff(s.mainGame.hexes.Arr144[:], unit.X, unit.Y, unit.Side) / 8
 		v++
-		tt2 := s.terrainTypeAt(unit2.X, unit2.Y)
+		tt2 := s.terrainType(unit2.Terrain)
 		if s.mainGame.scenarioData.UnitScores[unit2.Type]&248 > 0 {
 			unit.State |= 4
 		}
@@ -926,6 +934,7 @@ l21:
 			arg1-s.mainGame.scenarioData.Data0Low[unit2.Type]*2+unit2.Fatigue/4 > 36 {
 			unit2.Morale = Abs(unit2.Morale - 1)
 			oldX, oldY := unit2.X, unit2.Y
+			s.hideUnit(unit2)
 			// show unit2 on map
 			//...
 			if unit2.Fatigue > 128 {
@@ -962,20 +971,24 @@ l21:
 					}
 				}
 			}
+			unit2.Terrain = s.terrainAt(bestX, bestY)
 			if _, ok := message.(WeHaveBeenOverrun); !ok {
 				unit.ObjectiveX = bestX
 				unit.ObjectiveY = bestY
 			}
-			// unit2 is retreating, unit one is chasing (and maybe capturing a city)
 			if bestX != oldX || bestY != oldY {
+				// unit2 is retreating, unit one is chasing (and maybe capturing a city)
 				if _, ok := message.(WeHaveBeenOverrun); !ok {
 					message = WeAreRetreating{unit2}
 				}
 				if arg1 > 60 {
 					if s.magicCoeff(s.mainGame.hexes.Arr96[:], oldX, oldY, unit.Side) > -4 { /* check coordinates */
 						if s.mainGame.scenarioData.MoveCostPerTerrainTypesAndUnit[s.terrainTypeAt(oldX, oldY)][unit.Type] > 0 { // or the actual terrain ...
+							s.hideUnit(unit)
 							unit.X = oldX
 							unit.Y = oldY
+							unit.Terrain = s.terrainAt(unit.X, unit.Y)
+							s.showUnit(unit)
 							if city, captured := s.function16(unit); captured {
 								message = WeHaveCaptured{unit, city}
 							}
@@ -1043,7 +1056,7 @@ func (s *ShowMap) function16(unit data.Unit) (data.City, bool) {
 	}
 	return data.City{}, false
 }
-func (s *ShowMap) CoordsToMapIndex(x, y int) int {
+func (s *ShowMap) coordsToMapIndex(x, y int) int {
 	return y*s.mainGame.terrainMap.Width + x/2 - y/2
 }
 
@@ -1052,7 +1065,7 @@ func (s *ShowMap) function6(offsetIx, add, x, y, unitType int) (int, int) {
 	ni := s.mainGame.generic.DirectionToNeighbourIndex[offsetIx]
 	neigh1 := s.mainGame.generic.Neighbours[add][ni]
 	offset1 := s.mainGame.generic.MapOffsets[neigh1]
-	ix1 := s.CoordsToMapIndex(x, y) + offset1
+	ix1 := s.coordsToMapIndex(x, y) + offset1
 	if !InRange(ix1, 0, len(s.mainGame.terrainMap.Terrain)) {
 		return 0, 0
 	}
@@ -1061,7 +1074,7 @@ func (s *ShowMap) function6(offsetIx, add, x, y, unitType int) (int, int) {
 
 	neigh2 := s.mainGame.generic.Neighbours[add+1][ni]
 	offset2 := s.mainGame.generic.MapOffsets[neigh2]
-	ix2 := s.CoordsToMapIndex(x, y) + offset2
+	ix2 := s.coordsToMapIndex(x, y) + offset2
 	if !InRange(ix2, 0, len(s.mainGame.terrainMap.Terrain)) {
 		return 0, 0
 	}
@@ -1072,6 +1085,12 @@ func (s *ShowMap) function6(offsetIx, add, x, y, unitType int) (int, int) {
 		return neigh2, mc2
 	}
 	return neigh1, mc1
+}
+
+func (s *ShowMap) function29_showUnit(unit data.Unit) {
+	if unit.State&65 != 0 || ((unit.Side+1)&s.options.Num()/4) == 0 {
+		s.showUnit(unit)
+	}
 }
 
 // arr is one of 48 element arrays in Hexes
@@ -1183,16 +1202,16 @@ func (s *ShowMap) reinitSmallMapsAndSuch() {
 				v13 += 1
 			} else {
 				v16 += unit.MenCount + unit.EquipCount
-				if (unit.Side+1)&(s.options.Num()/16) > 0 {
-					if unit.State&64 == 0 {
-						continue
-					}
+				if (unit.Side+1)&(s.options.Num()/16) > 0 &&
+					unit.State&64 == 0 {
+					continue
 				}
 			}
 			v30 := unit.MenCount + unit.EquipCount
 			tmp := Clamp(s.mainGame.scenarioData.FormationMenDefence[unit.Formation], 8, 99) * v30 / 8
 			v29 := s.mainGame.scenarioData.TerrainMenDefence[s.terrainTypeAt(unit.X, unit.Y)] * tmp / 8
-			if s.mainGame.scenarioData.UnitScores[unit.Type] >= 7 {
+			if s.mainGame.scenarioData.UnitScores[unit.Type] > 7 {
+				// special units - supply, air wings
 				v29 = 4
 				v30 = 4
 			}
@@ -1283,14 +1302,13 @@ func (s *ShowMap) everyHour() {
 	if s.mainGame.scenarioData.AvgDailySupplyUse > Rand(24) {
 		for _, sideUnits := range s.mainGame.units {
 			for i, unit := range sideUnits {
-				if unit.State&128 == 0 {
+				if unit.State&128 == 0 ||
+					!s.mainGame.scenarioData.UnitUsesSupplies[unit.Type] ||
+					unit.SupplyLevel <= 0 {
 					continue
 				}
-				if s.mainGame.scenarioData.UnitUsesSupplies[unit.Type] &&
-					unit.SupplyLevel > 0 {
-					unit.SupplyLevel--
-					sideUnits[i] = unit
-				}
+				unit.SupplyLevel--
+				sideUnits[i] = unit
 			}
 		}
 
@@ -1299,8 +1317,9 @@ func (s *ShowMap) everyHour() {
 	s.createMapImage()
 }
 func (s *ShowMap) every12Hours() (reinforcements [2]bool, res int) {
-	s.supplyLevels[0] += s.mainGame.scenarioData.ResupplyRate[0]
-	s.supplyLevels[1] += s.mainGame.scenarioData.ResupplyRate[1]
+	s.supplyLevels[0] += s.mainGame.scenarioData.ResupplyRate[0] * 2
+	s.supplyLevels[1] += s.mainGame.scenarioData.ResupplyRate[1] * 2
+	s.hideAllUnits()
 	for _, sideUnits := range s.mainGame.units {
 		for i, unit := range sideUnits {
 			if unit.State&128 != 0 {
@@ -1320,6 +1339,8 @@ func (s *ShowMap) every12Hours() (reinforcements [2]bool, res int) {
 					}
 					if shouldSpawnUnit {
 						unit.State |= 128
+						unit.Terrain = s.terrainAt(unit.X, unit.Y)
+						// Unit will be shown if needed inside showAllUnits at the end of the function.
 						reinforcements[unit.Side] = true
 					} else {
 						unit.HalfDaysUntilAppear = 1
@@ -1330,6 +1351,7 @@ func (s *ShowMap) every12Hours() (reinforcements [2]bool, res int) {
 			//[53249] = 0
 		}
 	}
+
 	for _, sideUnits := range s.mainGame.units {
 		for i, unit := range sideUnits {
 			if unit.State&136 > 0 { // active or no supply line
@@ -1346,6 +1368,8 @@ func (s *ShowMap) every12Hours() (reinforcements [2]bool, res int) {
 			sideUnits[i] = unit
 		}
 	}
+
+	s.showAllVisibleUnits()
 	return
 }
 
@@ -1362,6 +1386,9 @@ func (s *ShowMap) resupplyUnit(unit data.Unit) data.Unit {
 		//  not other headquarters
 		minSupplyType++
 	}
+	if (unit.Side+1)&(s.options.Num()/4) == 0 {
+		s.showUnit(unit)
+	}
 	// keep the last friendly unit so that we can use it outside of the loop
 	var supplyUnit data.Unit
 outerLoop:
@@ -1372,7 +1399,9 @@ outerLoop:
 			continue
 		}
 		supplyX, supplyY := supplyUnit.X, supplyUnit.Y
-		// if unit should be visible show it.
+		if (unit.Side+1)&(s.options.Num()/4) == 0 {
+			s.showUnit(supplyUnit)
+		}
 		supplyTransportBudget := s.mainGame.scenarioData.MaxSupplyTransportCost
 		if unit.Type == s.mainGame.scenarioData.MinSupplyType&15 {
 			supplyTransportBudget *= 2
@@ -1382,11 +1411,11 @@ outerLoop:
 			if Abs(dx)+Abs(dy) < 3 {
 				supplyLevel := s.supplyLevels[unit.Side]
 				if supplyLevel > 0 {
-					unitResupply := s.mainGame.scenarioData.UnitResupplyPerType[unit.Type]
 					maxResupply := Clamp(
 						(supplyLevel-unit.SupplyLevel*2)/16,
 						0,
 						s.mainGame.scenarioData.MaxResupplyAmount)
+					unitResupply := s.mainGame.scenarioData.UnitResupplyPerType[unit.Type]
 					unitResupply = Clamp(unitResupply, 0, maxResupply)
 					unit.SupplyLevel += unitResupply
 					s.supplyLevels[unit.Side] = supplyLevel - unitResupply
@@ -1395,6 +1424,7 @@ outerLoop:
 					// not sure if it's needed...
 					s.supplyLevels[unit.Side] = 0
 				}
+				s.hideUnit(supplyUnit)
 				break outerLoop
 			} else {
 				var x, y, cost int
@@ -1404,7 +1434,7 @@ outerLoop:
 						break
 					}
 				}
-				// if unit.Side == 0: function13(x, y)
+				// if should be visible: function13(x, y) (move?)
 				//dx, dy := moveToXY(move)
 				supplyX, supplyY = x, y
 				if s.ContainsUnitOfSide(supplyX, supplyY, 1-unit.Side) {
@@ -1413,7 +1443,7 @@ outerLoop:
 				supplyTransportBudget -= 256 / (cost + 1)
 			}
 		}
-		// hide unit
+		s.hideUnit(supplyUnit)
 		// function20: change text display mode
 	}
 	if unit.SupplyLevel == 0 {
@@ -1424,6 +1454,7 @@ outerLoop:
 			unit.ObjectiveY = supplyUnit.Y
 		}
 	}
+	s.hideUnit(unit)
 	return unit
 }
 
@@ -1479,31 +1510,47 @@ func (s *ShowMap) terrainTypeAt(x, y int) int {
 func (s *ShowMap) terrainTypeAtIndex(ix int) int {
 	return s.terrainType(s.terrainAtIndex(ix))
 }
-
-func (s *ShowMap) terrainAt(x, y int) byte {
-	if unit, ok := s.FindUnit(x, y); ok {
-		return byte(unit.Type + unit.ColorPalette*64)
-	}
-	return s.mapTerrainAt(x, y)
-}
 func (s *ShowMap) terrainAtIndex(ix int) byte {
-	for _, sideUnits := range s.mainGame.units {
-		for _, unit := range sideUnits {
-			if s.CoordsToMapIndex(unit.X, unit.Y) == ix {
-				return byte(unit.Type + unit.ColorPalette*64)
-			}
-		}
-	}
 	return s.mainGame.terrainMap.Terrain[ix]
 }
-
-func (s *ShowMap) mapTerrainAt(x, y int) byte {
+func (s *ShowMap) terrainAt(x, y int) byte {
 	x /= 2
 	if !InRange(y, 0, s.mainGame.terrainMap.Height) ||
 		!InRange(x, 0, s.mainGame.terrainMap.Width-y%2) {
 		return 0
 	}
 	return s.mainGame.terrainMap.GetTile(x, y)
+}
+
+func (s *ShowMap) showUnit(unit data.Unit) {
+	ix := s.coordsToMapIndex(unit.X, unit.Y)
+	s.mainGame.terrainMap.Terrain[ix] = byte(unit.Type + unit.ColorPalette*16)
+}
+func (s *ShowMap) hideUnit(unit data.Unit) {
+	ix := s.coordsToMapIndex(unit.X, unit.Y)
+	s.mainGame.terrainMap.Terrain[ix] = unit.Terrain
+}
+func (s *ShowMap) hideAllUnits() {
+	for _, sideUnits := range s.mainGame.units {
+		for _, unit := range sideUnits {
+			if unit.State&128 != 0 {
+				s.hideUnit(unit)
+			}
+		}
+	}
+}
+func (s *ShowMap) showAllVisibleUnits() {
+	for _, sideUnits := range s.mainGame.units {
+		for i, unit := range sideUnits {
+			if unit.State & 128 == 0 {
+				continue
+			}
+			sideUnits[i].Terrain = s.terrainAt(unit.X, unit.Y)
+			if unit.State&65 != 0 || (unit.Side+1)&(s.options.Num()/4) == 0 {
+				s.showUnit(unit)
+			}
+		}
+	}
 }
 
 func (s *ShowMap) FindBestMoveFromTowards(supplyX, supplyY, unitX, unitY, unitType, variant int) (int, int, int) {
@@ -1572,25 +1619,8 @@ func (s *ShowMap) Draw(screen *ebiten.Image) {
 	screen.Fill(color.White)
 	opts := &ebiten.DrawImageOptions{}
 	opts.GeoM.Translate(float64(s.dx)*(-8), float64(s.dy)*(-8))
+	s.createMapImage()
 	screen.DrawImage(s.mapImage, opts)
-	for _, sideUnits := range s.mainGame.units {
-		for _, unit := range sideUnits {
-			if unit.State&128 == 0 {
-				continue
-			}
-			unitImg := *s.mainGame.sprites.UnitSymbolSprites[unit.Type]
-			if !s.isNight {
-				unitImg.Palette = data.GetPalette(unit.ColorPalette, s.mainGame.scenarioData.DaytimePalette)
-			} else {
-				unitImg.Palette = data.GetPalette(unit.ColorPalette, s.mainGame.scenarioData.NightPalette)
-			}
-			unitEImg := ebiten.NewImageFromImage(&unitImg)
-			originalGeoM := opts.GeoM
-			opts.GeoM.Translate(float64(unit.X)*4, float64(unit.Y)*8)
-			screen.DrawImage(unitEImg, opts)
-			opts.GeoM = originalGeoM
-		}
-	}
 	hour := s.hour
 	meridianString := "AM"
 	if hour >= 12 {

@@ -164,8 +164,8 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 	for i, v := range scenario.Data[216:232] {
 		scenario.Data216[i] = int(v)
 	}
-	scenario.ResupplyRate[0] = int(scenario.Data[232]) * 2
-	scenario.ResupplyRate[1] = int(scenario.Data[233]) * 2
+	scenario.ResupplyRate[0] = int(scenario.Data[232])
+	scenario.ResupplyRate[1] = int(scenario.Data[233])
 	scenario.MenReplacementRate[0] = int(scenario.Data[234])
 	scenario.MenReplacementRate[1] = int(scenario.Data[235])
 	scenario.EquipReplacementRate[0] = int(scenario.Data[236])

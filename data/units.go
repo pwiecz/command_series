@@ -31,6 +31,7 @@ type Unit struct {
 	General              General
 	SupplyLevel          int
 	Morale               int
+	Terrain              byte
 
 	VariantBitmap        byte
 	HalfDaysUntilAppear  int
@@ -73,7 +74,7 @@ func ParseUnit(data [16]byte, unitNames []string, generals []General) (Unit, err
 	unit.FormationTopBit = data[5]&128 != 0
 	unit.VariantBitmap = data[6]
 	unit.Type = int(data[7] & 15)
-	unit.ColorPalette = int(data[7] / 64)
+	unit.ColorPalette = int(data[7] / 16)
 	nameIndex := int(data[8] & 127)
 	if nameIndex >= len(unitNames) {
 		// there's problem with one Sidi units having high name index

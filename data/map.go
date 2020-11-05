@@ -32,13 +32,16 @@ func GetPalette(n int, palette [8]byte) []color.Color {
 }
 
 func (m *Map) GetTile(x, y int) byte {
-	return m.Terrain[y*m.Width + x - y/2]
+	return m.Terrain[y*m.Width+x-y/2]
 }
 
 // GetImage constructs image.Image object from given set of tiles and given palette.
-func (m *Map) GetImage(tiles []*image.Paletted, palette [8]byte) (image.Image, error) {
+func (m *Map) GetImage(tiles []*image.Paletted, unitSprites []*image.Paletted, palette [8]byte) (image.Image, error) {
 	if len(tiles) < 48 {
 		return nil, fmt.Errorf("Too few tiles. Expected 48, got %d", len(tiles))
+	}
+	if len(unitSprites) < 16 {
+		return nil, fmt.Errorf("Too few unit sprites. Expected 16, got %d", len(unitSprites))
 	}
 	tileBounds := tiles[0].Bounds()
 	tileWidth := tileBounds.Max.X - tileBounds.Min.X
@@ -46,18 +49,25 @@ func (m *Map) GetImage(tiles []*image.Paletted, palette [8]byte) (image.Image, e
 	img := image.NewNRGBA(image.Rect(0, 0, tileWidth*m.Width, tileHeight*m.Height))
 	for y := 0; y < m.Height; y++ {
 		x0 := (y % 2) * 4
-		for x := 0; x < m.Width - y%2; x++ {
-			tileNum := int(m.GetTile(x, y) % 64)
-			if tileNum >= len(tiles) {
-				return nil, fmt.Errorf("Too large tile number. Expected at most 48, got %d", tileNum)
+		for x := 0; x < m.Width-y%2; x++ {
+			tileNum := int(m.GetTile(x, y))
+			if tileNum%64 < 48 {
+				repalettedImg := *tiles[tileNum%64]
+				repalettedImg.Palette = GetPalette(tileNum/64, palette)
+				draw.Draw(img,
+					image.Rect(x0, y*tileHeight, x0+tileWidth, (y+1)*tileHeight),
+					&repalettedImg,
+					image.Point{},
+					draw.Over)
+			} else {
+				repalettedImg := *unitSprites[tileNum%16]
+				repalettedImg.Palette = GetPalette(tileNum/64, palette)
+				draw.Draw(img,
+					image.Rect(x0, y*tileHeight, x0+tileWidth, (y+1)*tileHeight),
+					&repalettedImg,
+					image.Point{},
+					draw.Over)
 			}
-			repalettedImg := *tiles[tileNum]
-			repalettedImg.Palette = GetPalette(int(m.GetTile(x,y)/64), palette)
-			draw.Draw(img,
-				image.Rect(x0, y*tileHeight, x0+tileWidth, (y+1)*tileHeight),
-				&repalettedImg,
-				image.Point{},
-				draw.Over)
 			x0 += tileWidth
 		}
 	}
@@ -89,7 +99,7 @@ func parseMapCrusade(data io.Reader, width, height int) (Map, error) {
 		Width: width, Height: height,
 		Terrain: make([]byte, 0, width*height),
 	}
-	
+
 	for y := 0; y < terrainMap.Height; y++ {
 		rowLength := terrainMap.Width - y%2
 		row := make([]byte, rowLength)
