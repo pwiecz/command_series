@@ -1480,7 +1480,7 @@ func (s *ShowMap) ContainsCity(x, y int) bool {
 func (s *ShowMap) FindUnit(x, y int) (data.Unit, bool) {
 	for _, sideUnits := range s.mainGame.units {
 		for _, unit := range sideUnits {
-			if unit.X == x && unit.Y == y {
+			if unit.State&128 != 0 && unit.X == x && unit.Y == y {
 				return unit, true
 			}
 		}

@@ -40,6 +40,9 @@ func ParseCity(data io.Reader) (City, error) {
 	if err != nil {
 		return City{}, err
 	}
+	if cityData[0]&128 == 0 {
+		return City{}, nil
+	}
 	var city City
 	city.Owner = int((cityData[0] & 64) >> 6)
 	city.VictoryPoints = int(cityData[0] & 63)
