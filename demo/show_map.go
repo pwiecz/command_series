@@ -238,14 +238,14 @@ nextUnit:
 	{
 		// v57 := sign(sign_extend([29927 + 10 + unit.side])/16)*4
 		sx, sy := unit.X/8, unit.Y/4
-		v30 := 0
+		temp := 0
 		for i := 0; i < 9; i++ {
 			dx, dy := s.mainGame.generic.SmallMapOffsets(i)
 			if InRange(sx+dx, 0, 16) && InRange(dy+sy, 0, 16) {
-				v30 += s.map0[1-unit.Side][sx+dx][sy+dy]
+				temp += s.map0[1-unit.Side][sx+dx][sy+dy]
 			}
 		}
-		if v30 == 0 && s.mainGame.scenarioData.UnitScores[unit.Type] == 0 && unit.State&8 == 0 {
+		if temp == 0 && s.mainGame.scenarioData.UnitScores[unit.Type]&248 == 0 && unit.State&8 == 0 {
 			tx, ty := unit.X/32, unit.Y/16
 			//unit.X /= 4
 			//unit.Y /= 4
@@ -282,9 +282,9 @@ nextUnit:
 				unit.TargetFormation = 0
 				unit.OrderBit4 = false
 				unit.Order = data.Reserve
-				v30 = (unit.MenCount + unit.EquipCount + 8) / 16
-				s.map2_0[unit.Side][tx][ty] = Abs(s.map2_0[unit.Side][bestX][bestY] - v30)
-				s.map2_0[unit.Side][bestX][bestY] += v30
+				temp = (unit.MenCount + unit.EquipCount + 8) / 16
+				s.map2_0[unit.Side][tx][ty] = Abs(s.map2_0[unit.Side][bestX][bestY] - temp)
+				s.map2_0[unit.Side][bestX][bestY] += temp
 				unit.ObjectiveX = bestX*32 + 16 // ((v20&6)*16)|16
 				unit.ObjectiveY = bestY*16 + 8  // ((v20&24)*2)| 8
 				goto l21
@@ -516,8 +516,8 @@ l24:
 		arg1 = 16000
 		terrainType := s.terrainType(unit.Terrain)
 		menCoeff := s.mainGame.scenarioData.TerrainMenAttack[terrainType] * unit.MenCount
-		equipCoeff := s.mainGame.scenarioData.TerrainTankAttack[terrainType] * unit.EquipCount * (s.mainGame.scenarioData.UnitScores[unit.Type] / 16) / 4
-		coeff := (menCoeff + equipCoeff) / 8 * (255 - unit.Fatigue) / 255 * (unit.Morale + s.mainGame.scenarioData.Data0High[unit.Type]/16) / 128
+		equipCoeff := s.mainGame.scenarioData.TerrainTankAttack[terrainType] * unit.EquipCount * (s.mainGame.scenarioData.Data16High[unit.Type]) / 4
+		coeff := (menCoeff + equipCoeff) / 8 * (255 - unit.Fatigue) / 255 * (unit.Morale + s.mainGame.scenarioData.Data0High[unit.Type]*16) / 128
 		temp2 := coeff * s.magicCoeff(s.mainGame.hexes.Arr144[:], unit.X, unit.Y, unit.Side) / 8
 		v := 0
 		if v9 > 0 {
