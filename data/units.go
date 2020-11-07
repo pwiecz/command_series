@@ -6,6 +6,21 @@ import "os"
 
 type OrderType int
 
+func (o OrderType) String() string {
+	switch o {
+	case Reserve:
+		return "Reserve"
+	case Defend:
+		return "Defend"
+	case Attack:
+		return "Attack"
+	case Move:
+		return "Move"
+	default:
+		return fmt.Sprintf("OrderType(%d)", int(o))
+	}
+}
+
 const (
 	Reserve OrderType = 0
 	Defend  OrderType = 1
@@ -15,7 +30,7 @@ const (
 
 type Unit struct {
 	Side                 int  // 0 or 1
-	State                byte // bit 15 - is added to game, bit 6 - visible to enemy, bit 5 - local command, bit 4 - has contact with enemy, bit 3 - no supply line to unit, bit 1 - has contact with enemy?
+	State                byte // bit 8 - is added to game, bit 6 - visible to enemy, bit 5 - local command, bit 4 - has contact with enemy, bit 3 - no supply line to unit, bit 1 - has contact with enemy?
 	X, Y                 int
 	MenCount, EquipCount int
 	Formation            int

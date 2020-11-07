@@ -17,8 +17,8 @@ type ScenarioData struct {
 	RecoveryRate [16]int // Data[64:80]
 	// Various bits concerning unit types... not all clear yet (&4 weather has no impact?)
 	UnitMask             [16]byte // Data[80:96] (per unit type)
-	UnitUsesSupplies     [16]bool // bits 3 of bytes Data[80:96]
-	UnitCanMove          [16]bool // bits 6 of bytes Data[80:96]
+	UnitUsesSupplies     [16]bool // bit 3(&8) of bytes Data[80:96]
+	UnitCanMove          [16]bool // bit 6(&64) of bytes Data[80:96]
 	TerrainMenAttack     [8]int   // Data[96:104]
 	TerrainTankAttack    [8]int   // Data[104:112]
 	TerrainMenDefence    [8]int   // Data[112:120]
