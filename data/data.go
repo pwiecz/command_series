@@ -13,8 +13,8 @@ type ScenarioData struct {
 	Data16High [16]int // Data[16:32] per unit type (higher 4 bits)
 	Data32     [16]int // Data[32:48] per unit type (&31 attack range)
 	// Score gained by destroying enemy unit of this type
-	UnitScores [16]int // Data[48:64]
-	RecoveryRate     [16]int // Data[64:80]
+	UnitScores   [16]int // Data[48:64]
+	RecoveryRate [16]int // Data[64:80]
 	// Various bits concerning unit types... not all clear yet (&4 weather has no impact?)
 	UnitMask             [16]byte // Data[80:96] (per unit type)
 	UnitUsesSupplies     [16]bool // bits 3 of bytes Data[80:96]
@@ -33,7 +33,7 @@ type ScenarioData struct {
 	Data162                int // Data[162] some generic supply use (while attacking?)
 	Data163                int // Data[163] some generic supply use (while being attacked?)
 	MaxResupplyAmount      int // Data[164]
-	MaxSupplyTransportCost int // Data[165]
+	MaxSupplyTransportCost int // Data[165] in half-miles
 	// On average that many supplies will be used by each unit every day.
 	AvgDailySupplyUse              int        // Data[166]
 	Data167                        int        // Data[167]
@@ -42,7 +42,8 @@ type ScenarioData struct {
 	Data173                        int        // Data[173] (a fatigue increase)
 	Data176                        [4][4]int  // Data[176:190] four bytes per order (numbers 0-5)
 	Data192                        [8]int     // Data[192:200] per formation
-	UnitResupplyPerType            [16]int    // Data[200:216] top four bytes div 2
+	Data200Low                     [16]int    // Data[200:216] lower three bits per type
+	UnitResupplyPerType            [16]int    // Data[200:216] top four bits div 2
 	Data216                        [16]int    // Data[216:232]
 	ResupplyRate                   [2]int     // Data[232,233]
 	MenReplacementRate             [2]int     // Data[234,235]
@@ -158,8 +159,9 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 	for i, v := range scenario.Data[192:200] {
 		scenario.Data192[i] = int(v)
 	}
-	for i, resupply := range scenario.Data[200:216] {
-		scenario.UnitResupplyPerType[i] = (int((resupply & 240) >> 1))
+	for i, v := range scenario.Data[200:216] {
+		scenario.Data200Low[i] = int(v & 7)
+		scenario.UnitResupplyPerType[i] = (int((v & 240) >> 1))
 	}
 	for i, v := range scenario.Data[216:232] {
 		scenario.Data216[i] = int(v)

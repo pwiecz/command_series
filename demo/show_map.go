@@ -521,7 +521,7 @@ l24:
 		temp2 := coeff * s.magicCoeff(s.mainGame.hexes.Arr144[:], unit.X, unit.Y, unit.Side) / 8
 		v := 0
 		if v9 > 0 {
-			if s.mainGame.scenarioData.UnitResupplyPerType[unit.Type]&7 < 3 {
+			if s.mainGame.scenarioData.Data200Low[unit.Type] < 3 {
 				v = 12
 			}
 		}
@@ -672,11 +672,10 @@ l21:
 		message = WeHaveExhaustedSupplies{unit}
 	}
 	{
-		v57 := 25
+		v57 := 25 // unit's move "budget"
 		var distance int
 		var sx, sy int
-		for {
-			mvAdd := 0
+		for { // l22:
 			if unit.ObjectiveX == 0 {
 				break
 			}
@@ -688,13 +687,14 @@ l21:
 				sy = unit.ObjectiveY
 				unit.FormationTopBit = true
 				arg1 = 7
-				break
+				break // goto l2
 			}
+			mvAdd := 0
 		l5:
 			if unit.ObjectiveX == unit.X && unit.ObjectiveY == unit.Y {
 				unit.ObjectiveX = 0
 				unit.TargetFormation = s.function10(unit.Order, 1)
-				break
+				break // goto l2
 			}
 			unit.TargetFormation = s.function10(unit.Order, 0)
 			if ((unit.Side+1)&s.options.Num()) > 0 || unit.State&32 > 0 {
@@ -733,7 +733,7 @@ l21:
 			}
 			v := s.mainGame.scenarioData.Data192[unit.Formation] * moveCost / 8
 			if unit.State&16 != 0 {
-				v *= s.mainGame.scenarioData.UnitResupplyPerType[unit.Type] & 7
+				v *= s.mainGame.scenarioData.Data200Low[unit.Type]
 				v /= 8
 			}
 			v *= (512 - unit.Fatigue) / 32
@@ -871,11 +871,10 @@ l21:
 		v2 := s.mainGame.scenarioData.TerrainTankAttack[arg1] * s.mainGame.scenarioData.FormationTankAttack[unit.Formation] * s.mainGame.scenarioData.Data16High[unit.Type] / 2 * unit.EquipCount / 64
 		if unit.FormationTopBit {
 			if s.mainGame.scenarioData.Data32[unit.Type]&8 > 0 {
-				w := 4 - weather
-				if w < 1 {
+				if weather > 3 {
 					goto end
 				}
-				v2 = v2 * w / 4
+				v2 = v2 * (4 - weather) / 4
 			}
 		}
 		v = (v + v2) * unit.Morale / 255 * (255 - unit.Fatigue) / 128
