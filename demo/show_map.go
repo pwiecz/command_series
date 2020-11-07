@@ -679,7 +679,7 @@ l21:
 			if unit.ObjectiveX == 0 {
 				break
 			}
-			distance = s.function15(unit)
+			distance = s.function15_distanceToObjective(unit)
 			d32 := s.mainGame.scenarioData.Data32[unit.Type]
 			attackRange := (d32 & 31) * 2
 			if distance > 0 && distance <= attackRange && unit.Order == data.Attack {
@@ -765,8 +765,7 @@ l21:
 			unit.Y = sy
 			unit.Terrain = s.terrainAt(unit.X, unit.Y)
 			s.function29_showUnit(unit)
-			dist := s.function15(unit)
-			if dist == 0 {
+			if s.function15_distanceToObjective(unit) == 0 {
 				unit.ObjectiveX = 0
 				unit.TargetFormation = s.function10(unit.Order, 1)
 				if (unit.Order == data.Defend || unit.Order == data.Move) &&
@@ -1035,7 +1034,7 @@ end: // l3
 		}
 		unit.Fatigue = Clamp(unit.Fatigue-recovery, 0, 255)
 	}
-	s.mainGame.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2] = unit
+	s.mainGame.units[unit.Side][unit.Index] = unit
 	return
 }
 
@@ -1045,6 +1044,7 @@ func (s *ShowMap) function16(unit data.Unit) (data.City, bool) {
 		if city.Owner != unit.Side {
 			// msg = 5
 			city.Owner = unit.Side
+			s.SaveCity(city)
 			s.score13[unit.Side] += city.VictoryPoints
 			s.score13[1-unit.Side] -= city.VictoryPoints
 			s.score21[unit.Side] += city.VictoryPoints & 1
@@ -1060,6 +1060,7 @@ func (s *ShowMap) coordsToMapIndex(x, y int) int {
 // TODO: deduplicate this function and FindBestMoveFromTowards()
 func (s *ShowMap) function6(offsetIx, add, x, y, unitType int) (int, int) {
 	ni := s.mainGame.generic.DirectionToNeighbourIndex[offsetIx]
+
 	neigh1 := s.mainGame.generic.Neighbours[add][ni]
 	offset1 := s.mainGame.generic.MapOffsets[neigh1]
 	ix1 := s.coordsToMapIndex(x, y) + offset1
@@ -1161,8 +1162,7 @@ func (s *ShowMap) function10(order data.OrderType, offset int) int {
 	return s.mainGame.scenarioData.Data176[int(order)][offset]
 }
 
-// distance to objective
-func (s *ShowMap) function15(unit data.Unit) int {
+func (s *ShowMap) function15_distanceToObjective(unit data.Unit) int {
 	dx := unit.ObjectiveX - unit.X
 	dy := unit.ObjectiveY - unit.Y
 	if Abs(dy) > Abs(dx)/2 {
@@ -1494,6 +1494,16 @@ func (s *ShowMap) FindCity(x, y int) (data.City, bool) {
 		}
 	}
 	return data.City{}, false
+}
+func (s *ShowMap) SaveCity(newCity data.City) {
+	for i, city := range s.mainGame.terrain.Cities {
+		if city.X == newCity.X && city.Y == newCity.Y {
+			s.mainGame.terrain.Cities[i] = newCity
+			return
+		}
+	}
+	panic(fmt.Errorf("Cannot find city at", newCity.X, newCity.Y))
+
 }
 
 // function17
