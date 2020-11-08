@@ -246,11 +246,12 @@ nextUnit:
 				temp += s.map0[1-unit.Side][sx+dx][sy+dy]
 			}
 		}
+		// in CiV the second term is s.mainGame.scenarioData.UnitMask[unit.Type]&1 == 0
 		if temp == 0 && s.mainGame.scenarioData.UnitScores[unit.Type]&248 == 0 && unit.State&8 == 0 {
 			tx, ty := unit.X/32, unit.Y/16
 			//unit.X /= 4
 			//unit.Y /= 4
-			arg1 = -17536 // 0xBB80
+			arg1 = -17536 // 48000
 			bestI := 0
 			bestX, bestY := 0, 0
 			for i := 0; i < 9; i++ {
@@ -287,7 +288,10 @@ nextUnit:
 				s.map2_0[unit.Side][tx][ty] = Abs(s.map2_0[unit.Side][bestX][bestY] - temp)
 				s.map2_0[unit.Side][bestX][bestY] += temp
 				unit.ObjectiveX = bestX*32 + 16 // ((v20&6)*16)|16
-				unit.ObjectiveY = bestY*16 + 8  // ((v20&24)*2)| 8
+				if false /* CiV */ {
+					unit.ObjectiveX += Rand(3) * 2
+				}
+				unit.ObjectiveY = bestY*16 + 8 // ((v20&24)*2)| 8
 				goto l21
 			}
 		}
@@ -482,7 +486,10 @@ nextUnit:
 				unit.OrderBit4 = false
 				goto l21
 			}
-			if unit.Fatigue/4 > arg1-v63 {
+			if false /* CiV */ && s.mainGame.scenarioData.UnitMask[unit.Type]&1 != 0 {
+				bestDx, bestDy = 0, 0
+			}
+			if unit.Fatigue*4 > arg1-v63 {
 				bestDx, bestDy = 0, 0
 			}
 			if bestDx == 0 && bestDy == 0 {
@@ -534,8 +541,11 @@ l24:
 				equipCoeff := s.mainGame.scenarioData.TerrainTankDefence[terrainType] * unit2.EquipCount * s.mainGame.scenarioData.Data16Low[unit2.Type] / 4
 				t := (menCoeff + equipCoeff) * s.mainGame.scenarioData.FormationMenDefence[unit2.Formation] / 8
 				w := weather
-				if s.mainGame.scenarioData.UnitMask[unit.Type]&4 != 0 {
+				if true /* !CiV */ && s.mainGame.scenarioData.UnitMask[unit.Type]&4 != 0 {
 					w /= 2
+				}
+				if false /* CiV */ && s.mainGame.scenarioData.UnitMask[unit.Type]&4 == 0 {
+					w *= 2
 				}
 				d := s.mainGame.scenarioData.UnitScores[unit2.Type] + int((unit2.State&6)*2) + 14 - w
 				n := t / Clamp(d, 1, 32)
@@ -609,7 +619,9 @@ l24:
 				r := s.mainGame.scenarioData.TerrainMenDefence[tt]
 				nx := unit.X + s.mainGame.generic.Dx[i]
 				ny := unit.Y + s.mainGame.generic.Dy[i]
-				v = r + s.magicCoeff(s.mainGame.hexes.Arr0[:], nx, ny, unit.Side)
+				if true /* !CiV */ {
+					v = r + s.magicCoeff(s.mainGame.hexes.Arr0[:], nx, ny, unit.Side)
+				}
 				if city, ok := s.FindCity(nx, ny); ok {
 					if s.ContainsUnitOfSide(nx, ny, unit.Side) {
 						v += city.VictoryPoints
@@ -646,9 +658,11 @@ l24:
 		// long range attack
 		d32 := s.mainGame.scenarioData.Data32[unit.Type]
 		attackRange := (d32 & 31) * 2
+		// in CiV the weather term is (d32&32)+weather < 34
 		if attackRange > 0 && (d32&8)+weather < 10 && unit.Fatigue/4 < 32 {
 			for i := 0; i <= 32-unit.Fatigue/4; i++ {
 				unit2 := s.mainGame.units[1-unit.Side][Rand(64)]
+				// in CiV first term says unit2.State&64 > 0
 				if unit2.State&6 > 0 && Abs(unit.X-unit2.X)/2+Abs(unit.Y-unit2.Y) <= attackRange {
 					unit.ObjectiveX = unit2.X
 					unit.ObjectiveY = unit2.Y
@@ -700,11 +714,17 @@ l21:
 			sx = unit.X + s.mainGame.generic.Dx[offset]
 			sy = unit.Y + s.mainGame.generic.Dy[offset]
 			if d32&64 > 0 { // in CiV artillery or mortars
-				sx = unit.ObjectiveX
-				sy = unit.ObjectiveY
-				tt := s.terrainTypeAt(sx, sy)
-				moveCost = s.mainGame.scenarioData.MoveCostPerTerrainTypesAndUnit[tt][unit.Type]
-				mvAdd = 1
+				if true /* !CiV */ || unit.Formation == 0 {
+					sx = unit.ObjectiveX
+					sy = unit.ObjectiveY
+					tt := s.terrainTypeAt(sx, sy)
+					moveCost = s.mainGame.scenarioData.MoveCostPerTerrainTypesAndUnit[tt][unit.Type]
+					mvAdd = 1
+				} else if unit.Formation != 0 { /* CiV */
+					if s.mainGame.scenarioData.UnitMask[unit.Type]&32 != 0 {
+						break // goto l2
+					}
+				}
 			}
 			if s.ContainsUnitOfSide(sx, sy, unit.Side) {
 				moveCost = 0
@@ -734,17 +754,29 @@ l21:
 			if unit.SupplyLevel == 0 {
 				v /= 2
 			}
-			temp = v
-			if false /* DitD */ && v == 0 {
-				break
+			if false /* DitD || CiV */ {
+				temp = v
+				if v == 0 {
+					break
+				}
 			}
 			w := 1024
+			if false /* CiV */ {
+				w = 1023
+			}
 			if s.mainGame.scenarioData.UnitMask[unit.Type]&4 != 0 {
-				w += weather * 128
+				if true /* ! CiV */ {
+					w += weather * 128
+				} else /* CiV */ {
+					w += weather * 256
+				}
 			}
 			w /= 8
-
-			temp = w / (v + 1)
+			if true /* !DitD && !CiV */ {
+				temp = w / (v + 1)
+			} else /* DitD || CiV */ {
+				temp = w / v
+			}
 			if temp > v57 && Rand(temp) > v57 {
 				break
 			}
@@ -789,6 +821,9 @@ l21:
 		} else {
 			unit.State &= 168
 		}
+		if false /* CiV */ && Rand(s.mainGame.scenarioData.Data175)/8 > 0 {
+			unit.State |= 64
+		}
 		for i := 0; i < 6; i++ {
 			if unit2, ok := s.FindUnit(unit.X+s.mainGame.generic.Dx[i], unit.Y+s.mainGame.generic.Dy[i]); ok && unit2.Side == 1-unit.Side {
 				s.showUnit(unit2)
@@ -831,7 +866,9 @@ l21:
 		if unit.FormationTopBit {
 			// * function28 - animate unit move
 			s.showUnit(unit)
-			// * show unit on map
+			if false /* CiV */ {
+				unit.State |= 65
+			}
 			// * function14 - play sound??
 		} else {
 			if s.mainGame.scenarioData.Data32[unit.Type]&8 > 0 && weather > 3 {
@@ -841,7 +878,9 @@ l21:
 			// function27 - play some sound?
 		}
 		// [53767] = 0 // silence?
-		unit.State |= 65
+		if true /* !CiV */ {
+			unit.State |= 65
+		}
 		unit2, ok := s.FindUnitOfSide(sx, sy, 1-unit.Side)
 		if !ok {
 			panic("")
@@ -853,6 +892,7 @@ l21:
 			v = 0
 		}
 		v2 := s.mainGame.scenarioData.TerrainTankAttack[arg1] * s.mainGame.scenarioData.FormationTankAttack[unit.Formation] * s.mainGame.scenarioData.Data16High[unit.Type] / 2 * unit.EquipCount / 64
+		// in Civ the second term is s.mainGame.scenarioData.Data32[unit.Type]&32 > 0
 		if unit.FormationTopBit && s.mainGame.scenarioData.Data32[unit.Type]&8 > 0 {
 			if weather > 3 {
 				goto end
@@ -900,7 +940,7 @@ l21:
 		unit.Fatigue = Clamp(unit.Fatigue+arg1, 0, 255)
 		unit.SupplyLevel = Clamp(unit.SupplyLevel-s.mainGame.scenarioData.Data162, 0, 255)
 		arg1 = Clamp(v/16/w-weather, 0, 63)
-		if false /* DitD */ {
+		if false /* DitD || CiV */ {
 			arg1 = Clamp(v/16/w-weather, 0, 128)
 		}
 		// function13(sx, sy)
@@ -910,7 +950,7 @@ l21:
 		tanksLost2 := Clamp((Rand(unit2.EquipCount*arg1)+255)/512, 0, unit2.EquipCount)
 		s.tanksLost[1-unit.Side] += tanksLost2
 		unit2.SupplyLevel = Clamp(unit2.SupplyLevel-s.mainGame.scenarioData.Data163, 0, 255)
-
+		// in CiV instead of the second term it's s.mainGame.scenarioData.UnitMask[unit2.Type]&2 == 0
 		if s.mainGame.scenarioData.UnitCanMove[unit2.Type] && !unit.FormationTopBit &&
 			arg1-s.mainGame.scenarioData.Data0Low[unit2.Type]*2+unit2.Fatigue/4 > 36 {
 			unit2.Morale = Abs(unit2.Morale - 1)
@@ -925,10 +965,13 @@ l21:
 					unit2.State = 0
 					unit2.HalfDaysUntilAppear = 6
 					unit2.InvAppearProbability = 6
-					if false /* Ditd */ {
+					if false /* DitD || CiV */ {
 						unit2.HalfDaysUntilAppear = 4
 						unit2.InvAppearProbability = 4
 						unit2.Fatigue = 130
+						if false /* CiV */ {
+							unit2.Fatigue = 120
+						}
 					}
 					message = WeHaveBeenOverrun{unit2}
 				}
@@ -953,16 +996,22 @@ l21:
 			unit2.X, unit2.Y = bestX, bestY // moved this up comparing to the original code
 			unit2.Terrain = s.terrainAt(unit2.X, unit2.Y)
 			if _, ok := message.(WeHaveBeenOverrun); !ok {
-				s.showUnit(unit2)
-				unit.ObjectiveX = unit2.X
-				unit.ObjectiveY = unit2.Y
+				if true /* !CiV */ || (2-unit.Side)&(s.options.Num()/4) == 0 {
+					s.showUnit(unit2)
+				}
+				if true /* !CiV */ {
+					unit.ObjectiveX = unit2.X
+					unit.ObjectiveY = unit2.Y
+				} else /* CiV */ {
+					unit2.State &= 190 // retreating? unit no longer visible
+				}
 			}
 			if bestX != oldX || bestY != oldY {
 				// unit2 is retreating, unit one is chasing (and maybe capturing a city)
 				if _, ok := message.(WeHaveBeenOverrun); !ok {
 					message = WeAreRetreating{unit2}
 				}
-				if arg1 > 60 &&
+				if arg1 > 60 && (true /* !CiV */ || !unit.FormationTopBit) &&
 					s.magicCoeff(s.mainGame.hexes.Arr96[:], oldX, oldY, unit.Side) > -4 &&
 					s.mainGame.scenarioData.MoveCostPerTerrainTypesAndUnit[s.terrainTypeAt(oldX, oldY)][unit.Type] > 0 {
 					s.hideUnit(unit)
@@ -1491,8 +1540,7 @@ func (s *ShowMap) SaveCity(newCity data.City) {
 			return
 		}
 	}
-	panic(fmt.Errorf("Cannot find city at", newCity.X, newCity.Y))
-
+	panic(fmt.Errorf("Cannot find city at %d,%d", newCity.X, newCity.Y))
 }
 
 // function17

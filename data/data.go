@@ -17,8 +17,8 @@ type ScenarioData struct {
 	RecoveryRate [16]int // Data[64:80]
 	// Various bits concerning unit types... not all clear yet (&4 weather has no impact?)
 	UnitMask             [16]byte // Data[80:96] (per unit type)
-	UnitUsesSupplies     [16]bool // bit 3(&8) of bytes Data[80:96]
-	UnitCanMove          [16]bool // bit 6(&64) of bytes Data[80:96]
+	UnitUsesSupplies     [16]bool // !bit 3(&8) of bytes Data[80:96]
+	UnitCanMove          [16]bool // !bit 6(&64) of bytes Data[80:96]
 	TerrainMenAttack     [8]int   // Data[96:104]
 	TerrainTankAttack    [8]int   // Data[104:112]
 	TerrainMenDefence    [8]int   // Data[112:120]
@@ -40,6 +40,7 @@ type ScenarioData struct {
 	MinutesPerTick                 int        // Data[168]
 	UnitUpdatesPerTimeIncrement    int        // Data[169]
 	Data173                        int        // Data[173] (a fatigue increase)
+	Data175                        int        // Data[175]
 	Data176                        [4][4]int  // Data[176:190] four bytes per order (numbers 0-5)
 	Data192                        [8]int     // Data[192:200] per formation
 	Data200Low                     [16]int    // Data[200:216] lower three bits per type
@@ -153,6 +154,7 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 	scenario.MinutesPerTick = int(scenario.Data[168])
 	scenario.UnitUpdatesPerTimeIncrement = int(scenario.Data[169])
 	scenario.Data173 = int(scenario.Data[173])
+	scenario.Data175 = int(scenario.Data[175])
 	for i, v := range scenario.Data[176:190] {
 		scenario.Data176[i/4][i%4] = int(v)
 	}
