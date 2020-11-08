@@ -7,12 +7,10 @@ import "path"
 
 // Representation of data parsed from HEXES.DTA file.
 type Hexes struct {
-	Arr0 [48]int // Data[0:48]
-	Arr48 [48]int // Data[48:96]
-	Arr96 [48]int // Data[96:144]
+	Arr0   [48]int // Data[0:48]
+	Arr48  [48]int // Data[48:96]
+	Arr96  [48]int // Data[96:144]
 	Arr144 [48]int // Data[144:192]
-	// 4 bytes per general/side
-	Arr3 [2][8][4]int // Data[192:256]
 }
 
 func ReadHexes(dirname string) (Hexes, error) {
@@ -45,15 +43,7 @@ func ParseHexes(reader io.Reader) (Hexes, error) {
 	for i, val := range data[144:192] {
 		hexes.Arr144[i] = int(val)
 	}
-
-	for side := 0; side < 2; side++ {
-		for general := 0; general < 8; general++ {
-			generalDataStart := 192 + side*32 + general*4
-			for i, val := range data[generalDataStart : generalDataStart+4] {
-				hexes.Arr3[side][general][i] = int(val)
-			}
-		}
-	}
+	// Last 64 bytes is always zero as it gets overwritten with .GEN data, ignore it.
 
 	return hexes, nil
 }

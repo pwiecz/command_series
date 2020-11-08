@@ -6,7 +6,7 @@ import "os"
 
 // Represenation of data parsed from {scenario}.GEN files.
 type General struct {
-	Data [4]byte
+	Data [4]int
 	Name string
 }
 
@@ -27,9 +27,13 @@ func ParseGenerals(data io.Reader) ([2][]General, error) {
 	var generals [2][]General
 	for i := 0; i < 16; i++ {
 		var general General
-		_, err := io.ReadFull(data, general.Data[:])
+		var generalData [4]byte
+		_, err := io.ReadFull(data, generalData[:])
 		if err != nil {
 			return generals, err
+		}
+		for i, v := range generalData {
+			general.Data[i] = int(v)
 		}
 		generalName := make([]byte, 12)
 		_, err = io.ReadFull(data, generalName)

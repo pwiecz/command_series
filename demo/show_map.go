@@ -49,8 +49,8 @@ type ShowMap struct {
 	citiesHeld      [2]int // 29927 + 15 + side*2
 	menLost         [2]int // 29927 + side*2
 	tanksLost       [2]int // 29927 + 4 + side*2
-	score13         [2]int // 29927 + 13 + side*2 victory points held?
-	score21         [2]int // 29927 + 21 + side*2 sth with capturing cities?
+	score13         [2]int // 29927 + 13 + side*2 victory points held (for showing cities held)
+	score21         [2]int // 29927 + 21 + side*2 sth with capturing cities (for showing advantage)
 	flashback       [][]data.FlashbackUnit
 	map0            [2][16][16]int // 0
 	map1            [2][16][16]int // 0x200
@@ -112,7 +112,7 @@ func (s *ShowMap) Update() error {
 	}
 	s.unitsUpdated++
 	if s.unitsUpdated <= s.mainGame.scenarioData.UnitUpdatesPerTimeIncrement/2 {
-		message := s.updateUnit()
+		message, _ := s.updateUnit()
 		if message != nil {
 			unit := message.Unit()
 			if (unit.Side == 0 /* && s.options.AlliedCommander > 0*/) ||
@@ -185,7 +185,12 @@ func (s *ShowMap) resetMaps() {
 	}
 }
 
-func (s *ShowMap) updateUnit() (message Message) {
+type UnitMove struct {
+	Unit           data.Unit
+	X0, X1, Y0, Y1 int
+}
+
+func (s *ShowMap) updateUnit() (message Message, moves []UnitMove) {
 	var mode data.OrderType
 	weather := s.weather
 	if s.isNight {
@@ -296,7 +301,7 @@ nextUnit:
 			}
 		}
 		{
-			v58 := s.mainGame.hexes.Arr3[unit.Side][unit.GeneralIndex][0]
+			v58 := s.mainGame.generals[unit.Side][unit.GeneralIndex].Data[0]
 			arg1 = -17536 // 0xBB80
 			//var bestI int
 			var bestDx, bestDy int
@@ -348,7 +353,7 @@ nextUnit:
 					} else {
 						v48 = -Clamp((v52+1)*8/(unit.MenCount+1)-8, 0, 16)
 					}
-					v48 += int(int8((s.mainGame.hexes.Arr3[unit.Side][unit.GeneralIndex][1]&240))>>4) + s.mainGame.scenarioData.Data0High[unit.Type]
+					v48 += int(int8((s.mainGame.generals[unit.Side][unit.GeneralIndex].Data[1]&240))>>4) + s.mainGame.scenarioData.Data0High[unit.Type]
 					var v55 int
 					if unit.EquipCount > v16 {
 						v55 = Clamp((unit.EquipCount+1)*8/(v16+1)-7, 0, 16)
@@ -412,7 +417,7 @@ nextUnit:
 							}
 							v50 += v
 						}
-						if v55+(int(int8(s.mainGame.hexes.Arr3[unit.Side][unit.GeneralIndex][2]&240))>>4)+s.mainGame.scenarioData.Data0Low[unit.Type] < -9 {
+						if v55+(int(int8(s.mainGame.generals[unit.Side][unit.GeneralIndex].Data[2]&240))>>4)+s.mainGame.scenarioData.Data0Low[unit.Type] < -9 {
 							if j == i {
 								unit.Fatigue = unit.Fatigue + 256
 							}
@@ -627,7 +632,7 @@ l24:
 						v += city.VictoryPoints
 					}
 				}
-				if (s.mainGame.scenarioData.UnitScores[unit.Type]&248)+Sign(unit.Fatigue-96+int(int8(s.mainGame.hexes.Arr3[unit.Side][unit.GeneralIndex][2]&240))/4) > 0 {
+				if (s.mainGame.scenarioData.UnitScores[unit.Type]&248)+Sign(unit.Fatigue-96+int(int8(s.mainGame.generals[unit.Side][unit.GeneralIndex].Data[2]&240))/4) > 0 {
 					v = r + s.magicCoeff(s.mainGame.hexes.Arr96[:], nx, ny, unit.Side)
 				}
 			}
@@ -749,7 +754,7 @@ l21:
 				v /= 8
 			}
 			v *= (512 - unit.Fatigue) / 32
-			v *= s.mainGame.hexes.Arr3[unit.Side][unit.GeneralIndex][3] & 15
+			v *= s.mainGame.generals[unit.Side][unit.GeneralIndex].Data[3] & 15
 			v /= 16
 			if unit.SupplyLevel == 0 {
 				v /= 2
@@ -771,7 +776,7 @@ l21:
 					w += weather * 256
 				}
 			}
-			w /= 8
+			w *= 8
 			if true /* !DitD && !CiV */ {
 				temp = w / (v + 1)
 			} else /* DitD || CiV */ {
@@ -782,6 +787,7 @@ l21:
 			}
 			v57 -= temp
 			if (unit.Side+1)&(s.options.Num()/4) == 0 || unit.State&65 > 0 {
+				moves = append(moves, UnitMove{unit, unit.X, unit.Y, sx, sy})
 				//function28(offset) - animate function move?
 			}
 			s.hideUnit(unit)
@@ -864,6 +870,7 @@ l21:
 			goto end
 		}
 		if unit.FormationTopBit {
+			moves = append(moves, UnitMove{unit, unit.X, unit.Y, sx, sy})
 			// * function28 - animate unit move
 			s.showUnit(unit)
 			if false /* CiV */ {
@@ -900,7 +907,7 @@ l21:
 			v2 = v2 * (4 - weather) / 4
 		}
 		v = (v + v2) * unit.Morale / 255 * (255 - unit.Fatigue) / 128
-		v = v * (s.mainGame.hexes.Arr3[unit.Side][unit.GeneralIndex][1] & 15) / 16
+		v = v * (s.mainGame.generals[unit.Side][unit.GeneralIndex].Data[1] & 15) / 16
 		v = v * s.magicCoeff(s.mainGame.hexes.Arr144[:], unit.X, unit.Y, unit.Side) / 8
 		v++
 		tt2 := s.terrainType(unit2.Terrain)
@@ -909,7 +916,7 @@ l21:
 		}
 		menCoeff := s.mainGame.scenarioData.TerrainMenDefence[tt2] * s.mainGame.scenarioData.FormationMenDefence[unit2.Formation] * unit2.MenCount / 32
 		equipCoeff := s.mainGame.scenarioData.TerrainTankAttack[tt2] * s.mainGame.scenarioData.FormationTankDefence[unit2.Formation] * s.mainGame.scenarioData.Data16Low[unit2.Type] / 2 * unit2.EquipCount / 64
-		w := (menCoeff + equipCoeff) * unit2.Morale / 256 * (240 - unit2.Fatigue/2) / 128 * (s.mainGame.hexes.Arr3[1-unit.Side][unit2.GeneralIndex][2] & 15) / 16
+		w := (menCoeff + equipCoeff) * unit2.Morale / 256 * (240 - unit2.Fatigue/2) / 128 * (s.mainGame.generals[1-unit.Side][unit2.GeneralIndex].Data[2] & 15) / 16
 		if unit2.SupplyLevel == 0 {
 			w = w * s.mainGame.scenarioData.Data167 / 8
 		}
