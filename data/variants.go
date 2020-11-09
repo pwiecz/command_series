@@ -11,7 +11,7 @@ type Variant struct {
 	Name              string
 	LengthInDays      int
 	CriticalLocations [2]int // per side. Number of critical locations that need to be captured by a side to win.
-	Data2             int
+	Data3             int
 	CitiesHeld        [2]int
 }
 
@@ -52,7 +52,7 @@ func ParseVariants(data []byte) ([]Variant, error) {
 		variant.LengthInDays = int(variantData[0])
 		variant.CriticalLocations[0] = int(variantData[1])
 		variant.CriticalLocations[1] = int(variantData[2])
-		variant.Data2 = int(variantData[3])
+		variant.Data3 = int(variantData[3])
 		variant.CitiesHeld[0] = int(variantData[4]) * 10
 		variant.CitiesHeld[1] = int(variantData[5]) * 10
 		variants = append(variants, variant)

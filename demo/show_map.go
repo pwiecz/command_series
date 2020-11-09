@@ -39,6 +39,7 @@ type ShowMap struct {
 	dx, dy                    uint8
 	minute                    int
 	hour                      int
+	daysElapsed               int
 	day                       int /* 0-based */
 	month                     int /* 0-based */
 	year                      int
@@ -141,7 +142,8 @@ func (s *ShowMap) Update() error {
 		s.day++
 		s.everyDay()
 	}
-	if s.day >= monthLength(s.month+1, s.year+1900) {
+	// game treats all months to have 30 days.
+	if s.day >= 30 { // monthLength(s.month+1, s.year+1900) {
 		s.day = 0
 		s.month++
 	}
@@ -149,8 +151,16 @@ func (s *ShowMap) Update() error {
 		s.month = 0
 		s.year++
 	}
+	if s.hour == 18 && s.minute == 0 {
+		fmt.Println(s.dateTimeString())
+		fmt.Println(s.statusReport())
+		if s.isGameOver() {
+			return fmt.Errorf("GAME OVER!")
+		}
+	}
 	return nil
 }
+
 func (s *ShowMap) init() {
 	for side, sideUnits := range s.mainGame.units {
 		for i, unit := range sideUnits {
@@ -1360,9 +1370,8 @@ func (s *ShowMap) everyHour() {
 		}
 
 	}
-
-	s.createMapImage()
 }
+
 func (s *ShowMap) every12Hours() (reinforcements [2]bool, res int) {
 	s.supplyLevels[0] += s.mainGame.scenarioData.ResupplyRate[0] * 2
 	s.supplyLevels[1] += s.mainGame.scenarioData.ResupplyRate[1] * 2
@@ -1638,6 +1647,7 @@ func (s *ShowMap) FindBestMoveFromTowards(supplyX, supplyY, unitX, unitY, unitTy
 }
 
 func (s *ShowMap) everyDay() {
+	s.daysElapsed++
 	var flashback []data.FlashbackUnit
 	for _, sideUnits := range s.mainGame.units {
 		for _, unit := range sideUnits {
@@ -1684,7 +1694,8 @@ func (s *ShowMap) statusReport() string {
 	strs = append(strs, fmt.Sprintf("TROOPS LOST\t%d\t%d", s.menLost[0]*menMultiplier, s.menLost[1]*menMultiplier))
 	strs = append(strs, fmt.Sprintf("TANKS LOST\t%d\t%d", s.tanksLost[0]*tanksMultiplier, s.tanksLost[1]*tanksMultiplier))
 	strs = append(strs, fmt.Sprintf("CITIES HELD\t%d\t%d", s.citiesHeld[0], s.citiesHeld[1]))
-	side0Score := (1+s.menLost[1]+s.tanksLost[1])*s.mainGame.variants[s.mainGame.selectedVariant].Data2/8 + s.citiesHeld[0]*3
+	selectedVariant := s.mainGame.variants[s.mainGame.selectedVariant]
+	side0Score := (1+s.menLost[1]+s.tanksLost[1])*selectedVariant.Data3/8 + s.citiesHeld[0]*3
 	side1Score := 1 + s.menLost[0] + s.tanksLost[0] + s.citiesHeld[1]*3
 	var score int
 	if side1Score < side0Score {
@@ -1707,19 +1718,37 @@ func (s *ShowMap) statusReport() string {
 	return strings.Join(strs, "\n")
 }
 
-func (s *ShowMap) Draw(screen *ebiten.Image) {
-	screen.Fill(color.White)
-	opts := &ebiten.DrawImageOptions{}
-	opts.GeoM.Translate(float64(s.dx)*(-8), float64(s.dy)*(-8))
-	s.createMapImage()
-	screen.DrawImage(s.mapImage, opts)
+func (s *ShowMap) isGameOver() bool {
+	selectedVariant := s.mainGame.variants[s.mainGame.selectedVariant]
+	if s.daysElapsed >= selectedVariant.LengthInDays {
+		return true
+	}
+	criticalLocationBalance := s.criticalLocationsCaptured[0] - s.criticalLocationsCaptured[1]
+	if criticalLocationBalance >= selectedVariant.CriticalLocations[0] {
+		return true
+	}
+	if -criticalLocationBalance >= selectedVariant.CriticalLocations[1] {
+		return true
+	}
+	return false
+}
+
+func (s *ShowMap) dateTimeString() string {
 	hour := s.hour
 	meridianString := "AM"
 	if hour >= 12 {
 		hour -= 12
 		meridianString = "PM"
 	}
-	ebitenutil.DebugPrint(screen, fmt.Sprintf("%02d:%02d %s %s, %d %d  %s", hour, s.minute, meridianString, s.mainGame.scenarioData.Months[s.month], s.day+1, s.year, s.mainGame.scenarioData.Weather[s.weather]))
+	return fmt.Sprintf("%02d:%02d %s %s, %d %d  %s", hour, s.minute, meridianString, s.mainGame.scenarioData.Months[s.month], s.day+1, s.year, s.mainGame.scenarioData.Weather[s.weather])
+}
+func (s *ShowMap) Draw(screen *ebiten.Image) {
+	screen.Fill(color.White)
+	opts := &ebiten.DrawImageOptions{}
+	opts.GeoM.Translate(float64(s.dx)*(-8), float64(s.dy)*(-8))
+	s.createMapImage()
+	screen.DrawImage(s.mapImage, opts)
+	ebitenutil.DebugPrint(screen, s.dateTimeString())
 }
 func (s *ShowMap) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return 320, 192
