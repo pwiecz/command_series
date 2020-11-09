@@ -39,6 +39,8 @@ type ScenarioData struct {
 	Data167                        int        // Data[167]
 	MinutesPerTick                 int        // Data[168]
 	UnitUpdatesPerTimeIncrement    int        // Data[169]
+	MenMultiplier                  int        // Data[170] (one man store in unit data correspond to that many actual men)
+	TanksMultiplier                int        // Data[171] (same as above but for tanks)
 	Data173                        int        // Data[173] (a fatigue increase)
 	Data175                        int        // Data[175]
 	Data176                        [4][4]int  // Data[176:190] four bytes per order (numbers 0-5)
@@ -153,6 +155,8 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 	scenario.Data167 = int(scenario.Data[167])
 	scenario.MinutesPerTick = int(scenario.Data[168])
 	scenario.UnitUpdatesPerTimeIncrement = int(scenario.Data[169])
+	scenario.MenMultiplier = int(scenario.Data[170])
+	scenario.TanksMultiplier = int(scenario.Data[171])
 	scenario.Data173 = int(scenario.Data[173])
 	scenario.Data175 = int(scenario.Data[175])
 	for i, v := range scenario.Data[176:190] {

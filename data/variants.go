@@ -8,10 +8,11 @@ import "os"
 
 // Representation of data parsed from {scenario}.VAR file.
 type Variant struct {
-	Name         string
-	LengthInDays int
-	Data         [3]byte
-	CitiesHeld   [2]int
+	Name              string
+	LengthInDays      int
+	CriticalLocations [2]int // per side. Number of critical locations that need to be captured by a side to win.
+	Data2             int
+	CitiesHeld        [2]int
 }
 
 func ReadVariants(filename string) ([]Variant, error) {
@@ -49,7 +50,9 @@ func ParseVariants(data []byte) ([]Variant, error) {
 		}
 		variantData := segments[i+1][0:6]
 		variant.LengthInDays = int(variantData[0])
-		variant.Data = [3]byte{variantData[1], variantData[2], variantData[3]}
+		variant.CriticalLocations[0] = int(variantData[1])
+		variant.CriticalLocations[1] = int(variantData[2])
+		variant.Data2 = int(variantData[3])
 		variant.CitiesHeld[0] = int(variantData[4]) * 10
 		variant.CitiesHeld[1] = int(variantData[5]) * 10
 		variants = append(variants, variant)

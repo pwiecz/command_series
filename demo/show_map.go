@@ -4,15 +4,18 @@ import "fmt"
 import "image"
 import "image/color"
 import "math"
+import "strings"
 
 import "github.com/hajimehoshi/ebiten"
 import "github.com/hajimehoshi/ebiten/ebitenutil"
+import "github.com/hajimehoshi/ebiten/inpututil"
 import "github.com/pwiecz/command_series/data"
 
 type Options struct {
 	AlliedCommander int
 	GermanCommander int
 	Intelligence    int
+	GameBallance    int // [0..4]
 }
 
 func (o Options) IsPlayerControlled(side int) bool {
@@ -30,34 +33,33 @@ func (o Options) Num() int {
 }
 
 type ShowMap struct {
-	mainGame        *Game
-	mapImage        *ebiten.Image
-	options         Options
-	dx, dy          uint8
-	minute          int
-	hour            int
-	day             int /* 0-based */
-	month           int /* 0-based */
-	year            int
-	supplyLevels    [2]int
-	currentSpeed    int
-	idleTicksLeft   int
-	unitsUpdated    int
-	weather         int
-	isNight         bool
-	lastUpdatedUnit int
-	citiesHeld      [2]int // 29927 + 15 + side*2
-	menLost         [2]int // 29927 + side*2
-	tanksLost       [2]int // 29927 + 4 + side*2
-	score13         [2]int // 29927 + 13 + side*2 victory points held (for showing cities held)
-	score21         [2]int // 29927 + 21 + side*2 sth with capturing cities (for showing advantage)
-	flashback       [][]data.FlashbackUnit
-	map0            [2][16][16]int // 0
-	map1            [2][16][16]int // 0x200
-	map2_0, map2_1  [2][4][4]int   // 0x400 - two byte values
-	map2_2, map2_3  [2][16]int
-	map3            [2][16][16]int // 0x600
-	update          int
+	mainGame                  *Game
+	mapImage                  *ebiten.Image
+	options                   Options
+	dx, dy                    uint8
+	minute                    int
+	hour                      int
+	day                       int /* 0-based */
+	month                     int /* 0-based */
+	year                      int
+	supplyLevels              [2]int
+	currentSpeed              int
+	idleTicksLeft             int
+	unitsUpdated              int
+	weather                   int
+	isNight                   bool
+	lastUpdatedUnit           int
+	menLost                   [2]int // 29927 + side*2
+	tanksLost                 [2]int // 29927 + 4 + side*2
+	citiesHeld                [2]int // 29927 + 13 + side*2
+	criticalLocationsCaptured [2]int // 29927 + 21 + side*2
+	flashback                 [][]data.FlashbackUnit
+	map0                      [2][16][16]int // 0
+	map1                      [2][16][16]int // 0x200
+	map2_0, map2_1            [2][4][4]int   // 0x400 - two byte values
+	map2_2, map2_3            [2][16]int
+	map3                      [2][16][16]int // 0x600
+	update                    int
 }
 
 func NewShowMap(g *Game) *ShowMap {
@@ -81,6 +83,7 @@ func NewShowMap(g *Game) *ShowMap {
 	}
 	s.options.AlliedCommander = 0
 	s.options.GermanCommander = 0
+	s.options.GameBallance = 2
 	s.init()
 	s.everyHour()
 	return s
@@ -106,6 +109,9 @@ func (s *ShowMap) createMapImage() {
 }
 
 func (s *ShowMap) Update() error {
+	if inpututil.IsKeyJustReleased(ebiten.KeySpace) {
+		fmt.Println(s.statusReport())
+	}
 	if s.idleTicksLeft > 0 {
 		s.idleTicksLeft--
 		return nil
@@ -146,13 +152,18 @@ func (s *ShowMap) Update() error {
 	return nil
 }
 func (s *ShowMap) init() {
-	for _, sideUnits := range s.mainGame.units {
+	for side, sideUnits := range s.mainGame.units {
 		for i, unit := range sideUnits {
 			if unit.VariantBitmap&(1<<s.mainGame.selectedVariant) != 0 {
 				unit.State = 0
 				unit.HalfDaysUntilAppear = 0
 			}
 			unit.VariantBitmap = 0 // not really needed
+			if side == 0 && s.options.GameBallance > 2 {
+				unit.Morale = (3 + s.options.GameBallance) * unit.Morale / 5
+			} else if side == 1 && s.options.GameBallance < 2 {
+				unit.Morale = (7 - s.options.GameBallance) * unit.Morale / 5
+			}
 			sideUnits[i] = unit
 		}
 	}
@@ -1084,9 +1095,9 @@ func (s *ShowMap) function16(unit data.Unit) (data.City, bool) {
 			// msg = 5
 			city.Owner = unit.Side
 			s.SaveCity(city)
-			s.score13[unit.Side] += city.VictoryPoints
-			s.score13[1-unit.Side] -= city.VictoryPoints
-			s.score21[unit.Side] += city.VictoryPoints & 1
+			s.citiesHeld[unit.Side] += city.VictoryPoints
+			s.citiesHeld[1-unit.Side] -= city.VictoryPoints
+			s.criticalLocationsCaptured[unit.Side] += city.VictoryPoints & 1
 			return city, true
 		}
 	}
@@ -1666,6 +1677,36 @@ func monthLength(month, year int) int {
 	}
 	panic(fmt.Errorf("Unexpected month number %d", month))
 }
+func (s *ShowMap) statusReport() string {
+	var strs []string
+	strs = append(strs, fmt.Sprintf("STATUS REPORT\t%s\t%s", s.mainGame.scenarioData.Sides[0], s.mainGame.scenarioData.Sides[1]))
+	menMultiplier, tanksMultiplier := s.mainGame.scenarioData.MenMultiplier, s.mainGame.scenarioData.TanksMultiplier
+	strs = append(strs, fmt.Sprintf("TROOPS LOST\t%d\t%d", s.menLost[0]*menMultiplier, s.menLost[1]*menMultiplier))
+	strs = append(strs, fmt.Sprintf("TANKS LOST\t%d\t%d", s.tanksLost[0]*tanksMultiplier, s.tanksLost[1]*tanksMultiplier))
+	strs = append(strs, fmt.Sprintf("CITIES HELD\t%d\t%d", s.citiesHeld[0], s.citiesHeld[1]))
+	side0Score := (1+s.menLost[1]+s.tanksLost[1])*s.mainGame.variants[s.mainGame.selectedVariant].Data2/8 + s.citiesHeld[0]*3
+	side1Score := 1 + s.menLost[0] + s.tanksLost[0] + s.citiesHeld[1]*3
+	var score int
+	if side1Score < side0Score {
+		score = side0Score * 3 / side1Score
+	} else {
+		score = side1Score * 3 / side0Score
+	}
+	advIndex := 4
+	if score >= 3 {
+		advIndex = Clamp(advIndex-3, 0, 4)
+	}
+	advantageStrs := []string{"SLIGHT", "MARGINAL", "TACTICAL", "DECISIVE", "TOTAL"}
+	var winningSide string
+	if side0Score < side1Score {
+		winningSide = s.mainGame.scenarioData.Sides[1]
+	} else {
+		winningSide = s.mainGame.scenarioData.Sides[0]
+	}
+	strs = append(strs, fmt.Sprintf("   %s %s ADVANTAGE.", advantageStrs[advIndex], winningSide))
+	return strings.Join(strs, "\n")
+}
+
 func (s *ShowMap) Draw(screen *ebiten.Image) {
 	screen.Fill(color.White)
 	opts := &ebiten.DrawImageOptions{}
