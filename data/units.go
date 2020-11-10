@@ -9,13 +9,13 @@ type OrderType int
 func (o OrderType) String() string {
 	switch o {
 	case Reserve:
-		return "Reserve"
+		return "RESERVE"
 	case Defend:
-		return "Defend"
+		return "DEFEND"
 	case Attack:
-		return "Attack"
+		return "ATTACK"
 	case Move:
-		return "Move"
+		return "MOVE"
 	default:
 		return fmt.Sprintf("OrderType(%d)", int(o))
 	}

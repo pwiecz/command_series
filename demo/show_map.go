@@ -8,7 +8,6 @@ import "strings"
 
 import "github.com/hajimehoshi/ebiten"
 import "github.com/hajimehoshi/ebiten/ebitenutil"
-import "github.com/hajimehoshi/ebiten/inpututil"
 import "github.com/pwiecz/command_series/data"
 
 type Options struct {
@@ -34,6 +33,7 @@ func (o Options) Num() int {
 
 type ShowMap struct {
 	mainGame                  *Game
+	keyboardHandler           *KeyboardHandler
 	mapImage                  *ebiten.Image
 	options                   Options
 	dx, dy                    uint8
@@ -50,6 +50,7 @@ type ShowMap struct {
 	weather                   int
 	isNight                   bool
 	lastUpdatedUnit           int
+	isFrozen                  bool
 	menLost                   [2]int // 29927 + side*2
 	tanksLost                 [2]int // 29927 + 4 + side*2
 	citiesHeld                [2]int // 29927 + 13 + side*2
@@ -68,6 +69,7 @@ func NewShowMap(g *Game) *ShowMap {
 	variant := g.variants[g.selectedVariant]
 	s := &ShowMap{
 		mainGame:        g,
+		keyboardHandler: NewKeyboardHandler(),
 		dx:              scenario.MinX,
 		dy:              scenario.MinY,
 		minute:          scenario.StartMinute,
@@ -110,8 +112,20 @@ func (s *ShowMap) createMapImage() {
 }
 
 func (s *ShowMap) Update() error {
-	if inpututil.IsKeyJustReleased(ebiten.KeySpace) {
+	s.keyboardHandler.Update()
+	if s.keyboardHandler.IsKeyJustPressed(ebiten.KeySpace) {
 		fmt.Println(s.statusReport())
+	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyF) {
+		s.isFrozen = !s.isFrozen
+		if s.isFrozen {
+			fmt.Println("FROZEN")
+		} else {
+			fmt.Println("UNFROZEN")
+		}
+	}
+
+	if s.isFrozen {
+		return nil
 	}
 	if s.idleTicksLeft > 0 {
 		s.idleTicksLeft--
@@ -322,7 +336,7 @@ nextUnit:
 			}
 		}
 		{
-			v58 := s.mainGame.generals[unit.Side][unit.GeneralIndex].Data[0]
+			v58 := s.mainGame.generals[unit.Side][unit.GeneralIndex].Data0
 			arg1 = -17536 // 0xBB80
 			//var bestI int
 			var bestDx, bestDy int
@@ -374,7 +388,7 @@ nextUnit:
 					} else {
 						v48 = -Clamp((v52+1)*8/(unit.MenCount+1)-8, 0, 16)
 					}
-					v48 += int(int8((s.mainGame.generals[unit.Side][unit.GeneralIndex].Data[1]&240))>>4) + s.mainGame.scenarioData.Data0High[unit.Type]
+					v48 += s.mainGame.generals[unit.Side][unit.GeneralIndex].Data1High + s.mainGame.scenarioData.Data0High[unit.Type]
 					var v55 int
 					if unit.EquipCount > v16 {
 						v55 = Clamp((unit.EquipCount+1)*8/(v16+1)-7, 0, 16)
@@ -438,7 +452,7 @@ nextUnit:
 							}
 							v50 += v
 						}
-						if v55+(int(int8(s.mainGame.generals[unit.Side][unit.GeneralIndex].Data[2]&240))>>4)+s.mainGame.scenarioData.Data0Low[unit.Type] < -9 {
+						if v55+s.mainGame.generals[unit.Side][unit.GeneralIndex].Data2High+s.mainGame.scenarioData.Data0Low[unit.Type] < -9 {
 							if j == i {
 								unit.Fatigue = unit.Fatigue + 256
 							}
@@ -653,7 +667,7 @@ l24:
 						v += city.VictoryPoints
 					}
 				}
-				if (s.mainGame.scenarioData.UnitScores[unit.Type]&248)+Sign(unit.Fatigue-96+int(int8(s.mainGame.generals[unit.Side][unit.GeneralIndex].Data[2]&240))/4) > 0 {
+				if (s.mainGame.scenarioData.UnitScores[unit.Type]&248)+Sign(unit.Fatigue-96+s.mainGame.generals[unit.Side][unit.GeneralIndex].Data2High*4) > 0 {
 					v = r + s.magicCoeff(s.mainGame.hexes.Arr96[:], nx, ny, unit.Side)
 				}
 			}
@@ -775,8 +789,7 @@ l21:
 				v /= 8
 			}
 			v *= (512 - unit.Fatigue) / 32
-			v *= s.mainGame.generals[unit.Side][unit.GeneralIndex].Data[3] & 15
-			v /= 16
+			v = v * s.mainGame.generals[unit.Side][unit.GeneralIndex].Data3Low / 16
 			if unit.SupplyLevel == 0 {
 				v /= 2
 			}
@@ -928,7 +941,7 @@ l21:
 			v2 = v2 * (4 - weather) / 4
 		}
 		v = (v + v2) * unit.Morale / 255 * (255 - unit.Fatigue) / 128
-		v = v * (s.mainGame.generals[unit.Side][unit.GeneralIndex].Data[1] & 15) / 16
+		v = v * s.mainGame.generals[unit.Side][unit.GeneralIndex].Data1Low / 16
 		v = v * s.magicCoeff(s.mainGame.hexes.Arr144[:], unit.X, unit.Y, unit.Side) / 8
 		v++
 		tt2 := s.terrainType(unit2.Terrain)
@@ -937,7 +950,7 @@ l21:
 		}
 		menCoeff := s.mainGame.scenarioData.TerrainMenDefence[tt2] * s.mainGame.scenarioData.FormationMenDefence[unit2.Formation] * unit2.MenCount / 32
 		equipCoeff := s.mainGame.scenarioData.TerrainTankAttack[tt2] * s.mainGame.scenarioData.FormationTankDefence[unit2.Formation] * s.mainGame.scenarioData.Data16Low[unit2.Type] / 2 * unit2.EquipCount / 64
-		w := (menCoeff + equipCoeff) * unit2.Morale / 256 * (240 - unit2.Fatigue/2) / 128 * (s.mainGame.generals[1-unit.Side][unit2.GeneralIndex].Data[2] & 15) / 16
+		w := (menCoeff + equipCoeff) * unit2.Morale / 256 * (240 - unit2.Fatigue/2) / 128 * s.mainGame.generals[1-unit.Side][unit2.GeneralIndex].Data2Low / 16
 		if unit2.SupplyLevel == 0 {
 			w = w * s.mainGame.scenarioData.Data167 / 8
 		}
@@ -1717,6 +1730,50 @@ func (s *ShowMap) statusReport() string {
 	strs = append(strs, fmt.Sprintf("   %s %s ADVANTAGE.", advantageStrs[advIndex], winningSide))
 	return strings.Join(strs, "\n")
 }
+func (s *ShowMap) unitInfo(unit data.Unit) string {
+	if false && // actually if it's not the current player's side
+		unit.State&1 == 0 {
+		return "NO INFORMATION"
+	}
+	// show objective
+	var strs []string
+	if false { // actually it it's not the current player's side
+		strs = append(strs, "ENEMY UNIT ")
+	}
+	strs = append(strs, fmt.Sprintf("WHO  %s %s", unit.Name, s.mainGame.scenarioData.UnitTypes[unit.Type]))
+	manCount := unit.MenCount
+	if false { // not the current player
+		manCount -= manCount % 10
+	}
+	if manCount > 0 {
+		strs = append(strs, fmt.Sprintf("     %d MEN, ", manCount*s.mainGame.scenarioData.MenMultiplier))
+	}
+	tankCount := unit.EquipCount
+	if false { // not the current player
+		tankCount -= tankCount % 10
+	}
+	if tankCount > 0 {
+		strs[len(strs)-1] = strs[len(strs)-1] + fmt.Sprintf("%d %s, ", tankCount*s.mainGame.scenarioData.TanksMultiplier, s.mainGame.scenarioData.Equipments[unit.Type])
+	}
+	if true { // if the current player
+		supplyDays := unit.SupplyLevel / (s.mainGame.scenarioData.AvgDailySupplyUse + s.mainGame.scenarioData.Data163)
+		strs = append(strs, fmt.Sprintf("     %d DAYS SUPPLY", supplyDays))
+		if unit.State&8 != 0 {
+			strs = append(strs, fmt.Sprintf(" (NO SUPPLY LINE!)"))
+		}
+	}
+	strs = append(strs, fmt.Sprintf("FORM %s", s.mainGame.scenarioData.Formations[unit.Formation]))
+	if false { // if not the current player
+		return strings.Join(strs, "\n")
+	}
+	strs[len(strs)-1] = strs[len(strs)-1] + fmt.Sprintf(" EXP %s EFF %d", s.mainGame.scenarioData.Experience[unit.Morale/27], 10*((256-unit.Fatigue)/25))
+	var local string
+	if unit.State&32 != 0 {
+		local = "(LOCAL COMMAND)"
+	}
+	strs = append(strs, fmt.Sprintf("ORDR %s   %s", unit.Order.String(), local))
+	return strings.Join(strs, "\n")
+}
 
 func (s *ShowMap) isGameOver() bool {
 	selectedVariant := s.mainGame.variants[s.mainGame.selectedVariant]
@@ -1742,6 +1799,7 @@ func (s *ShowMap) dateTimeString() string {
 	}
 	return fmt.Sprintf("%02d:%02d %s %s, %d %d  %s", hour, s.minute, meridianString, s.mainGame.scenarioData.Months[s.month], s.day+1, s.year, s.mainGame.scenarioData.Weather[s.weather])
 }
+
 func (s *ShowMap) Draw(screen *ebiten.Image) {
 	screen.Fill(color.White)
 	opts := &ebiten.DrawImageOptions{}

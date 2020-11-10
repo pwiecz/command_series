@@ -6,8 +6,13 @@ import "os"
 
 // Represenation of data parsed from {scenario}.GEN files.
 type General struct {
-	Data [4]int
-	Name string
+	Data0     int
+	Data1Low  int // attack?
+	Data1High int
+	Data2Low  int // defence?
+	Data2High int
+	Data3Low  int // movement?
+	Name      string
 }
 
 func ReadGenerals(filename string) ([2][]General, error) {
@@ -32,9 +37,12 @@ func ParseGenerals(data io.Reader) ([2][]General, error) {
 		if err != nil {
 			return generals, err
 		}
-		for i, v := range generalData {
-			general.Data[i] = int(v)
-		}
+		general.Data0 = int(generalData[0])
+		general.Data1Low = int(generalData[1] & 15)
+		general.Data1High = int(int8(generalData[1]&240)) / 16
+		general.Data2Low = int(generalData[2] & 15)
+		general.Data2High = int(int8(generalData[2]&240)) / 16
+		general.Data3Low = int(generalData[3] & 15)
 		generalName := make([]byte, 12)
 		_, err = io.ReadFull(data, generalName)
 		for len(generalName) > 0 && generalName[len(generalName)-1] == 0 {
