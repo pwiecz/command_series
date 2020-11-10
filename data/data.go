@@ -78,8 +78,8 @@ type ScenarioData struct {
 // At Day change byte at Offset of the scenario data to Value.
 type DataUpdate struct {
 	Day    int
-	Offset int
-	Value  int
+	Offset byte
+	Value  byte
 }
 
 // ReadScenarioData reads and parses given {scenario}.DTA.
@@ -196,8 +196,8 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 	}
 	for i := 0; i < 21; i++ {
 		scenario.DataUpdates[i].Day = int(scenario.Data[448+i*3])
-		scenario.DataUpdates[i].Offset = int(scenario.Data[448+1+i*3])
-		scenario.DataUpdates[i].Value = int(scenario.Data[448+2+i*3])
+		scenario.DataUpdates[i].Offset = scenario.Data[448+1+i*3]
+		scenario.DataUpdates[i].Value = scenario.Data[448+2+i*3]
 	}
 
 	// There are 32 header bytes, but only 14 string lists.
@@ -269,4 +269,101 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 		}
 	}
 	return scenario, nil
+}
+
+func inRange(v, min, max byte) bool {
+	if v < min || v >= max {
+		return false
+	}
+	return true
+}
+
+func (s *ScenarioData) UpdateData(offset, value byte) {
+	switch {
+	case inRange(offset, 0, 16):
+		s.Data0Low[offset] = int(int8(value*16)) / 16
+		s.Data0High[offset] = int(int8(value&240)) / 16
+	case inRange(offset, 16, 32):
+		s.Data16Low[offset-16] = int(value & 15)
+		s.Data16High[offset-16] = int(value / 16)
+	case inRange(offset, 32, 48):
+		s.Data32[offset-32] = int(value)
+	case inRange(offset, 48, 64):
+		s.UnitScores[offset-48] = int(value)
+	case inRange(offset, 64, 80):
+		s.RecoveryRate[offset-64] = int(value)
+	case inRange(offset, 80, 96):
+		s.UnitMask[offset-80] = value
+		s.UnitUsesSupplies[offset-80] = value&8 == 0
+		s.UnitCanMove[offset-80] = value&64 == 0
+	case inRange(offset, 96, 104):
+		s.TerrainMenAttack[offset-96] = int(value)
+	case inRange(offset, 104, 112):
+		s.TerrainTankAttack[offset-104] = int(value)
+	case inRange(offset, 112, 120):
+		s.TerrainMenDefence[offset-112] = int(value)
+	case inRange(offset, 120, 128):
+		s.TerrainTankDefence[offset-120] = int(value)
+	case inRange(offset, 128, 136):
+		s.FormationMenAttack[offset-128] = int(value)
+	case inRange(offset, 136, 144):
+		s.FormationTankAttack[offset-136] = int(value)
+	case inRange(offset, 144, 152):
+		s.FormationMenDefence[offset-144] = int(value)
+	case inRange(offset, 152, 160):
+		s.FormationTankDefence[offset-152] = int(value)
+	case offset == 160:
+		s.MinSupplyType = int(value)
+	case offset == 162:
+		s.Data162 = int(value)
+	case offset == 163:
+		s.Data163 = int(value)
+	case offset == 164:
+		s.MaxResupplyAmount = int(value)
+	case offset == 165:
+		s.MaxSupplyTransportCost = int(value)
+	case offset == 166:
+		s.AvgDailySupplyUse = int(value)
+	case offset == 167:
+		s.Data167 = int(value)
+	case offset == 168:
+		s.MinutesPerTick = int(value)
+	case offset == 169:
+		s.UnitUpdatesPerTimeIncrement = int(value)
+	case offset == 170:
+		s.MenMultiplier = int(value)
+	case offset == 171:
+		s.TanksMultiplier = int(value)
+	case offset == 173:
+		s.Data173 = int(value)
+	case offset == 175:
+		s.Data175 = int(value)
+	case inRange(offset, 176, 190):
+		s.Data176[(offset-176)/4][(offset-176)%4] = int(value)
+	case inRange(offset, 192, 200):
+		s.Data192[offset-192] = int(value)
+	case inRange(offset, 200, 216):
+		s.Data200Low[offset-200] = int(value & 7)
+		s.UnitResupplyPerType[offset-200] = int((value & 240) >> 1)
+	case inRange(offset, 216, 232):
+		s.Data216[offset-216] = int(value)
+	case offset == 232:
+		s.ResupplyRate[0] = int(value)
+	case offset == 233:
+		s.ResupplyRate[1] = int(value)
+	case offset == 234:
+		s.MenReplacementRate[0] = int(value)
+	case offset == 235:
+		s.MenReplacementRate[1] = int(value)
+	case offset == 236:
+		s.EquipReplacementRate[0] = int(value)
+	case offset == 237:
+		s.EquipReplacementRate[1] = int(value)
+	case offset == 252:
+		s.Data252[0] = int(value)
+	case offset == 253:
+		s.Data252[1] = int(value)
+	default:
+		panic(fmt.Errorf("Unhandled update offset %d", int(offset)))
+	}
 }

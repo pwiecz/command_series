@@ -44,6 +44,7 @@ type ShowMap struct {
 	month                     int /* 0-based */
 	year                      int
 	supplyLevels              [2]int
+	playerSide                int
 	currentSpeed              int
 	idleTicksLeft             int
 	unitsUpdated              int
@@ -136,8 +137,7 @@ func (s *ShowMap) Update() error {
 		message, _ := s.updateUnit()
 		if message != nil {
 			unit := message.Unit()
-			if (unit.Side == 0 /* && s.options.AlliedCommander > 0*/) ||
-				(unit.Side == 1 && s.options.GermanCommander > 0) {
+			if unit.Side == s.playerSide {
 				fmt.Printf("\nMESSAGE FROM ...\n%s %s:\n", unit.Name, s.mainGame.scenarioData.UnitTypes[unit.Type])
 				fmt.Printf("'%s'\n", message.String())
 			}
@@ -1362,7 +1362,7 @@ func (s *ShowMap) countNeighbourUnits(x, y, side int) int {
 func (s *ShowMap) everyHour() {
 	if s.hour == 12 {
 		reinforcements, _ := s.every12Hours()
-		if reinforcements[0] || reinforcements[1] {
+		if reinforcements[s.playerSide] {
 			fmt.Println("REINFORCEMENTS!")
 		}
 	}
@@ -1672,12 +1672,20 @@ func (s *ShowMap) everyDay() {
 		}
 	}
 	s.flashback = append(s.flashback, flashback)
-	// todo: save todays map for flashback
+	// todo: save today's map for flashback
 	rnd := Rand(256)
 	if rnd < 140 {
 		s.weather = int(s.mainGame.scenarioData.PossibleWeather[4*(s.month/3)+rnd/35])
 	}
 	s.every12Hours()
+	fmt.Printf("%d DAYS REMAINING.\n", s.mainGame.variants[s.mainGame.selectedVariant].LengthInDays-s.daysElapsed+1)
+	supplyLevels := []string{"CRITICAL", "SUFFICIENT", "AMPLE"}
+	fmt.Printf("SUPPLY LEVEL: %s\n", supplyLevels[Clamp(s.supplyLevels[s.playerSide]/256, 0, 2)])
+	for _, update := range s.mainGame.scenarioData.DataUpdates {
+		if update.Day == s.daysElapsed {
+			s.mainGame.scenarioData.UpdateData(update.Offset, update.Value)
+		}
+	}
 }
 
 func monthLength(month, year int) int {
@@ -1731,31 +1739,30 @@ func (s *ShowMap) statusReport() string {
 	return strings.Join(strs, "\n")
 }
 func (s *ShowMap) unitInfo(unit data.Unit) string {
-	if false && // actually if it's not the current player's side
-		unit.State&1 == 0 {
+	if unit.Side != s.playerSide && unit.State&1 == 0 {
 		return "NO INFORMATION"
 	}
 	// show objective
 	var strs []string
-	if false { // actually it it's not the current player's side
+	if unit.Side != s.playerSide {
 		strs = append(strs, "ENEMY UNIT ")
 	}
 	strs = append(strs, fmt.Sprintf("WHO  %s %s", unit.Name, s.mainGame.scenarioData.UnitTypes[unit.Type]))
 	manCount := unit.MenCount
-	if false { // not the current player
+	if unit.Side != s.playerSide {
 		manCount -= manCount % 10
 	}
 	if manCount > 0 {
 		strs = append(strs, fmt.Sprintf("     %d MEN, ", manCount*s.mainGame.scenarioData.MenMultiplier))
 	}
 	tankCount := unit.EquipCount
-	if false { // not the current player
+	if unit.Side != s.playerSide {
 		tankCount -= tankCount % 10
 	}
 	if tankCount > 0 {
 		strs[len(strs)-1] = strs[len(strs)-1] + fmt.Sprintf("%d %s, ", tankCount*s.mainGame.scenarioData.TanksMultiplier, s.mainGame.scenarioData.Equipments[unit.Type])
 	}
-	if true { // if the current player
+	if unit.Side == s.playerSide {
 		supplyDays := unit.SupplyLevel / (s.mainGame.scenarioData.AvgDailySupplyUse + s.mainGame.scenarioData.Data163)
 		strs = append(strs, fmt.Sprintf("     %d DAYS SUPPLY", supplyDays))
 		if unit.State&8 != 0 {
@@ -1763,7 +1770,7 @@ func (s *ShowMap) unitInfo(unit data.Unit) string {
 		}
 	}
 	strs = append(strs, fmt.Sprintf("FORM %s", s.mainGame.scenarioData.Formations[unit.Formation]))
-	if false { // if not the current player
+	if unit.Side != s.playerSide {
 		return strings.Join(strs, "\n")
 	}
 	strs[len(strs)-1] = strs[len(strs)-1] + fmt.Sprintf(" EXP %s EFF %d", s.mainGame.scenarioData.Experience[unit.Morale/27], 10*((256-unit.Fatigue)/25))
