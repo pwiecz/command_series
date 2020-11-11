@@ -88,6 +88,12 @@ func NewShowMap(g *Game) *ShowMap {
 	s.options.AlliedCommander = 0
 	s.options.GermanCommander = 0
 	s.options.GameBallance = 2
+	s.keyboardHandler.AddKeyToHandle(ebiten.KeyF)
+	s.keyboardHandler.AddKeyToHandle(ebiten.KeyQ)
+	s.keyboardHandler.AddKeyToHandle(ebiten.KeySlash)
+	s.keyboardHandler.AddKeyToHandle(ebiten.KeyComma)
+	s.keyboardHandler.AddKeyToHandle(ebiten.KeyPeriod)
+	s.keyboardHandler.AddKeyToHandle(ebiten.KeyShift)
 	s.init()
 	s.everyHour()
 	return s
@@ -95,34 +101,39 @@ func NewShowMap(g *Game) *ShowMap {
 
 func (s *ShowMap) createMapImage() {
 	var mapImage image.Image
-	var err error
+	var changed bool
 	if !s.isNight {
-		mapImage, err = s.mainGame.terrainMap.GetImage(s.mainGame.sprites.TerrainTiles[:],
-			s.mainGame.sprites.UnitSymbolSprites[:],
-			s.mainGame.scenarioData.DaytimePalette)
+		mapImage, changed = s.mainGame.terrainMap.GetImage(&s.mainGame.sprites.TerrainTiles,
+			&s.mainGame.sprites.UnitSymbolSprites,
+			&s.mainGame.scenarioData.DaytimePalette)
 	} else {
-		mapImage, err = s.mainGame.terrainMap.GetImage(s.mainGame.sprites.TerrainTiles[:],
-			s.mainGame.sprites.UnitSymbolSprites[:],
-			s.mainGame.scenarioData.NightPalette)
+		mapImage, changed = s.mainGame.terrainMap.GetImage(&s.mainGame.sprites.TerrainTiles,
+			&s.mainGame.sprites.UnitSymbolSprites,
+			&s.mainGame.scenarioData.NightPalette)
 	}
-	if err != nil {
-		panic(err)
+	if changed {
+		s.mapImage = ebiten.NewImageFromImage(mapImage)
 	}
-	mapEImage := ebiten.NewImageFromImage(mapImage)
-	s.mapImage = mapEImage
 }
 
 func (s *ShowMap) Update() error {
 	s.keyboardHandler.Update()
-	if s.keyboardHandler.IsKeyJustPressed(ebiten.KeySpace) {
+	if s.keyboardHandler.IsKeyJustPressed(ebiten.KeySlash) && ebiten.IsKeyPressed(ebiten.KeyShift) {
 		fmt.Println(s.statusReport())
 	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyF) {
 		s.isFrozen = !s.isFrozen
+		s.idleTicksLeft = 0
 		if s.isFrozen {
 			fmt.Println("FROZEN")
 		} else {
 			fmt.Println("UNFROZEN")
 		}
+	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyComma) && ebiten.IsKeyPressed(ebiten.KeyShift) {
+		s.decreaseGameSpeed()
+	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyPeriod) && ebiten.IsKeyPressed(ebiten.KeyShift) {
+		s.increaseGameSpeed()
+	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyQ) {
+		return fmt.Errorf("QUIT")
 	}
 
 	if s.isFrozen {
@@ -140,6 +151,7 @@ func (s *ShowMap) Update() error {
 			if unit.Side == s.playerSide {
 				fmt.Printf("\nMESSAGE FROM ...\n%s %s:\n", unit.Name, s.mainGame.scenarioData.UnitTypes[unit.Type])
 				fmt.Printf("'%s'\n", message.String())
+				s.idleTicksLeft = 60 * s.currentSpeed
 			}
 		}
 		return s.Update()
@@ -644,7 +656,7 @@ l24:
 		var v_6 int
 		for i := 0; i <= 6; i++ {
 			ix := s.coordsToMapIndex(unit.X, unit.Y) + s.mainGame.generic.MapOffsets[i]
-			if !InRange(ix, 0, len(s.mainGame.terrainMap.Terrain)) {
+			if !s.mainGame.terrainMap.IsIndexValid(ix) {
 				continue
 			}
 			ter := s.terrainAtIndex(ix)
@@ -1137,7 +1149,7 @@ func (s *ShowMap) function6(offsetIx, add, x, y, unitType int) (int, int) {
 	neigh1 := s.mainGame.generic.Neighbours[add][ni]
 	offset1 := s.mainGame.generic.MapOffsets[neigh1]
 	ix1 := s.coordsToMapIndex(x, y) + offset1
-	if !InRange(ix1, 0, len(s.mainGame.terrainMap.Terrain)) {
+	if !s.mainGame.terrainMap.IsIndexValid(ix1) {
 		return 0, 0
 	}
 	tt1 := s.terrainTypeAtIndex(ix1)
@@ -1146,7 +1158,7 @@ func (s *ShowMap) function6(offsetIx, add, x, y, unitType int) (int, int) {
 	neigh2 := s.mainGame.generic.Neighbours[add+1][ni]
 	offset2 := s.mainGame.generic.MapOffsets[neigh2]
 	ix2 := s.coordsToMapIndex(x, y) + offset2
-	if !InRange(ix2, 0, len(s.mainGame.terrainMap.Terrain)) {
+	if !s.mainGame.terrainMap.IsIndexValid(ix2) {
 		return 0, 0
 	}
 	tt2 := s.terrainTypeAtIndex(ix2)
@@ -1364,6 +1376,7 @@ func (s *ShowMap) everyHour() {
 		reinforcements, _ := s.every12Hours()
 		if reinforcements[s.playerSide] {
 			fmt.Println("REINFORCEMENTS!")
+			s.idleTicksLeft = 100
 		}
 	}
 	sunriseOffset := int(math.Abs(6.-float64(s.month)) / 2.)
@@ -1383,6 +1396,35 @@ func (s *ShowMap) everyHour() {
 		}
 
 	}
+}
+
+func (s *ShowMap) giveOrder(unit data.Unit, order data.OrderType) {
+	unit.Order = order
+	unit.State &= 223
+	switch order {
+	case data.Reserve:
+		unit.ObjectiveX = 0
+	case data.Attack:
+		unit.ObjectiveX = 0
+	case data.Defend:
+		unit.ObjectiveX, unit.ObjectiveY = unit.X, unit.Y
+	}
+	s.mainGame.units[unit.Side][unit.Index] = unit
+}
+func (s *ShowMap) setObjective(unit data.Unit, x, y int) {
+	unit.ObjectiveX, unit.ObjectiveY = x, y
+	s.mainGame.units[unit.Side][unit.Index] = unit
+}
+func (s *ShowMap) increaseGameSpeed() {
+	s.changeGameSpeed(-1)
+}
+func (s *ShowMap) decreaseGameSpeed() {
+	s.changeGameSpeed(1)
+}
+func (s *ShowMap) changeGameSpeed(delta int) {
+	s.currentSpeed = Clamp(s.currentSpeed+delta, 0, 2)
+	speedNames := []string{"FAST", "MEDIUM", "SLOW"}
+	fmt.Printf("SPEED: %s\n", speedNames[s.currentSpeed])
 }
 
 func (s *ShowMap) every12Hours() (reinforcements [2]bool, res int) {
@@ -1595,24 +1637,23 @@ func (s *ShowMap) terrainTypeAtIndex(ix int) int {
 	return s.terrainType(s.terrainAtIndex(ix))
 }
 func (s *ShowMap) terrainAtIndex(ix int) byte {
-	return s.mainGame.terrainMap.Terrain[ix]
+	return s.mainGame.terrainMap.GetTileAtIndex(ix)
 }
 func (s *ShowMap) terrainAt(x, y int) byte {
-	x /= 2
-	if !InRange(y, 0, s.mainGame.terrainMap.Height) ||
-		!InRange(x, 0, s.mainGame.terrainMap.Width-y%2) {
+	ix := s.coordsToMapIndex(x, y)
+	if !s.mainGame.terrainMap.IsIndexValid(ix) {
 		return 0
 	}
-	return s.mainGame.terrainMap.GetTile(x, y)
+	return s.mainGame.terrainMap.GetTileAtIndex(ix)
 }
 
 func (s *ShowMap) showUnit(unit data.Unit) {
 	ix := s.coordsToMapIndex(unit.X, unit.Y)
-	s.mainGame.terrainMap.Terrain[ix] = byte(unit.Type + unit.ColorPalette*16)
+	s.mainGame.terrainMap.SetTileAtIndex(ix, byte(unit.Type+unit.ColorPalette*16))
 }
 func (s *ShowMap) hideUnit(unit data.Unit) {
 	ix := s.coordsToMapIndex(unit.X, unit.Y)
-	s.mainGame.terrainMap.Terrain[ix] = unit.Terrain
+	s.mainGame.terrainMap.SetTileAtIndex(ix, unit.Terrain)
 }
 func (s *ShowMap) hideAllUnits() {
 	for _, sideUnits := range s.mainGame.units {

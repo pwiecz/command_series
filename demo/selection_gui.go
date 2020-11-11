@@ -10,7 +10,6 @@ func main() {
 		log.Fatalf("Usage: %s <game_dir>\n", os.Args[0])
 	}
 
-
 	ebiten.SetWindowSize(640, 384)
 	ebiten.SetWindowTitle("Command Series Engine")
 	if err := ebiten.RunGame(NewGame(os.Args[1])); err != nil {

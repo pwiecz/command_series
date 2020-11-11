@@ -6,12 +6,12 @@ import "path"
 
 import "github.com/hajimehoshi/ebiten"
 import "github.com/hajimehoshi/ebiten/ebitenutil"
-import "github.com/hajimehoshi/ebiten/inpututil"
 import "github.com/pwiecz/command_series/data"
 
 type ScenarioSelection struct {
 	buttons          []*Button
 	scenarioSelected func(int)
+	keyboardHandler  *KeyboardHandler
 }
 
 func numToKey(n int) ebiten.Key {
@@ -44,22 +44,24 @@ func NewScenarioSelection(scenarios []data.Scenario, font *data.Font, scenarioSe
 	buttons := make([]*Button, len(scenarios))
 	x, y := 16.0, 16.0
 	for i, scenario := range scenarios {
-		button, err := NewButton(fmt.Sprintf("%d: %s", i+1, scenario.Name), x, y, font)
-		if err != nil {
-			panic(err)
-		}
+		button := NewButton(fmt.Sprintf("%d: %s", i+1, scenario.Name), x, y, font)
 		buttons[i] = button
 		y += float64(font.Height)
+	}
+	keyboardHandler := NewKeyboardHandler()
+	for i := 1; i <= len(scenarios); i++ {
+		keyboardHandler.AddKeyToHandle(numToKey(i))
 	}
 	return &ScenarioSelection{
 		buttons:          buttons,
 		scenarioSelected: scenarioSelected,
-	}
+		keyboardHandler:  keyboardHandler}
 }
 
 func (s *ScenarioSelection) Update() error {
+	s.keyboardHandler.Update()
 	for i, button := range s.buttons {
-		if button.Update() || (i < 10 && inpututil.IsKeyJustReleased(numToKey(i+1))) {
+		if button.Update() || (i < 10 && s.keyboardHandler.IsKeyJustReleased(numToKey(i+1))) {
 			s.scenarioSelected(i)
 			return nil
 		}
@@ -77,27 +79,33 @@ func (s *ScenarioSelection) Layout(outsideWidth, outsideHeight int) (int, int) {
 }
 
 type VariantSelection struct {
-	buttons  []*Button
-	mainGame *Game
+	buttons         []*Button
+	mainGame        *Game
+	keyboardHandler *KeyboardHandler
 }
 
 func NewVariantSelection(mainGame *Game) *VariantSelection {
 	buttons := make([]*Button, len(mainGame.variants))
 	x, y := 16., 16.
 	for i, variant := range mainGame.variants {
-		button, err := NewButton(fmt.Sprintf("%d: %s", i+1, variant.Name), x, y, mainGame.sprites.IntroFont)
-		if err != nil {
-			panic(err)
-		}
+		button := NewButton(fmt.Sprintf("%d: %s", i+1, variant.Name), x, y, mainGame.sprites.IntroFont)
 		buttons[i] = button
 		y += float64(mainGame.sprites.IntroFont.Height)
 	}
-	return &VariantSelection{buttons: buttons, mainGame: mainGame}
+	keyboardHandler := NewKeyboardHandler()
+	for i := 1; i <= len(mainGame.variants); i++ {
+		keyboardHandler.AddKeyToHandle(numToKey(i))
+	}
+	return &VariantSelection{
+		buttons:         buttons,
+		mainGame:        mainGame,
+		keyboardHandler: keyboardHandler}
 }
 
 func (s *VariantSelection) Update() error {
+	s.keyboardHandler.Update()
 	for i, button := range s.buttons {
-		if button.Update() || (i < 10 && inpututil.IsKeyJustReleased(numToKey(i+1))) {
+		if button.Update() || (i < 10 && s.keyboardHandler.IsKeyJustReleased(numToKey(i+1))) {
 			s.mainGame.selectedVariant = i
 			s.mainGame.subGame = NewVariantLoading(s.mainGame)
 			return nil

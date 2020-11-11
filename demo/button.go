@@ -13,7 +13,7 @@ type Button struct {
 	mouseDown bool
 }
 
-func NewButton(text string, x, y float64, font *data.Font) (*Button, error) {
+func NewButton(text string, x, y float64, font *data.Font) *Button {
 	img := ebiten.NewImage(len(text)*font.Width*2., font.Height)
 	var rect image.Rectangle
 	rect.Min.X, rect.Min.Y = int(x), int(y)
@@ -31,7 +31,7 @@ func NewButton(text string, x, y float64, font *data.Font) (*Button, error) {
 		Text:  text,
 		Font:  font,
 		image: img,
-	}, nil
+	}
 }
 
 func (b *Button) Draw(dst *ebiten.Image) {

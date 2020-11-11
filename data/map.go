@@ -10,11 +10,17 @@ import "path"
 
 // A representation of a hex map parsed from CRUSADE.MAP file.
 type Map struct {
-	Width, Height int
-	Terrain       []byte
+	Width, Height   int
+	terrain         []byte
+	mapImage        *image.NRGBA
+	isMapImageDirty bool
+	// store last sprites and palette used to draw map to see if it needs to be redrawn
+	lastTiles       *[48]*image.Paletted
+	lastUnitSprites *[16]*image.Paletted
+	lastPalette     *[8]byte
 }
 
-func GetPalette(n int, palette [8]byte) []color.Color {
+func GetPalette(n int, palette *[8]byte) []color.Color {
 	pal := make([]color.Color, 2)
 	// just guessing here
 	pal[0] = &RGBPalette[palette[2]]
@@ -30,48 +36,55 @@ func GetPalette(n int, palette [8]byte) []color.Color {
 	}
 	return pal
 }
-
-func (m *Map) GetTile(x, y int) byte {
-	return m.Terrain[y*m.Width+x-y/2]
+func (m *Map) IsIndexValid(ix int) bool {
+	return ix >= 0 && ix < len(m.terrain)
+}
+func (m *Map) getTile(x, y int) byte {
+	return m.terrain[y*m.Width+x-y/2]
+}
+func (m *Map) GetTileAtIndex(ix int) byte {
+	return m.terrain[ix]
+}
+func (m *Map) SetTileAtIndex(ix int, tile byte) {
+	m.isMapImageDirty = true
+	m.terrain[ix] = tile
 }
 
 // GetImage constructs image.Image object from given set of tiles and given palette.
-func (m *Map) GetImage(tiles []*image.Paletted, unitSprites []*image.Paletted, palette [8]byte) (image.Image, error) {
-	if len(tiles) < 48 {
-		return nil, fmt.Errorf("Too few tiles. Expected 48, got %d", len(tiles))
-	}
-	if len(unitSprites) < 16 {
-		return nil, fmt.Errorf("Too few unit sprites. Expected 16, got %d", len(unitSprites))
+func (m *Map) GetImage(tiles *[48]*image.Paletted, unitSprites *[16]*image.Paletted, palette *[8]byte) (image.Image, bool) {
+	if tiles != m.lastTiles || unitSprites != m.lastUnitSprites || palette != m.lastPalette {
+		m.isMapImageDirty = true
+		m.lastTiles = tiles
+		m.lastUnitSprites = unitSprites
+		m.lastPalette = palette
 	}
 	tileBounds := tiles[0].Bounds()
-	tileWidth := tileBounds.Max.X - tileBounds.Min.X
-	tileHeight := tileBounds.Max.Y - tileBounds.Min.Y
-	img := image.NewNRGBA(image.Rect(0, 0, tileWidth*m.Width, tileHeight*m.Height))
+	tileSize := tileBounds.Max.Sub(tileBounds.Min)
+	imageWidth, imageHeight := tileSize.X*m.Width, tileSize.Y*m.Height
+	if m.mapImage == nil || m.mapImage.Bounds().Max != image.Pt(imageWidth, imageHeight) {
+		m.mapImage = image.NewNRGBA(image.Rect(0, 0, imageWidth, imageHeight))
+		m.isMapImageDirty = true
+	}
+	if !m.isMapImageDirty {
+		return m.mapImage, false
+	}
 	for y := 0; y < m.Height; y++ {
-		x0 := (y % 2) * 4
 		for x := 0; x < m.Width-y%2; x++ {
-			tileNum := int(m.GetTile(x, y))
+			tileNum := int(m.getTile(x, y))
+			topLeft := image.Point{x*tileSize.X + (y%2)*tileSize.X/2, y * tileSize.Y}
+			tileRect := image.Rectangle{topLeft, topLeft.Add(tileSize)}
+			var tileImage image.Paletted
 			if tileNum%64 < 48 {
-				repalettedImg := *tiles[tileNum%64]
-				repalettedImg.Palette = GetPalette(tileNum/64, palette)
-				draw.Draw(img,
-					image.Rect(x0, y*tileHeight, x0+tileWidth, (y+1)*tileHeight),
-					&repalettedImg,
-					image.Point{},
-					draw.Over)
+				tileImage = *tiles[tileNum%64]
 			} else {
-				repalettedImg := *unitSprites[tileNum%16]
-				repalettedImg.Palette = GetPalette(tileNum/64, palette)
-				draw.Draw(img,
-					image.Rect(x0, y*tileHeight, x0+tileWidth, (y+1)*tileHeight),
-					&repalettedImg,
-					image.Point{},
-					draw.Over)
+				tileImage = *unitSprites[tileNum%16]
 			}
-			x0 += tileWidth
+			tileImage.Palette = GetPalette(tileNum/64, palette)
+			draw.Draw(m.mapImage, tileRect, &tileImage, image.Point{}, draw.Over)
 		}
 	}
-	return img, nil
+	m.isMapImageDirty = false
+	return m.mapImage, true
 }
 
 // ParseMap parses CRUSADE.MAP files.
@@ -97,7 +110,7 @@ func ParseMap(data io.Reader) (Map, error) {
 func parseMapCrusade(data io.Reader, width, height int) (Map, error) {
 	terrainMap := Map{
 		Width: width, Height: height,
-		Terrain: make([]byte, 0, width*height),
+		terrain: make([]byte, 0, width*height),
 	}
 
 	for y := 0; y < terrainMap.Height; y++ {
@@ -107,7 +120,7 @@ func parseMapCrusade(data io.Reader, width, height int) (Map, error) {
 		if err != nil {
 			return Map{}, err
 		}
-		terrainMap.Terrain = append(terrainMap.Terrain, row...)
+		terrainMap.terrain = append(terrainMap.terrain, row...)
 	}
 	return terrainMap, nil
 }
@@ -137,7 +150,7 @@ func parseMapConflict(data io.Reader) (Map, error) {
 			fmt.Printf("Read only %d bytes of map\n", n)
 			break
 		}
-		terrainMap.Terrain = append(terrainMap.Terrain, row...)
+		terrainMap.terrain = append(terrainMap.terrain, row...)
 		terrainMap.Height++
 	}
 	return terrainMap, nil

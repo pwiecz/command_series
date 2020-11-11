@@ -30,6 +30,7 @@ type ScenarioData struct {
 	// Units with type >=MinSupplyType can provide supply to other units.
 	// Such units can receive supplies only from units with larger type numbers.
 	MinSupplyType          int // Data[160]
+	HexSizeInMiles         int // Data[161]
 	Data162                int // Data[162] some generic supply use (while attacking?)
 	Data163                int // Data[163] some generic supply use (while being attacked?)
 	MaxResupplyAmount      int // Data[164]
@@ -147,6 +148,7 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 		scenario.FormationTankDefence[i] = int(v)
 	}
 	scenario.MinSupplyType = int(scenario.Data[160])
+	scenario.HexSizeInMiles = int(scenario.Data[161])
 	scenario.Data162 = int(scenario.Data[162])
 	scenario.Data163 = int(scenario.Data[163])
 	scenario.MaxResupplyAmount = int(scenario.Data[164])
@@ -314,6 +316,8 @@ func (s *ScenarioData) UpdateData(offset, value byte) {
 		s.FormationTankDefence[offset-152] = int(value)
 	case offset == 160:
 		s.MinSupplyType = int(value)
+	case offset == 161:
+		s.HexSizeInMiles = int(value)
 	case offset == 162:
 		s.Data162 = int(value)
 	case offset == 163:
