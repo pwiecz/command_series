@@ -1,9 +1,7 @@
 package main
 
-import "fmt"
 import "image"
 import "image/color"
-import "image/draw"
 import "github.com/pwiecz/command_series/data"
 import "github.com/hajimehoshi/ebiten"
 
@@ -11,17 +9,18 @@ type MapView struct {
 	terrainMap             *data.Map
 	minX, minY, maxX, maxY int // map bounds to draw in map coordinates
 	dx, dy                 int
-	tiles                  *[48]*image.Paletted
-	unitSprites            *[16]*image.Paletted
-	palette                *[8]byte
-	mapImage               *image.NRGBA
-	ebitenImage            *ebiten.Image
-	isDirty                bool
+
+	tiles       *[48]*image.Paletted
+	unitSprites *[16]*image.Paletted
+	palette     *[8]byte
+
+	ebitenTiles   [4][48]*ebiten.Image
+	ebitenSprites [4][16]*ebiten.Image
 }
 
 func NewMapView(terrainMap *data.Map, minX, minY, maxX, maxY int, tiles *[48]*image.Paletted,
 	unitSprites *[16]*image.Paletted, palette *[8]byte) *MapView {
-	return &MapView{
+	v := &MapView{
 		terrainMap:  terrainMap,
 		minX:        minX,
 		minY:        minY,
@@ -29,8 +28,28 @@ func NewMapView(terrainMap *data.Map, minX, minY, maxX, maxY int, tiles *[48]*im
 		maxY:        maxY,
 		tiles:       tiles,
 		unitSprites: unitSprites,
-		palette:     palette,
-		isDirty:     true}
+		palette:     palette}
+	return v
+}
+func (v *MapView) getTileImage(paletteNum, tileNum int) *ebiten.Image {
+	ebitenTile := v.ebitenTiles[paletteNum][tileNum]
+	if ebitenTile == nil {
+		tile := v.tiles[tileNum]
+		tile.Palette = GetPalette(paletteNum, v.palette)
+		ebitenTile = ebiten.NewImageFromImage(tile)
+		v.ebitenTiles[paletteNum][tileNum] = ebitenTile
+	}
+	return ebitenTile
+}
+func (v *MapView) getSpriteImage(paletteNum, spriteNum int) *ebiten.Image {
+	ebitenSprite := v.ebitenSprites[paletteNum][spriteNum]
+	if ebitenSprite == nil {
+		sprite := v.unitSprites[spriteNum]
+		sprite.Palette = GetPalette(paletteNum, v.palette)
+		ebitenSprite = ebiten.NewImageFromImage(sprite)
+		v.ebitenSprites[paletteNum][spriteNum] = ebitenSprite
+	}
+	return ebitenSprite
 }
 func (v *MapView) ToMapCoords(imageX, imageY int) (x, y int) {
 	y = imageY/8 + v.minY
@@ -38,30 +57,30 @@ func (v *MapView) ToMapCoords(imageX, imageY int) (x, y int) {
 	return
 
 }
-func (v *MapView) SetTiles(tiles *[48]*image.Paletted) {
-	if tiles == v.tiles {
-		return
-	}
-	v.tiles = tiles
-	v.isDirty = true
-}
 func (v *MapView) SetUnitSprites(unitSprites *[16]*image.Paletted) {
 	if unitSprites == v.unitSprites {
 		return
 	}
 	v.unitSprites = unitSprites
-	v.isDirty = true
+	for paletteNum := 0; paletteNum < 4; paletteNum++ {
+		for i := range unitSprites {
+			v.ebitenSprites[paletteNum][i] = nil
+		}
+	}
 }
 func (v *MapView) SetPalette(palette *[8]byte) {
 	if palette == v.palette {
 		return
 	}
-	fmt.Println("Palette change..")
 	v.palette = palette
-	v.isDirty = true
-}
-func (v *MapView) Redraw() {
-	v.isDirty = true
+	for paletteNum := 0; paletteNum < 4; paletteNum++ {
+		for i := range v.tiles {
+			v.ebitenTiles[paletteNum][i] = nil
+		}
+		for i := range v.unitSprites {
+			v.ebitenSprites[paletteNum][i] = nil
+		}
+	}
 }
 func GetPalette(n int, palette *[8]byte) []color.Color {
 	pal := make([]color.Color, 2)
@@ -80,38 +99,30 @@ func GetPalette(n int, palette *[8]byte) []color.Color {
 	return pal
 }
 func (v *MapView) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
-	if v.isDirty || v.mapImage == nil {
-		tileBounds := v.tiles[0].Bounds()
-		tileSize := tileBounds.Max.Sub(tileBounds.Min)
-		imageWidth, imageHeight := tileSize.X*v.terrainMap.Width, tileSize.Y*v.terrainMap.Height
-		if v.mapImage == nil || v.mapImage.Bounds().Max != image.Pt(imageWidth, imageHeight) {
-			v.mapImage = image.NewNRGBA(image.Rect(0, 0, imageWidth, imageHeight))
+	geoM := options.GeoM
+	tileBounds := v.tiles[0].Bounds()
+	tileSize := tileBounds.Max.Sub(tileBounds.Min)
+	for my := v.minY; my <= v.maxY; my++ {
+		if my >= v.terrainMap.Height {
+			break
 		}
-		for my := v.minY; my <= v.maxY; my++ {
-			if my >= v.terrainMap.Height {
+		y := my - v.minY
+		for mx := v.minX; mx <= v.maxX; mx++ {
+			if mx >= v.terrainMap.Width-my%2 {
 				break
 			}
-			y := my - v.minY
-			for mx := v.minX; mx <= v.maxX; mx++ {
-				if mx >= v.terrainMap.Width-my%2 {
-					break
-				}
-				x := mx - v.minX
-				tileNum := int(v.terrainMap.GetTile(mx, my))
-				topLeft := image.Point{x*tileSize.X + (y%2)*tileSize.X/2, y * tileSize.Y}
-				tileRect := image.Rectangle{topLeft, topLeft.Add(tileSize)}
-				var tileImage image.Paletted
-				if tileNum%64 < 48 {
-					tileImage = *v.tiles[tileNum%64]
-				} else {
-					tileImage = *v.unitSprites[tileNum%16]
-				}
-				tileImage.Palette = GetPalette(tileNum/64, v.palette)
-				draw.Draw(v.mapImage, tileRect, &tileImage, image.Point{}, draw.Over)
+			x := mx - v.minX
+			tileNum := int(v.terrainMap.GetTile(mx, my))
+			var tileImage *ebiten.Image
+			if tileNum%64 < 48 {
+				tileImage = v.getTileImage(tileNum/64, tileNum%64)
+			} else {
+				tileImage = v.getSpriteImage(tileNum/64, tileNum%16)
 			}
+			options.GeoM = geoM
+			options.GeoM.Translate(float64(x*tileSize.X+(my%2)*tileSize.X/2), float64(y*tileSize.Y))
+			screen.DrawImage(tileImage, options)
 		}
-		v.ebitenImage = ebiten.NewImageFromImage(v.mapImage)
-		v.isDirty = false
 	}
-	screen.DrawImage(v.ebitenImage, options)
+	options.GeoM = geoM
 }

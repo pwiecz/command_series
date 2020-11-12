@@ -1685,12 +1685,10 @@ func (s *ShowMap) terrainAt(x, y int) byte {
 func (s *ShowMap) showUnit(unit data.Unit) {
 	ix := s.coordsToMapIndex(unit.X, unit.Y)
 	s.mainGame.terrainMap.SetTileAtIndex(ix, byte(unit.Type+unit.ColorPalette*16))
-	s.mapView.Redraw()
 }
 func (s *ShowMap) hideUnit(unit data.Unit) {
 	ix := s.coordsToMapIndex(unit.X, unit.Y)
 	s.mainGame.terrainMap.SetTileAtIndex(ix, unit.Terrain)
-	s.mapView.Redraw()
 }
 func (s *ShowMap) hideAllUnits() {
 	for _, sideUnits := range s.mainGame.units {
