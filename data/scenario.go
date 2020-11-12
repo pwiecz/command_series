@@ -19,7 +19,7 @@ type Scenario struct {
 	StartYear              int
 	StartWeather           int
 	StartSupplyLevels      [2]int
-	MinX, MaxX, MinY, MaxY uint8
+	MinX, MaxX, MinY, MaxY int
 }
 
 func ReadScenarios(dirname string) ([]Scenario, error) {
@@ -122,9 +122,9 @@ func ParseScn(data []byte) (Scenario, error) {
 
 	result.StartSupplyLevels[0] = int(segments[10][0]) + 256*int(segments[10][1])
 	result.StartSupplyLevels[1] = int(segments[10][2]) + 256*int(segments[10][3])
-	result.MinX = segments[10][4]
-	result.MaxX = segments[10][5]
-	result.MinY = segments[10][6]
-	result.MaxY = segments[10][7]
+	result.MinX = int(segments[10][4])
+	result.MaxX = int(segments[10][5])
+	result.MinY = int(segments[10][6])
+	result.MaxY = int(segments[10][7])
 	return result, nil
 }

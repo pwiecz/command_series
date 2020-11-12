@@ -1,7 +1,7 @@
 package main
 
 import "fmt"
-import "image"
+
 import "image/color"
 import "math"
 import "strings"
@@ -35,9 +35,10 @@ type ShowMap struct {
 	mainGame                  *Game
 	keyboardHandler           *KeyboardHandler
 	mouseHandler              *MouseHandler
+	mapView                   *MapView
 	mapImage                  *ebiten.Image
 	options                   Options
-	dx, dy                    uint8
+	dx, dy                    int
 	minute                    int
 	hour                      int
 	daysElapsed               int
@@ -64,6 +65,7 @@ type ShowMap struct {
 	map2_2, map2_3            [2][16]int
 	map3                      [2][16][16]int // 0x600
 	update                    int
+	unitIconView              bool
 }
 
 func NewShowMap(g *Game) *ShowMap {
@@ -73,8 +75,8 @@ func NewShowMap(g *Game) *ShowMap {
 		mainGame:        g,
 		keyboardHandler: NewKeyboardHandler(),
 		mouseHandler:    NewMouseHandler(),
-		dx:              scenario.MinX,
-		dy:              scenario.MinY,
+		dx:              0,
+		dy:              0,
 		minute:          scenario.StartMinute,
 		hour:            scenario.StartHour,
 		day:             scenario.StartDay,
@@ -92,37 +94,30 @@ func NewShowMap(g *Game) *ShowMap {
 	s.options.GameBallance = 2
 	s.keyboardHandler.AddKeyToHandle(ebiten.KeyF)
 	s.keyboardHandler.AddKeyToHandle(ebiten.KeyQ)
+	s.keyboardHandler.AddKeyToHandle(ebiten.KeyU)
 	s.keyboardHandler.AddKeyToHandle(ebiten.KeySlash)
 	s.keyboardHandler.AddKeyToHandle(ebiten.KeyComma)
 	s.keyboardHandler.AddKeyToHandle(ebiten.KeyPeriod)
 	s.keyboardHandler.AddKeyToHandle(ebiten.KeyShift)
+	s.keyboardHandler.AddKeyToHandle(ebiten.KeyUp)
+	s.keyboardHandler.AddKeyToHandle(ebiten.KeyDown)
+	s.keyboardHandler.AddKeyToHandle(ebiten.KeyLeft)
+	s.keyboardHandler.AddKeyToHandle(ebiten.KeyRight)
 	s.mouseHandler.AddButtonToHandle(ebiten.MouseButtonLeft)
+	s.mapView = NewMapView(
+		&g.terrainMap, scenario.MinX, scenario.MinY, scenario.MaxX, scenario.MaxY,
+		&g.sprites.TerrainTiles, &g.sprites.UnitIconSprites,
+		&g.scenarioData.DaytimePalette)
+	s.unitIconView = true
+	s.mapView.dx = s.dx
+	s.mapView.dy = s.dy
 	s.init()
 	s.everyHour()
 	return s
 }
 
-func (s *ShowMap) createMapImage() {
-	var mapImage image.Image
-	var changed bool
-	if !s.isNight {
-		mapImage, changed = s.mainGame.terrainMap.GetImage(&s.mainGame.sprites.TerrainTiles,
-			&s.mainGame.sprites.UnitSymbolSprites,
-			&s.mainGame.scenarioData.DaytimePalette)
-	} else {
-		mapImage, changed = s.mainGame.terrainMap.GetImage(&s.mainGame.sprites.TerrainTiles,
-			&s.mainGame.sprites.UnitSymbolSprites,
-			&s.mainGame.scenarioData.NightPalette)
-	}
-	if changed {
-		s.mapImage = ebiten.NewImageFromImage(mapImage)
-	}
-}
-
 func (s *ShowMap) screenCoordsToMapCoords(screenX, screenY int) (x, y int) {
-	y = screenY/8 + int(s.dy)
-	x = ((screenX+(y%2)*4)/8)*2 - y%2 + int(s.dx)*2
-	return
+	return s.mapView.ToMapCoords(screenX+s.dx*8, screenY+s.dy*8)
 }
 
 func (s *ShowMap) Update() error {
@@ -142,14 +137,32 @@ func (s *ShowMap) Update() error {
 		s.decreaseGameSpeed()
 	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyPeriod) && ebiten.IsKeyPressed(ebiten.KeyShift) {
 		s.increaseGameSpeed()
+	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyU) {
+		if s.unitIconView {
+			s.mapView.SetUnitSprites(&s.mainGame.sprites.UnitSymbolSprites)
+		} else {
+			s.mapView.SetUnitSprites(&s.mainGame.sprites.UnitIconSprites)
+		}
+		s.unitIconView = !s.unitIconView
 	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyQ) {
 		return fmt.Errorf("QUIT")
+	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyDown) {
+		s.dy++
+	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyUp) {
+		s.dy--
+	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyRight) {
+		s.dx++
+	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyLeft) {
+		s.dx--
 	} else if s.mouseHandler.IsButtonJustPressed(ebiten.MouseButtonLeft) {
 		mouseX, mouseY := ebiten.CursorPosition()
 		x, y := s.screenCoordsToMapCoords(mouseX, mouseY)
+		fmt.Println(x, y)
 		if unit, ok := s.FindUnit(x, y); ok {
 			fmt.Println()
 			fmt.Println(s.unitInfo(unit))
+		} else {
+			fmt.Println("NO UNIT")
 		}
 	}
 
@@ -1398,6 +1411,11 @@ func (s *ShowMap) everyHour() {
 	}
 	sunriseOffset := int(math.Abs(6.-float64(s.month)) / 2.)
 	s.isNight = s.hour < 5+sunriseOffset || s.hour > 20-sunriseOffset
+	if s.isNight {
+		s.mapView.SetPalette(&s.mainGame.scenarioData.NightPalette)
+	} else {
+		s.mapView.SetPalette(&s.mainGame.scenarioData.DaytimePalette)
+	}
 
 	if s.mainGame.scenarioData.AvgDailySupplyUse > Rand(24) {
 		for _, sideUnits := range s.mainGame.units {
@@ -1667,10 +1685,12 @@ func (s *ShowMap) terrainAt(x, y int) byte {
 func (s *ShowMap) showUnit(unit data.Unit) {
 	ix := s.coordsToMapIndex(unit.X, unit.Y)
 	s.mainGame.terrainMap.SetTileAtIndex(ix, byte(unit.Type+unit.ColorPalette*16))
+	s.mapView.Redraw()
 }
 func (s *ShowMap) hideUnit(unit data.Unit) {
 	ix := s.coordsToMapIndex(unit.X, unit.Y)
 	s.mainGame.terrainMap.SetTileAtIndex(ix, unit.Terrain)
+	s.mapView.Redraw()
 }
 func (s *ShowMap) hideAllUnits() {
 	for _, sideUnits := range s.mainGame.units {
@@ -1869,8 +1889,8 @@ func (s *ShowMap) Draw(screen *ebiten.Image) {
 	screen.Fill(color.White)
 	opts := &ebiten.DrawImageOptions{}
 	opts.GeoM.Translate(float64(s.dx)*(-8), float64(s.dy)*(-8))
-	s.createMapImage()
-	screen.DrawImage(s.mapImage, opts)
+	s.mapView.Draw(screen, opts)
+
 	ebitenutil.DebugPrint(screen, s.dateTimeString())
 }
 func (s *ShowMap) Layout(outsideWidth, outsideHeight int) (int, int) {

@@ -3,21 +3,15 @@ package data
 import "fmt"
 import "image"
 import "image/color"
-import "image/draw"
 import "io"
 import "os"
 import "path"
 
 // A representation of a hex map parsed from CRUSADE.MAP file.
 type Map struct {
-	Width, Height   int
-	terrain         []byte
-	mapImage        *image.NRGBA
-	isMapImageDirty bool
-	// store last sprites and palette used to draw map to see if it needs to be redrawn
-	lastTiles       *[48]*image.Paletted
-	lastUnitSprites *[16]*image.Paletted
-	lastPalette     *[8]byte
+	Width, Height int
+	terrain       []byte
+	mapImage      *image.NRGBA
 }
 
 func GetPalette(n int, palette *[8]byte) []color.Color {
@@ -39,52 +33,14 @@ func GetPalette(n int, palette *[8]byte) []color.Color {
 func (m *Map) IsIndexValid(ix int) bool {
 	return ix >= 0 && ix < len(m.terrain)
 }
-func (m *Map) getTile(x, y int) byte {
+func (m *Map) GetTile(x, y int) byte {
 	return m.terrain[y*m.Width+x-y/2]
 }
 func (m *Map) GetTileAtIndex(ix int) byte {
 	return m.terrain[ix]
 }
 func (m *Map) SetTileAtIndex(ix int, tile byte) {
-	m.isMapImageDirty = true
 	m.terrain[ix] = tile
-}
-
-// GetImage constructs image.Image object from given set of tiles and given palette.
-func (m *Map) GetImage(tiles *[48]*image.Paletted, unitSprites *[16]*image.Paletted, palette *[8]byte) (image.Image, bool) {
-	if tiles != m.lastTiles || unitSprites != m.lastUnitSprites || palette != m.lastPalette {
-		m.isMapImageDirty = true
-		m.lastTiles = tiles
-		m.lastUnitSprites = unitSprites
-		m.lastPalette = palette
-	}
-	tileBounds := tiles[0].Bounds()
-	tileSize := tileBounds.Max.Sub(tileBounds.Min)
-	imageWidth, imageHeight := tileSize.X*m.Width, tileSize.Y*m.Height
-	if m.mapImage == nil || m.mapImage.Bounds().Max != image.Pt(imageWidth, imageHeight) {
-		m.mapImage = image.NewNRGBA(image.Rect(0, 0, imageWidth, imageHeight))
-		m.isMapImageDirty = true
-	}
-	if !m.isMapImageDirty {
-		return m.mapImage, false
-	}
-	for y := 0; y < m.Height; y++ {
-		for x := 0; x < m.Width-y%2; x++ {
-			tileNum := int(m.getTile(x, y))
-			topLeft := image.Point{x*tileSize.X + (y%2)*tileSize.X/2, y * tileSize.Y}
-			tileRect := image.Rectangle{topLeft, topLeft.Add(tileSize)}
-			var tileImage image.Paletted
-			if tileNum%64 < 48 {
-				tileImage = *tiles[tileNum%64]
-			} else {
-				tileImage = *unitSprites[tileNum%16]
-			}
-			tileImage.Palette = GetPalette(tileNum/64, palette)
-			draw.Draw(m.mapImage, tileRect, &tileImage, image.Point{}, draw.Over)
-		}
-	}
-	m.isMapImageDirty = false
-	return m.mapImage, true
 }
 
 // ParseMap parses CRUSADE.MAP files.
