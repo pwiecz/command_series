@@ -17,8 +17,7 @@ func NewKeyboardHandler() *KeyboardHandler {
 	return &KeyboardHandler{
 		keyPressed:      make([]bool, ebiten.KeyMax+1),
 		keyJustPressed:  make([]bool, ebiten.KeyMax+1),
-		keyJustReleased: make([]bool, ebiten.KeyMax+1),
-	}
+		keyJustReleased: make([]bool, ebiten.KeyMax+1)}
 }
 func (h *KeyboardHandler) AddKeyToHandle(key ebiten.Key) {
 	h.keysToHandle = append(h.keysToHandle, key)

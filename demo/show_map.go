@@ -34,6 +34,7 @@ func (o Options) Num() int {
 type ShowMap struct {
 	mainGame                  *Game
 	keyboardHandler           *KeyboardHandler
+	mouseHandler              *MouseHandler
 	mapImage                  *ebiten.Image
 	options                   Options
 	dx, dy                    uint8
@@ -71,6 +72,7 @@ func NewShowMap(g *Game) *ShowMap {
 	s := &ShowMap{
 		mainGame:        g,
 		keyboardHandler: NewKeyboardHandler(),
+		mouseHandler:    NewMouseHandler(),
 		dx:              scenario.MinX,
 		dy:              scenario.MinY,
 		minute:          scenario.StartMinute,
@@ -94,6 +96,7 @@ func NewShowMap(g *Game) *ShowMap {
 	s.keyboardHandler.AddKeyToHandle(ebiten.KeyComma)
 	s.keyboardHandler.AddKeyToHandle(ebiten.KeyPeriod)
 	s.keyboardHandler.AddKeyToHandle(ebiten.KeyShift)
+	s.mouseHandler.AddButtonToHandle(ebiten.MouseButtonLeft)
 	s.init()
 	s.everyHour()
 	return s
@@ -116,8 +119,15 @@ func (s *ShowMap) createMapImage() {
 	}
 }
 
+func (s *ShowMap) screenCoordsToMapCoords(screenX, screenY int) (x, y int) {
+	y = screenY/8 + int(s.dy)
+	x = ((screenX+(y%2)*4)/8)*2 - y%2 + int(s.dx)*2
+	return
+}
+
 func (s *ShowMap) Update() error {
 	s.keyboardHandler.Update()
+	s.mouseHandler.Update()
 	if s.keyboardHandler.IsKeyJustPressed(ebiten.KeySlash) && ebiten.IsKeyPressed(ebiten.KeyShift) {
 		fmt.Println(s.statusReport())
 	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyF) {
@@ -134,6 +144,13 @@ func (s *ShowMap) Update() error {
 		s.increaseGameSpeed()
 	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyQ) {
 		return fmt.Errorf("QUIT")
+	} else if s.mouseHandler.IsButtonJustPressed(ebiten.MouseButtonLeft) {
+		mouseX, mouseY := ebiten.CursorPosition()
+		x, y := s.screenCoordsToMapCoords(mouseX, mouseY)
+		if unit, ok := s.FindUnit(x, y); ok {
+			fmt.Println()
+			fmt.Println(s.unitInfo(unit))
+		}
 	}
 
 	if s.isFrozen {
