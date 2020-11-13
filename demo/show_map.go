@@ -1764,6 +1764,7 @@ func (s *ShowMap) everyDay() {
 	if rnd < 140 {
 		s.weather = int(s.mainGame.scenarioData.PossibleWeather[4*(s.month/3)+rnd/35])
 	}
+	fmt.Printf("WEATHER FORECAST: %s\n", s.mainGame.scenarioData.Weather[s.weather])
 	s.every12Hours()
 	fmt.Printf("%d DAYS REMAINING.\n", s.mainGame.variants[s.mainGame.selectedVariant].LengthInDays-s.daysElapsed+1)
 	supplyLevels := []string{"CRITICAL", "SUFFICIENT", "AMPLE"}
@@ -1922,12 +1923,11 @@ func (s *ShowMap) isGameOver() bool {
 }
 
 func (s *ShowMap) dateTimeString() string {
-	hour := s.hour
 	meridianString := "AM"
-	if hour >= 12 {
-		hour -= 12
+	if s.hour >= 12 {
 		meridianString = "PM"
 	}
+	hour := Abs(s.hour - 12*((s.hour+11)/12-1))
 	return fmt.Sprintf("%02d:%02d %s %s, %d %d  %s", hour, s.minute, meridianString, s.mainGame.scenarioData.Months[s.month], s.day+1, s.year, s.mainGame.scenarioData.Weather[s.weather])
 }
 
