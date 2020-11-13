@@ -10,10 +10,15 @@ import "github.com/hajimehoshi/ebiten"
 import "github.com/hajimehoshi/ebiten/ebitenutil"
 import "github.com/pwiecz/command_series/data"
 
+type IntelligenceType int
+const (
+	Full IntelligenceType = 0
+	Limited IntelligenceType = 1
+)
 type Options struct {
 	AlliedCommander int
 	GermanCommander int
-	Intelligence    int
+	Intelligence    IntelligenceType
 	GameBallance    int // [0..4]
 }
 
@@ -25,7 +30,7 @@ func (o Options) IsPlayerControlled(side int) bool {
 }
 func (o Options) Num() int {
 	n := o.AlliedCommander + 2*o.GermanCommander
-	if o.Intelligence == 1 {
+	if o.Intelligence == Limited {
 		n += 56 - 4*(o.AlliedCommander*o.GermanCommander+o.AlliedCommander)
 	}
 	return n
@@ -157,7 +162,6 @@ func (s *ShowMap) Update() error {
 	} else if s.mouseHandler.IsButtonJustPressed(ebiten.MouseButtonLeft) {
 		mouseX, mouseY := ebiten.CursorPosition()
 		x, y := s.screenCoordsToMapCoords(mouseX, mouseY)
-		fmt.Println(x, y)
 		if unit, ok := s.FindUnit(x, y); ok {
 			fmt.Println()
 			fmt.Println(s.unitInfo(unit))
@@ -316,7 +320,7 @@ nextUnit:
 		}
 	}
 	if s.update != unit.Side {
-		s.reinitSmallMapsAndSuch()
+		s.reinitSmallMapsAndSuch(unit.Side)
 	}
 	{
 		// v57 := sign(sign_extend([29927 + 10 + unit.side])/16)*4
@@ -723,7 +727,7 @@ l24:
 		}
 		s.mainGame.units[unit.Side][unit.Index].State |= 128
 		v := s.mainGame.scenarioData.FormationMenDefence[unit.Formation] - 8
-		if (unit.Side+1)&s.options.Num() == 0 {
+		if s.options.IsPlayerControlled(unit.Side) {
 			v *= 2
 		}
 		if v > arg1-v_6 {
@@ -786,7 +790,7 @@ l21:
 				break // goto l2
 			}
 			unit.TargetFormation = s.function10(unit.Order, 0)
-			if ((unit.Side+1)&s.options.Num()) > 0 || unit.State&32 > 0 {
+			if s.options.IsPlayerControlled(unit.Side) || unit.State&32 > 0 {
 				if distance == 1 && unit.Order == data.Defend && unit.State&1 > 0 {
 					unit.TargetFormation = s.function10(unit.Order, 1)
 				}
@@ -862,7 +866,8 @@ l21:
 				break
 			}
 			v57 -= temp
-			if (unit.Side+1)&(s.options.Num()/4) == 0 || unit.State&65 > 0 {
+			if s.options.IsPlayerControlled(unit.Side) || 
+				s.options.Intelligence == Full || unit.State&65 > 0 {
 				moves = append(moves, UnitMove{unit, unit.X, unit.Y, sx, sy})
 				//function28(offset) - animate function move?
 			}
@@ -912,7 +917,7 @@ l21:
 				unit2.State = unit2.State | 65
 				s.mainGame.units[unit2.Side][unit2.Index] = unit2
 				if s.mainGame.scenarioData.UnitScores[unit2.Type] > 8 {
-					if (unit.Side+1)&s.options.Num() > 0 {
+					if s.options.IsPlayerControlled(unit.Side) {
 						sx = unit2.X
 						sy = unit2.Y
 						unit.Order = data.Attack
@@ -1079,7 +1084,7 @@ l21:
 			unit2.X, unit2.Y = bestX, bestY // moved this up comparing to the original code
 			unit2.Terrain = s.terrainAt(unit2.X, unit2.Y)
 			if _, ok := message.(WeHaveBeenOverrun); !ok {
-				if true /* !CiV */ || (2-unit.Side)&(s.options.Num()/4) == 0 {
+				if true /* !CiV */ || s.options.IsPlayerControlled(1-unit.Side) || s.options.Intelligence == Full {
 					s.showUnit(unit2)
 				}
 				if true /* !CiV */ {
@@ -1201,7 +1206,7 @@ func (s *ShowMap) function6(offsetIx, add, x, y, unitType int) (int, int) {
 }
 
 func (s *ShowMap) function29_showUnit(unit data.Unit) {
-	if unit.State&65 != 0 || ((unit.Side+1)&s.options.Num()/4) == 0 {
+	if unit.State&65 != 0 || s.options.IsPlayerControlled(unit.Side) || s.options.Intelligence == Full {
 		s.showUnit(unit)
 	}
 }
@@ -1294,7 +1299,7 @@ func (s *ShowMap) function26(x, y int, index int) int {
 	return v
 }
 
-func (s *ShowMap) reinitSmallMapsAndSuch() {
+func (s *ShowMap) reinitSmallMapsAndSuch(currentSide int) {
 	s.resetMaps()
 	v13 := 0
 	v15 := 0
@@ -1309,12 +1314,14 @@ func (s *ShowMap) reinitSmallMapsAndSuch() {
 			if !InRange(sx, 0, 16) || !InRange(sy, 0, 16) {
 				continue
 			}
-			if s.options.IsPlayerControlled(unit.Side) {
+			if unit.Side == currentSide {
 				v15 += unit.MenCount + unit.EquipCount
 				v13 += 1
 			} else {
 				v16 += unit.MenCount + unit.EquipCount
-				if (unit.Side+1)&(s.options.Num()/16) > 0 &&
+				// Possibly a bug in the original code and there should be /4 instead of /16
+				// Otherwise it's a way too complicated way to check for it.
+				if s.options.Intelligence == Limited && //(unit.Side+1)&(s.options.Num()/16) > 0 &&
 					unit.State&64 == 0 {
 					continue
 				}
@@ -1531,7 +1538,7 @@ func (s *ShowMap) resupplyUnit(unit data.Unit) data.Unit {
 		//  not other headquarters
 		minSupplyType++
 	}
-	if (unit.Side+1)&(s.options.Num()/4) == 0 {
+	if s.options.IsPlayerControlled(unit.Side) || s.options.Intelligence == Full {
 		s.showUnit(unit)
 	}
 	// keep the last friendly unit so that we can use it outside of the loop
@@ -1544,7 +1551,7 @@ outerLoop:
 			continue
 		}
 		supplyX, supplyY := supplyUnit.X, supplyUnit.Y
-		if (unit.Side+1)&(s.options.Num()/4) == 0 {
+		if s.options.IsPlayerControlled(unit.Side) || s.options.Intelligence == Full {
 			s.showUnit(supplyUnit)
 		}
 		supplyTransportBudget := s.mainGame.scenarioData.MaxSupplyTransportCost
@@ -1706,7 +1713,7 @@ func (s *ShowMap) showAllVisibleUnits() {
 				continue
 			}
 			sideUnits[i].Terrain = s.terrainAt(unit.X, unit.Y)
-			if unit.State&65 != 0 || (unit.Side+1)&(s.options.Num()/4) == 0 {
+			if unit.State&65 != 0 || s.options.IsPlayerControlled(unit.Side) || s.options.Intelligence == Full {
 				s.showUnit(unit)
 			}
 		}
