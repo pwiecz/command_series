@@ -60,7 +60,7 @@ type ScenarioData struct {
 	NightPalette    [8]byte        // Data[408:416]
 	MenCountLimit   [16]int        // Data[416:432]
 	EquipCountLimit [16]int        // Data[432:448]
-	DataUpdates     [21]DataUpdate //Data[448:511]
+	DataUpdates     [21]DataUpdate // Data[448:511]
 	UnitTypes       []string
 	Strings1        []string
 	Formations      []string

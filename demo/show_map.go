@@ -11,15 +11,17 @@ import "github.com/hajimehoshi/ebiten/ebitenutil"
 import "github.com/pwiecz/command_series/data"
 
 type IntelligenceType int
+
 const (
-	Full IntelligenceType = 0
+	Full    IntelligenceType = 0
 	Limited IntelligenceType = 1
 )
+
 type Options struct {
 	AlliedCommander int
 	GermanCommander int
 	Intelligence    IntelligenceType
-	GameBallance    int // [0..4]
+	GameBalance     int // [0..4]
 }
 
 func (o Options) IsPlayerControlled(side int) bool {
@@ -96,7 +98,7 @@ func NewShowMap(g *Game) *ShowMap {
 	}
 	s.options.AlliedCommander = 0
 	s.options.GermanCommander = 0
-	s.options.GameBallance = 2
+	s.options.GameBalance = 2
 	s.keyboardHandler.AddKeyToHandle(ebiten.KeyF)
 	s.keyboardHandler.AddKeyToHandle(ebiten.KeyQ)
 	s.keyboardHandler.AddKeyToHandle(ebiten.KeyU)
@@ -215,6 +217,8 @@ func (s *ShowMap) Update() error {
 		fmt.Println(s.dateTimeString())
 		fmt.Println(s.statusReport())
 		if s.isGameOver() {
+			fmt.Println()
+			fmt.Println(s.finalResults())
 			return fmt.Errorf("GAME OVER!")
 		}
 	}
@@ -229,10 +233,10 @@ func (s *ShowMap) init() {
 				unit.HalfDaysUntilAppear = 0
 			}
 			unit.VariantBitmap = 0 // not really needed
-			if side == 0 && s.options.GameBallance > 2 {
-				unit.Morale = (3 + s.options.GameBallance) * unit.Morale / 5
-			} else if side == 1 && s.options.GameBallance < 2 {
-				unit.Morale = (7 - s.options.GameBallance) * unit.Morale / 5
+			if side == 0 && s.options.GameBalance > 2 {
+				unit.Morale = (3 + s.options.GameBalance) * unit.Morale / 5
+			} else if side == 1 && s.options.GameBalance < 2 {
+				unit.Morale = (7 - s.options.GameBalance) * unit.Morale / 5
 			}
 			sideUnits[i] = unit
 		}
@@ -866,7 +870,7 @@ l21:
 				break
 			}
 			v57 -= temp
-			if s.options.IsPlayerControlled(unit.Side) || 
+			if s.options.IsPlayerControlled(unit.Side) ||
 				s.options.Intelligence == Full || unit.State&65 > 0 {
 				moves = append(moves, UnitMove{unit, unit.X, unit.Y, sx, sy})
 				//function28(offset) - animate function move?
@@ -1791,6 +1795,24 @@ func monthLength(month, year int) int {
 	}
 	panic(fmt.Errorf("Unexpected month number %d", month))
 }
+func (s *ShowMap) winningSideAndAdvantage() (winningSide int, advantage int) {
+	selectedVariant := s.mainGame.variants[s.mainGame.selectedVariant]
+	side0Score := (1+s.menLost[1]+s.tanksLost[1])*selectedVariant.Data3/8 + s.citiesHeld[0]*3
+	side1Score := 1 + s.menLost[0] + s.tanksLost[0] + s.citiesHeld[1]*3
+	var score int
+	if side0Score < side1Score {
+		score = side1Score * 3 / side0Score
+		winningSide = 1
+	} else {
+		score = side0Score * 3 / side1Score
+		winningSide = 0
+	}
+	advantage = 4
+	if score >= 3 {
+		advantage = Clamp(advantage-3, 0, 4)
+	}
+	return
+}
 func (s *ShowMap) statusReport() string {
 	var strs []string
 	strs = append(strs, fmt.Sprintf("STATUS REPORT\t%s\t%s", s.mainGame.scenarioData.Sides[0], s.mainGame.scenarioData.Sides[1]))
@@ -1798,27 +1820,10 @@ func (s *ShowMap) statusReport() string {
 	strs = append(strs, fmt.Sprintf("TROOPS LOST\t%d\t%d", s.menLost[0]*menMultiplier, s.menLost[1]*menMultiplier))
 	strs = append(strs, fmt.Sprintf("TANKS LOST\t%d\t%d", s.tanksLost[0]*tanksMultiplier, s.tanksLost[1]*tanksMultiplier))
 	strs = append(strs, fmt.Sprintf("CITIES HELD\t%d\t%d", s.citiesHeld[0], s.citiesHeld[1]))
-	selectedVariant := s.mainGame.variants[s.mainGame.selectedVariant]
-	side0Score := (1+s.menLost[1]+s.tanksLost[1])*selectedVariant.Data3/8 + s.citiesHeld[0]*3
-	side1Score := 1 + s.menLost[0] + s.tanksLost[0] + s.citiesHeld[1]*3
-	var score int
-	if side1Score < side0Score {
-		score = side0Score * 3 / side1Score
-	} else {
-		score = side1Score * 3 / side0Score
-	}
-	advIndex := 4
-	if score >= 3 {
-		advIndex = Clamp(advIndex-3, 0, 4)
-	}
+	winningSide, advantage := s.winningSideAndAdvantage()
 	advantageStrs := []string{"SLIGHT", "MARGINAL", "TACTICAL", "DECISIVE", "TOTAL"}
-	var winningSide string
-	if side0Score < side1Score {
-		winningSide = s.mainGame.scenarioData.Sides[1]
-	} else {
-		winningSide = s.mainGame.scenarioData.Sides[0]
-	}
-	strs = append(strs, fmt.Sprintf("   %s %s ADVANTAGE.", advantageStrs[advIndex], winningSide))
+	winningSideStr := s.mainGame.scenarioData.Sides[winningSide]
+	strs = append(strs, fmt.Sprintf("   %s %s ADVANTAGE.", advantageStrs[advantage], winningSideStr))
 	return strings.Join(strs, "\n")
 }
 func (s *ShowMap) unitInfo(unit data.Unit) string {
@@ -1865,6 +1870,42 @@ func (s *ShowMap) unitInfo(unit data.Unit) string {
 	return strings.Join(strs, "\n")
 }
 
+func (s *ShowMap) finalResults() string {
+	winningSide, advantage := s.winningSideAndAdvantage()
+	absoluteAdvantage := 6
+	if winningSide == 0 {
+		absoluteAdvantage -= advantage + 1
+	} else {
+		absoluteAdvantage += advantage
+	}
+	v73 := s.playerSide
+	if s.options.Num()%4 == 0 { // if a demonstration game
+		if absoluteAdvantage < 6 {
+			v73 = 1
+		} else {
+			v73 = 0
+		}
+	}
+	v74 := absoluteAdvantage + v73*(11-absoluteAdvantage*2)
+	criticalLocationBalance := s.criticalLocationsCaptured[0] - s.criticalLocationsCaptured[1]
+	selectedVariant := s.mainGame.variants[s.mainGame.selectedVariant]
+	if criticalLocationBalance >= selectedVariant.CriticalLocations[0] {
+		v74 = 1 + 9*(1-v73)
+	}
+	if -criticalLocationBalance >= selectedVariant.CriticalLocations[1] {
+		v74 = 1 + 9*v73
+	}
+	var strs []string
+	finalResults := []string{"TOTAL DEFEAT", "DECISIVE DEFEAT", "TACTICAL DEFEAT", "MARGINAL DEFEAT", "DEFEAT", "DISADVANTAGE", "ADVANTAGE", "MARGINAL VICTORY", "TACTICAL VICTORY", "DECISIVE VICTORY", "TOTAL VICTORY"}
+	strs = append(strs, fmt.Sprintf("FINAL RESULT: %s", finalResults[v74-1]))
+	balance := s.options.GameBalance + v73*(4-2*s.options.GameBalance)
+	balances := []string{"VERY DIFFICULT", "DIFFICULT", "FAIR", "EASY", "VERY EASY"}
+	strs = append(strs, fmt.Sprintf("PLAY BALANCE: %s", balances[balance-1]))
+	rank := Min(v74-2*balance+4, 12)
+	ranks := []string{"PRIVATE", "SERGEANT", "LIEUTENANT", "CAPTAIN", "MAJOR", "LIEUTENANT-COLONEL", "COLONEL", "BRIGADIER-GENERAL", "MAJOR-GENERAL", "LIEUTENANT-GENERAL", "FIELD MARSHAL", "SUPREME COMMANDER"}
+	strs = append(strs, fmt.Sprintf("YOUR RANK: %s", ranks[rank-1]))
+	return strings.Join(strs, "\n")
+}
 func (s *ShowMap) isGameOver() bool {
 	selectedVariant := s.mainGame.variants[s.mainGame.selectedVariant]
 	if s.daysElapsed >= selectedVariant.LengthInDays {
