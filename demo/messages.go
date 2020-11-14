@@ -3,14 +3,14 @@ package main
 import "fmt"
 import "github.com/pwiecz/command_series/data"
 
-type Message interface {
+type MessageFromUnit interface {
 	Unit() data.Unit
 	String() string
 }
 
 type WeAreAttacking struct { // MSG = 1
 	unit           data.Unit
-	enemy          data.Unit // todo: it may not to up to date, should it be pointer(index) of a unit?
+	enemy          data.Unit
 	outcome        int
 	formationNames []string
 }
@@ -93,4 +93,12 @@ type WeHaveBeenOverrun struct { // MSG = 10
 func (o WeHaveBeenOverrun) Unit() data.Unit { return o.unit }
 func (o WeHaveBeenOverrun) String() string {
 	return "WE HAVE BEEN OVERRUN."
+}
+
+type Reinforcements struct {
+	Sides [2]bool
+}
+
+type GameOver struct {
+	Results string
 }

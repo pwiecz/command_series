@@ -37,24 +37,24 @@ func (o Options) Num() int {
 }
 
 type ShowMap struct {
-	mainGame                  *Game
-	keyboardHandler           *KeyboardHandler
-	mouseHandler              *MouseHandler
-	mapView                   *MapView
-	mapImage                  *ebiten.Image
-	options                   Options
-	dx, dy                    int
+	mainGame        *Game
+	keyboardHandler *KeyboardHandler
+	mouseHandler    *MouseHandler
+	mapView         *MapView
+	mapImage        *ebiten.Image
+	options         Options
+	dx, dy          int
 
-	currentSpeed              int
-	idleTicksLeft             int
-
-	isFrozen                  bool
-
-	unitIconView              bool
-
-	playerSide int
+	currentSpeed  int
+	idleTicksLeft int
+	isFrozen      bool
+	unitIconView  bool
+	playerSide    int
 
 	gameState *GameState
+
+	sync    *MessageSync
+	started bool
 }
 
 func NewShowMap(g *Game) *ShowMap {
@@ -66,13 +66,13 @@ func NewShowMap(g *Game) *ShowMap {
 		mouseHandler:    NewMouseHandler(),
 		dx:              0,
 		dy:              0,
-		currentSpeed:    1,
+		currentSpeed:    2,
 		idleTicksLeft:   60,
-	}
+		sync:            NewMessageSync()}
 	s.options.AlliedCommander = 0
 	s.options.GermanCommander = 0
 	s.options.GameBalance = 2
-	s.gameState = NewGameState(&scenario, &s.mainGame.scenarioData, &variant, g.selectedVariant, s.mainGame.units, &s.mainGame.terrain, &s.mainGame.terrainMap, &s.mainGame.generic, &s.mainGame.hexes, s.mainGame.generals, s.options)
+	s.gameState = NewGameState(&scenario, &s.mainGame.scenarioData, &variant, g.selectedVariant, s.mainGame.units, &s.mainGame.terrain, &s.mainGame.terrainMap, &s.mainGame.generic, &s.mainGame.hexes, s.mainGame.generals, s.options, s.sync)
 	s.keyboardHandler.AddKeyToHandle(ebiten.KeyF)
 	s.keyboardHandler.AddKeyToHandle(ebiten.KeyQ)
 	s.keyboardHandler.AddKeyToHandle(ebiten.KeyU)
@@ -93,7 +93,8 @@ func NewShowMap(g *Game) *ShowMap {
 	s.mapView.dx = s.dx
 	s.mapView.dy = s.dy
 
-	s.gameState.everyHour()
+	s.gameState.Init()
+
 	return s
 }
 
@@ -106,6 +107,7 @@ func (s *ShowMap) Update() error {
 	s.mouseHandler.Update()
 	if s.keyboardHandler.IsKeyJustPressed(ebiten.KeySlash) && ebiten.IsKeyPressed(ebiten.KeyShift) {
 		fmt.Println(s.gameState.statusReport())
+		s.idleTicksLeft = 60 * s.currentSpeed
 	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyF) {
 		s.isFrozen = !s.isFrozen
 		s.idleTicksLeft = 0
@@ -115,20 +117,28 @@ func (s *ShowMap) Update() error {
 			fmt.Println("UNFROZEN")
 		}
 	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyComma) && ebiten.IsKeyPressed(ebiten.KeyShift) {
+		s.idleTicksLeft = 60 * s.currentSpeed
 		s.decreaseGameSpeed()
 	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyPeriod) && ebiten.IsKeyPressed(ebiten.KeyShift) {
+		s.idleTicksLeft = 60 * s.currentSpeed
 		s.increaseGameSpeed()
 	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyU) {
+		s.idleTicksLeft = 60 * s.currentSpeed
 		s.unitIconView = !s.unitIconView
 	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyQ) {
+		s.sync.Stop()
 		return fmt.Errorf("QUIT")
 	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyDown) {
+		s.idleTicksLeft = 60 * s.currentSpeed
 		s.dy++
 	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyUp) {
+		s.idleTicksLeft = 60 * s.currentSpeed
 		s.dy--
 	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyRight) {
+		s.idleTicksLeft = 60 * s.currentSpeed
 		s.dx++
 	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyLeft) {
+		s.idleTicksLeft = 60 * s.currentSpeed
 		s.dx--
 	} else if s.mouseHandler.IsButtonJustPressed(ebiten.MouseButtonLeft) {
 		mouseX, mouseY := ebiten.CursorPosition()
@@ -148,18 +158,43 @@ func (s *ShowMap) Update() error {
 		s.idleTicksLeft--
 		return nil
 	}
-	message, goOn := s.gameState.Update()
-	if message != nil {
-		unit := message.Unit()
-		if unit.Side == s.playerSide {
-			fmt.Printf("\nMESSAGE FROM ...\n%s %s:\n", unit.Name, s.mainGame.scenarioData.UnitTypes[unit.Type])
-			fmt.Printf("'%s'\n", message.String())
-			s.idleTicksLeft = 60 * s.currentSpeed
+	if !s.started {
+		go func() {
+			if !s.sync.Wait() {
+				return
+			}
+			for {
+				if !s.gameState.Update() {
+					return
+				}
+			}
+		}()
+		s.started = true
+	}
+
+	update := s.sync.GetUpdate()
+	if update != nil {
+		switch message := update.(type) {
+		case MessageFromUnit:
+			unit := message.Unit()
+			if unit.Side == s.playerSide {
+				fmt.Printf("\nMESSAGE FROM ...\n%s %s:\n", unit.Name, s.mainGame.scenarioData.UnitTypes[unit.Type])
+				fmt.Printf("'%s'\n", message.String())
+				s.idleTicksLeft = 60 * s.currentSpeed
+			}
+		case Reinforcements:
+			if message.Sides[s.playerSide] {
+				fmt.Println("\nREINFORCEMENTS!")
+				s.idleTicksLeft = 100
+			}
+		case GameOver:
+			fmt.Println("\n%s", message.Results)
+			return fmt.Errorf("GAME OVER!")
+		default:
+			return fmt.Errorf("Unknown message: %v", message)
 		}
 	}
-	if !goOn {
-		return fmt.Errorf("GAME OVER!")
-	}
+
 	return nil
 }
 
@@ -187,9 +222,9 @@ func (s *ShowMap) decreaseGameSpeed() {
 	s.changeGameSpeed(1)
 }
 func (s *ShowMap) changeGameSpeed(delta int) {
-	s.currentSpeed = Clamp(s.currentSpeed+delta, 0, 2)
+	s.currentSpeed = Clamp(s.currentSpeed+delta, 1, 3)
 	speedNames := []string{"FAST", "MEDIUM", "SLOW"}
-	fmt.Printf("SPEED: %s\n", speedNames[s.currentSpeed])
+	fmt.Printf("SPEED: %s\n", speedNames[s.currentSpeed-1])
 }
 
 func (s *ShowMap) dateTimeString() string {
