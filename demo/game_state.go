@@ -92,7 +92,8 @@ func NewGameState(scenario *data.Scenario, scenarioData *data.ScenarioData, vari
 }
 
 func (s *GameState) Update() (Message, bool) {
-	for s.unitsUpdated++; s.unitsUpdated <= s.scenarioData.UnitUpdatesPerTimeIncrement/2; {
+	s.unitsUpdated++
+	for ;s.unitsUpdated <= s.scenarioData.UnitUpdatesPerTimeIncrement/2; s.unitsUpdated++ {
 		message, _ := s.updateUnit()
 		if message != nil {
 			if message.Unit().Side == s.playerSide {
