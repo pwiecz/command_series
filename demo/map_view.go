@@ -11,43 +11,70 @@ type MapView struct {
 	dx, dy                 int
 
 	tiles       *[48]*image.Paletted
-	unitSprites *[16]*image.Paletted
-	palette     *[8]byte
+	unitSymbols *[16]*image.Paletted
+	unitIcons   *[16]*image.Paletted
 
-	ebitenTiles   [4][48]*ebiten.Image
-	ebitenSprites [4][16]*ebiten.Image
+	isNight  int // 0 or 1
+	useIcons bool
+
+	daytimePalette *[8]byte
+	nightPalette   *[8]byte
+
+	colorSchemes [2][4][]color.Color
+
+	ebitenTiles   [2][4][48]*ebiten.Image
+	ebitenSymbols [2][4][16]*ebiten.Image
+	ebitenIcons   [2][4][16]*ebiten.Image
 }
 
-func NewMapView(terrainMap *data.Map, minX, minY, maxX, maxY int, tiles *[48]*image.Paletted,
-	unitSprites *[16]*image.Paletted, palette *[8]byte) *MapView {
+func NewMapView(terrainMap *data.Map,
+	minX, minY, maxX, maxY int,
+	tiles *[48]*image.Paletted,
+	unitSymbols *[16]*image.Paletted,
+	unitIcons *[16]*image.Paletted,
+	daytimePalette *[8]byte,
+	nightPalette *[8]byte) *MapView {
 	v := &MapView{
-		terrainMap:  terrainMap,
-		minX:        minX,
-		minY:        minY,
-		maxX:        maxX,
-		maxY:        maxY,
-		tiles:       tiles,
-		unitSprites: unitSprites,
-		palette:     palette}
+		terrainMap:     terrainMap,
+		minX:           minX,
+		minY:           minY,
+		maxX:           maxX,
+		maxY:           maxY,
+		tiles:          tiles,
+		unitSymbols:    unitSymbols,
+		unitIcons:      unitIcons,
+		daytimePalette: daytimePalette,
+		nightPalette:   nightPalette}
 	return v
 }
-func (v *MapView) getTileImage(paletteNum, tileNum int) *ebiten.Image {
-	ebitenTile := v.ebitenTiles[paletteNum][tileNum]
+
+func (v *MapView) getTileImage(colorScheme, tileNum int) *ebiten.Image {
+	ebitenTile := v.ebitenTiles[v.isNight][colorScheme][tileNum]
 	if ebitenTile == nil {
 		tile := v.tiles[tileNum]
-		tile.Palette = GetPalette(paletteNum, v.palette)
+		tile.Palette = v.getBackgroundForegroundColors(colorScheme)
 		ebitenTile = ebiten.NewImageFromImage(tile)
-		v.ebitenTiles[paletteNum][tileNum] = ebitenTile
+		v.ebitenTiles[v.isNight][colorScheme][tileNum] = ebitenTile
 	}
 	return ebitenTile
 }
-func (v *MapView) getSpriteImage(paletteNum, spriteNum int) *ebiten.Image {
-	ebitenSprite := v.ebitenSprites[paletteNum][spriteNum]
+func (v *MapView) getUnitSymbolImage(colorScheme, spriteNum int) *ebiten.Image {
+	ebitenSprite := v.ebitenSymbols[v.isNight][colorScheme][spriteNum]
 	if ebitenSprite == nil {
-		sprite := v.unitSprites[spriteNum]
-		sprite.Palette = GetPalette(paletteNum, v.palette)
+		sprite := v.unitSymbols[spriteNum]
+		sprite.Palette = v.getBackgroundForegroundColors(colorScheme)
 		ebitenSprite = ebiten.NewImageFromImage(sprite)
-		v.ebitenSprites[paletteNum][spriteNum] = ebitenSprite
+		v.ebitenSymbols[v.isNight][colorScheme][spriteNum] = ebitenSprite
+	}
+	return ebitenSprite
+}
+func (v *MapView) getUnitIconImage(colorScheme, spriteNum int) *ebiten.Image {
+	ebitenSprite := v.ebitenIcons[v.isNight][colorScheme][spriteNum]
+	if ebitenSprite == nil {
+		sprite := v.unitIcons[spriteNum]
+		sprite.Palette = v.getBackgroundForegroundColors(colorScheme)
+		ebitenSprite = ebiten.NewImageFromImage(sprite)
+		v.ebitenIcons[v.isNight][colorScheme][spriteNum] = ebitenSprite
 	}
 	return ebitenSprite
 }
@@ -57,46 +84,41 @@ func (v *MapView) ToMapCoords(imageX, imageY int) (x, y int) {
 	return
 
 }
-func (v *MapView) SetUnitSprites(unitSprites *[16]*image.Paletted) {
-	if unitSprites == v.unitSprites {
-		return
-	}
-	v.unitSprites = unitSprites
-	for paletteNum := 0; paletteNum < 4; paletteNum++ {
-		for i := range unitSprites {
-			v.ebitenSprites[paletteNum][i] = nil
-		}
+func (v *MapView) SetUseIcons(useIcons bool) {
+	v.useIcons = useIcons
+}
+func (v *MapView) SetIsNight(isNight bool) {
+	if isNight {
+		v.isNight = 1
+	} else {
+		v.isNight = 0
 	}
 }
-func (v *MapView) SetPalette(palette *[8]byte) {
-	if palette == v.palette {
-		return
-	}
-	v.palette = palette
-	for paletteNum := 0; paletteNum < 4; paletteNum++ {
-		for i := range v.tiles {
-			v.ebitenTiles[paletteNum][i] = nil
+func (v *MapView) getBackgroundForegroundColors(colorScheme int) []color.Color {
+	colors := v.colorSchemes[v.isNight][colorScheme]
+	if colors == nil {
+		var palette *[8]byte
+		if v.isNight != 0 {
+			palette = v.nightPalette
+		} else {
+			palette = v.daytimePalette
 		}
-		for i := range v.unitSprites {
-			v.ebitenSprites[paletteNum][i] = nil
+		colors = make([]color.Color, 2)
+		// just guessing here
+		colors[0] = &data.RGBPalette[palette[2]]
+		switch colorScheme {
+		case 0:
+			colors[1] = &data.RGBPalette[palette[3]] // or 7
+		case 1:
+			colors[1] = &data.RGBPalette[palette[6]]
+		case 2:
+			colors[1] = &data.RGBPalette[palette[0]]
+		case 3:
+			colors[1] = &data.RGBPalette[palette[4]]
 		}
+		v.colorSchemes[v.isNight][colorScheme] = colors
 	}
-}
-func GetPalette(n int, palette *[8]byte) []color.Color {
-	pal := make([]color.Color, 2)
-	// just guessing here
-	pal[0] = &data.RGBPalette[palette[2]]
-	switch n {
-	case 0:
-		pal[1] = &data.RGBPalette[palette[3]] // or 7
-	case 1:
-		pal[1] = &data.RGBPalette[palette[6]]
-	case 2:
-		pal[1] = &data.RGBPalette[palette[0]]
-	case 3:
-		pal[1] = &data.RGBPalette[palette[4]]
-	}
-	return pal
+	return colors
 }
 func (v *MapView) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
 	geoM := options.GeoM
@@ -116,8 +138,10 @@ func (v *MapView) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
 			var tileImage *ebiten.Image
 			if tileNum%64 < 48 {
 				tileImage = v.getTileImage(tileNum/64, tileNum%64)
+			} else if v.useIcons {
+				tileImage = v.getUnitIconImage(tileNum/64, tileNum%16)
 			} else {
-				tileImage = v.getSpriteImage(tileNum/64, tileNum%16)
+				tileImage = v.getUnitSymbolImage(tileNum/64, tileNum%16)
 			}
 			options.GeoM = geoM
 			options.GeoM.Translate(float64(x*tileSize.X+(my%2)*tileSize.X/2), float64(y*tileSize.Y))
