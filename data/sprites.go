@@ -30,23 +30,22 @@ type Sprites struct {
 }
 
 func ReadSprites(dirname string) (Sprites, error) {
-	var sprites Sprites
 	iconSpritesFilename := path.Join(dirname, "CRUSADEI.FNT")
 	iconSpritesFile, err := os.Open(iconSpritesFilename)
 	if err != nil {
-		return sprites, fmt.Errorf("Cannot open icon font file %s. %v", iconSpritesFilename, err)
+		return Sprites{}, fmt.Errorf("Cannot open icon font file %s. %v", iconSpritesFilename, err)
 	}
 	defer iconSpritesFile.Close()
 	symbolSpritesFilename := path.Join(dirname, "CRUSADES.FNT")
 	symbolSpritesFile, err := os.Open(symbolSpritesFilename)
 	if err != nil {
-		return sprites, fmt.Errorf("Cannot open symbol font file %s, %v", symbolSpritesFilename, err)
+		return Sprites{}, fmt.Errorf("Cannot open symbol font file %s, %v", symbolSpritesFilename, err)
 	}
 	defer symbolSpritesFile.Close()
 	introSpritesFilename := path.Join(dirname, "FLAG.FNT")
 	introSpritesFile, err := os.Open(introSpritesFilename)
 	if err != nil {
-		return sprites, fmt.Errorf("Cannot open intro font file %s, %v", introSpritesFilename, err)
+		return Sprites{}, fmt.Errorf("Cannot open intro font file %s, %v", introSpritesFilename, err)
 	}
 	defer introSpritesFile.Close()
 	return ParseSprites(iconSpritesFile, symbolSpritesFile, introSpritesFile)

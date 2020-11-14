@@ -88,7 +88,7 @@ func NewShowMap(g *Game) *ShowMap {
 	s.mapView = NewMapView(
 		&g.terrainMap, scenario.MinX, scenario.MinY, scenario.MaxX, scenario.MaxY,
 		&g.sprites.TerrainTiles, &g.sprites.UnitSymbolSprites, &g.sprites.UnitIconSprites,
-		&g.scenarioData.DaytimePalette, &g.scenarioData.NightPalette)
+		&g.icons.Sprites, &g.scenarioData.DaytimePalette, &g.scenarioData.NightPalette)
 	s.unitIconView = true
 	s.mapView.dx = s.dx
 	s.mapView.dy = s.dy
@@ -131,15 +131,19 @@ func (s *ShowMap) Update() error {
 	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyDown) {
 		s.idleTicksLeft = 60 * s.currentSpeed
 		s.dy++
+		fmt.Println("dy", s.dy)
 	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyUp) {
 		s.idleTicksLeft = 60 * s.currentSpeed
 		s.dy--
+		fmt.Println("dy up", s.dy)
 	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyRight) {
 		s.idleTicksLeft = 60 * s.currentSpeed
 		s.dx++
+		fmt.Println("dx right", s.dy)
 	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyLeft) {
 		s.idleTicksLeft = 60 * s.currentSpeed
 		s.dx--
+		fmt.Println("dx left", s.dy)
 	} else if s.mouseHandler.IsButtonJustPressed(ebiten.MouseButtonLeft) {
 		mouseX, mouseY := ebiten.CursorPosition()
 		x, y := s.screenCoordsToMapCoords(mouseX, mouseY)
@@ -188,8 +192,10 @@ func (s *ShowMap) Update() error {
 				s.idleTicksLeft = 100
 			}
 		case GameOver:
-			fmt.Println("\n%s", message.Results)
+			fmt.Printf("\n%s\n", message.Results)
 			return fmt.Errorf("GAME OVER!")
+		case UnitMove:
+			fmt.Println("Placeholder for unit move...")
 		default:
 			return fmt.Errorf("Unknown message: %v", message)
 		}
@@ -233,7 +239,7 @@ func (s *ShowMap) dateTimeString() string {
 		meridianString = "PM"
 	}
 	hour := Abs(s.gameState.hour - 12*((s.gameState.hour+11)/12-1))
-	return fmt.Sprintf("%02d:%02d %s %s, %d %d  %s", hour, s.gameState.minute, meridianString, s.mainGame.scenarioData.Months[s.gameState.month], s.gameState.day+1, s.gameState.year, s.mainGame.scenarioData.Weather[s.gameState.weather])
+	return fmt.Sprintf("  %02d:%02d %s %s, %d %d  %s", hour, s.gameState.minute, meridianString, s.mainGame.scenarioData.Months[s.gameState.month], s.gameState.day+1, s.gameState.year, s.mainGame.scenarioData.Weather[s.gameState.weather])
 }
 
 func (s *ShowMap) Draw(screen *ebiten.Image) {

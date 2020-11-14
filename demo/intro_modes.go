@@ -125,16 +125,17 @@ func (s *VariantSelection) Layout(outsideWidth, outsideHeight int) (int, int) {
 
 type GameLoading struct {
 	gameDirname string
-	gameLoaded  func([]data.Scenario, data.Sprites, data.Map, data.Generic, data.Hexes)
+	gameLoaded  func([]data.Scenario, data.Sprites, data.Icons, data.Map, data.Generic, data.Hexes)
 	loadingDone chan error
 	scenarios   []data.Scenario
 	sprites     data.Sprites
+	icons       data.Icons
 	terrainMap  data.Map
 	generic     data.Generic
 	hexes       data.Hexes
 }
 
-func NewGameLoading(gameDirname string, gameLoaded func([]data.Scenario, data.Sprites, data.Map, data.Generic, data.Hexes)) *GameLoading {
+func NewGameLoading(gameDirname string, gameLoaded func([]data.Scenario, data.Sprites, data.Icons, data.Map, data.Generic, data.Hexes)) *GameLoading {
 	return &GameLoading{
 		gameDirname: gameDirname,
 		gameLoaded:  gameLoaded,
@@ -153,7 +154,7 @@ func (l *GameLoading) Update() error {
 			if err != nil {
 				return err
 			}
-			l.gameLoaded(l.scenarios, l.sprites, l.terrainMap, l.generic, l.hexes)
+			l.gameLoaded(l.scenarios, l.sprites, l.icons, l.terrainMap, l.generic, l.hexes)
 		default:
 		}
 	}
@@ -175,6 +176,10 @@ func (l *GameLoading) loadGameData() error {
 	l.sprites, err = data.ReadSprites(l.gameDirname)
 	if err != nil {
 		return fmt.Errorf("Error loading sprites, %v", err)
+	}
+	l.icons, err = data.ReadIcons(l.gameDirname)
+	if err != nil {
+		return fmt.Errorf("Error loading icons, %v", err)
 	}
 	l.terrainMap, err = data.ReadMap(l.gameDirname)
 	if err != nil {

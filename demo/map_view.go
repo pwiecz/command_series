@@ -13,6 +13,7 @@ type MapView struct {
 	tiles       *[48]*image.Paletted
 	unitSymbols *[16]*image.Paletted
 	unitIcons   *[16]*image.Paletted
+	icons       *[24]*image.Paletted
 
 	isNight  int // 0 or 1
 	useIcons bool
@@ -32,6 +33,7 @@ func NewMapView(terrainMap *data.Map,
 	tiles *[48]*image.Paletted,
 	unitSymbols *[16]*image.Paletted,
 	unitIcons *[16]*image.Paletted,
+	icons *[24]*image.Paletted,
 	daytimePalette *[8]byte,
 	nightPalette *[8]byte) *MapView {
 	v := &MapView{
@@ -43,6 +45,7 @@ func NewMapView(terrainMap *data.Map,
 		tiles:          tiles,
 		unitSymbols:    unitSymbols,
 		unitIcons:      unitIcons,
+		icons:          icons,
 		daytimePalette: daytimePalette,
 		nightPalette:   nightPalette}
 	return v

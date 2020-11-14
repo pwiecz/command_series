@@ -102,7 +102,10 @@ func (s *GameState) Init() bool {
 func (s *GameState) Update() bool {
 	s.unitsUpdated++
 	for ; s.unitsUpdated <= s.numUnitsToUpdatePerTimeIncrement; s.unitsUpdated++ {
-		message, _ := s.updateUnit()
+		message, quit := s.updateUnit()
+		if quit {
+			return false
+		}
 		if message != nil {
 			if !s.sync.SendUpdate(message) {
 				return false
@@ -166,12 +169,7 @@ func (s *GameState) resetMaps() {
 	}
 }
 
-type UnitMove struct {
-	Unit           data.Unit
-	X0, X1, Y0, Y1 int
-}
-
-func (s *GameState) updateUnit() (message MessageFromUnit, moves []UnitMove) {
+func (s *GameState) updateUnit() (message MessageFromUnit, quit bool) {
 	var mode data.OrderType
 	weather := s.weather
 	if s.isNight {
@@ -768,7 +766,10 @@ l21:
 			v57 -= temp
 			if s.options.IsPlayerControlled(unit.Side) ||
 				s.options.Intelligence == Full || unit.State&65 > 0 {
-				moves = append(moves, UnitMove{unit, unit.X, unit.Y, sx, sy})
+				if !s.sync.SendUpdate(UnitMove{unit, unit.X, unit.Y, sx, sy}) {
+					quit = true
+					return
+				}
 				//function28(offset) - animate function move?
 			}
 			s.hideUnit(unit)
@@ -851,7 +852,10 @@ l21:
 			goto end
 		}
 		if unit.FormationTopBit {
-			moves = append(moves, UnitMove{unit, unit.X, unit.Y, sx, sy})
+			if !s.sync.SendUpdate(UnitMove{unit, unit.X, unit.Y, sx, sy}) {
+				quit = false
+				return
+			}
 			// * function28 - animate unit move
 			s.showUnit(unit)
 			if false /* CiV */ {

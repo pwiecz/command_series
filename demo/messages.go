@@ -102,3 +102,8 @@ type Reinforcements struct {
 type GameOver struct {
 	Results string
 }
+
+type UnitMove struct {
+	Unit           data.Unit
+	X0, X1, Y0, Y1 int
+}
