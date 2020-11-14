@@ -18,7 +18,7 @@ type WeAreAttacking struct { // MSG = 1
 func (a WeAreAttacking) Unit() data.Unit { return a.unit }
 func (a WeAreAttacking) String() string {
 	losses := []string{"HEAVY", "MODERATE", "LIGHT", "VERY LIGHT"}
-	return fmt.Sprintf("WE ARE ATTACKING.\nENEMY IS IN %s FORMATION.\nOUT LOSSES ARE %s.",
+	return fmt.Sprintf("WE ARE ATTACKING.\nENEMY IS IN %s FORMATION.\nOUR LOSSES ARE %s.",
 		a.formationNames[a.enemy.Formation], losses[Min(a.outcome/11, 3)])
 }
 

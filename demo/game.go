@@ -18,8 +18,6 @@ type Game struct {
 	scenarioData     data.ScenarioData
 	selectedVariant  int
 	units            [2][]data.Unit
-
-	isLeftButtonDown bool
 }
 
 func NewGame(gameDirname string) *Game {

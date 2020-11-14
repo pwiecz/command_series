@@ -6,19 +6,20 @@ import "strings"
 import "github.com/pwiecz/command_series/data"
 
 type GameState struct {
-	minute                    int
-	hour                      int
-	daysElapsed               int
-	day                       int /* 0-based */
-	month                     int /* 0-based */
-	year                      int
-	weather                   int
-	supplyLevels              [2]int
+	minute       int
+	hour         int
+	daysElapsed  int
+	day          int /* 0-based */
+	month        int /* 0-based */
+	year         int
+	weather      int
+	supplyLevels [2]int
 
-	playerSide                int  // remove it from here
-	unitsUpdated              int
-	isNight                   bool
-	lastUpdatedUnit           int
+	playerSide                       int // remove it from here
+	unitsUpdated                     int
+	numUnitsToUpdatePerTimeIncrement int
+	isNight                          bool
+	lastUpdatedUnit                  int
 
 	menLost                   [2]int // 29927 + side*2
 	tanksLost                 [2]int // 29927 + 4 + side*2
@@ -26,12 +27,12 @@ type GameState struct {
 	criticalLocationsCaptured [2]int // 29927 + 21 + side*2
 	flashback                 [][]data.FlashbackUnit
 
-	map0                      [2][16][16]int // 0
-	map1                      [2][16][16]int // 0x200
-	map2_0, map2_1            [2][4][4]int   // 0x400 - two byte values
-	map2_2, map2_3            [2][16]int
-	map3                      [2][16][16]int // 0x600
-	update                    int
+	map0           [2][16][16]int // 0
+	map1           [2][16][16]int // 0x200
+	map2_0, map2_1 [2][4][4]int   // 0x400 - two byte values
+	map2_2, map2_3 [2][16]int
+	map3           [2][16][16]int // 0x600
+	update         int
 
 	scenarioData *data.ScenarioData
 	terrain      *data.Terrain
@@ -53,6 +54,7 @@ func NewGameState(scenario *data.Scenario, scenarioData *data.ScenarioData, vari
 	s.year = scenario.StartYear
 	s.weather = scenario.StartWeather
 	s.supplyLevels = scenario.StartSupplyLevels
+	s.numUnitsToUpdatePerTimeIncrement = scenarioData.UnitUpdatesPerTimeIncrement / 2
 	s.lastUpdatedUnit = 127
 	s.citiesHeld = variant.CitiesHeld
 	s.scenarioData = scenarioData
@@ -93,7 +95,7 @@ func NewGameState(scenario *data.Scenario, scenarioData *data.ScenarioData, vari
 
 func (s *GameState) Update() (Message, bool) {
 	s.unitsUpdated++
-	for ;s.unitsUpdated <= s.scenarioData.UnitUpdatesPerTimeIncrement/2; s.unitsUpdated++ {
+	for ; s.unitsUpdated <= s.numUnitsToUpdatePerTimeIncrement; s.unitsUpdated++ {
 		message, _ := s.updateUnit()
 		if message != nil {
 			if message.Unit().Side == s.playerSide {
@@ -102,6 +104,7 @@ func (s *GameState) Update() (Message, bool) {
 		}
 	}
 	s.unitsUpdated = 0
+
 	s.minute += s.scenarioData.MinutesPerTick
 	if s.minute >= 60 {
 		s.minute = 0
@@ -1299,11 +1302,7 @@ func (s *GameState) countNeighbourUnits(x, y, side int) int {
 
 func (s *GameState) everyHour() {
 	if s.hour == 12 {
-		reinforcements, _ := s.every12Hours()
-		if reinforcements[s.playerSide] {
-			fmt.Println("REINFORCEMENTS!")
-			//s.idleTicksLeft = 100
-		}
+		s.every12Hours()
 	}
 	sunriseOffset := Abs(6-s.month) / 2
 	s.isNight = s.hour < 5+sunriseOffset || s.hour > 20-sunriseOffset
@@ -1324,7 +1323,8 @@ func (s *GameState) everyHour() {
 	}
 }
 
-func (s *GameState) every12Hours() (reinforcements [2]bool, res int) {
+func (s *GameState) every12Hours() {
+	var reinforcements [2]bool
 	s.supplyLevels[0] += s.scenarioData.ResupplyRate[0] * 2
 	s.supplyLevels[1] += s.scenarioData.ResupplyRate[1] * 2
 	s.hideAllUnits()
@@ -1362,9 +1362,6 @@ func (s *GameState) every12Hours() (reinforcements [2]bool, res int) {
 
 	for _, sideUnits := range s.units {
 		for i, unit := range sideUnits {
-			if unit.State&136 > 0 { // active or no supply line
-				res++
-			}
 			if (unit.State&136)^136 != 0 { // (inactive or has supply line)
 				if unit.MenCount <= s.scenarioData.MenCountLimit[unit.Type] {
 					unit.MenCount += Rand(s.scenarioData.MenReplacementRate[unit.Side]+32) / 32
@@ -1377,6 +1374,9 @@ func (s *GameState) every12Hours() (reinforcements [2]bool, res int) {
 		}
 	}
 	s.showAllVisibleUnits()
+	if reinforcements[s.playerSide] {
+		fmt.Println("REINFORCEMENTS!")
+	}
 	return
 }
 
@@ -1600,8 +1600,12 @@ func (s *GameState) FindBestMoveFromTowards(supplyX, supplyY, unitX, unitY, unit
 func (s *GameState) everyDay() {
 	s.daysElapsed++
 	var flashback []data.FlashbackUnit
+	numActiveUnits := 0
 	for _, sideUnits := range s.units {
 		for _, unit := range sideUnits {
+			if unit.State&136 != 0 { // active or no supply line
+				numActiveUnits++
+			}
 			if unit.State&128 != 0 {
 				flashback = append(flashback, data.FlashbackUnit{
 					X: unit.X, Y: unit.Y, ColorPalette: unit.ColorPalette, Type: unit.Type,
@@ -1609,6 +1613,8 @@ func (s *GameState) everyDay() {
 			}
 		}
 	}
+	s.numUnitsToUpdatePerTimeIncrement = (numActiveUnits*s.scenarioData.UnitUpdatesPerTimeIncrement)/128 + 1
+
 	s.flashback = append(s.flashback, flashback)
 	// todo: save today's map for flashback
 	rnd := Rand(256)
@@ -1616,6 +1622,7 @@ func (s *GameState) everyDay() {
 		s.weather = int(s.scenarioData.PossibleWeather[4*(s.month/3)+rnd/35])
 	}
 	fmt.Printf("WEATHER FORECAST: %s\n", s.scenarioData.Weather[s.weather])
+	fmt.Println("SUPPLY DISTRIBUTION")
 	s.every12Hours()
 	fmt.Printf("%d DAYS REMAINING.\n", s.variant.LengthInDays-s.daysElapsed+1)
 	supplyLevels := []string{"CRITICAL", "SUFFICIENT", "AMPLE"}
