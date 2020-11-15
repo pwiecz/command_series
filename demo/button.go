@@ -14,16 +14,16 @@ type Button struct {
 }
 
 func NewButton(text string, x, y float64, font *data.Font) *Button {
-	img := ebiten.NewImage(len(text)*font.Width*2., font.Height)
+	fontSize := font.Size()
+	img := ebiten.NewImage(len(text)*fontSize.X, fontSize.Y)
 	var rect image.Rectangle
 	rect.Min.X, rect.Min.Y = int(x), int(y)
-	rect.Max.X, rect.Max.Y = int(x)+len(text)*font.Width*2., int(y)+font.Height
+	rect.Max.X, rect.Max.Y = int(x)+len(text)*fontSize.X, int(y)+fontSize.Y
 	opts := &ebiten.DrawImageOptions{}
-	opts.GeoM.Scale(2., 1.)
 	for _, r := range text {
 		glyphImg := ebiten.NewImageFromImage(font.Glyph(r))
 		img.DrawImage(glyphImg, opts)
-		opts.GeoM.Translate(float64(font.Width)*2., 0)
+		opts.GeoM.Translate(float64(fontSize.X), 0)
 	}
 	return &Button{
 		X: x, Y: y,

@@ -90,8 +90,6 @@ func NewShowMap(g *Game) *ShowMap {
 		&g.sprites.TerrainTiles, &g.sprites.UnitSymbolSprites, &g.sprites.UnitIconSprites,
 		&g.icons.Sprites, &g.scenarioData.DaytimePalette, &g.scenarioData.NightPalette)
 	s.unitIconView = true
-	s.mapView.dx = s.dx
-	s.mapView.dy = s.dy
 
 	s.gameState.Init()
 

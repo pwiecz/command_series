@@ -8,7 +8,6 @@ import "github.com/hajimehoshi/ebiten"
 type MapView struct {
 	terrainMap             *data.Map
 	minX, minY, maxX, maxY int // map bounds to draw in map coordinates
-	dx, dy                 int
 
 	tiles       *[48]*image.Paletted
 	unitSymbols *[16]*image.Paletted

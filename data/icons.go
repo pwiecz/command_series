@@ -7,6 +7,9 @@ import "os"
 import "path"
 
 type Icons struct {
+	// cursor, lightning bolt, 6 x concentric cicles, supply track, fighting unit,
+	// unit on knees, surrending unit, exclamation mark, smiling face, running unit,
+	// question mark, 8 x pairs of arrows
 	Sprites [24]*image.Paletted
 }
 
@@ -21,7 +24,7 @@ func ReadIcons(dirname string) (Icons, error) {
 }
 
 func ParseIcons(iconsData io.Reader) (Icons, error) {
-	icons, err := ParseSpriteData(iconsData, 8, 16, 1)
+	icons, err := ParseSpriteData(iconsData, 8, 16, 2, 1, 1)
 	if err != nil {
 		return Icons{}, err
 	}

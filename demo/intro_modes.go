@@ -43,10 +43,11 @@ func numToKey(n int) ebiten.Key {
 func NewScenarioSelection(scenarios []data.Scenario, font *data.Font, scenarioSelected func(int)) *ScenarioSelection {
 	buttons := make([]*Button, len(scenarios))
 	x, y := 16.0, 16.0
+	fontSize := font.Size()
 	for i, scenario := range scenarios {
 		button := NewButton(fmt.Sprintf("%d: %s", i+1, scenario.Name), x, y, font)
 		buttons[i] = button
-		y += float64(font.Height)
+		y += float64(fontSize.Y)
 	}
 	keyboardHandler := NewKeyboardHandler()
 	for i := 1; i <= len(scenarios); i++ {
@@ -86,11 +87,12 @@ type VariantSelection struct {
 
 func NewVariantSelection(mainGame *Game) *VariantSelection {
 	buttons := make([]*Button, len(mainGame.variants))
-	x, y := 16., 16.
+	x, y := 16.0, 16.0
+	fontSize := mainGame.sprites.IntroFont.Size()
 	for i, variant := range mainGame.variants {
 		button := NewButton(fmt.Sprintf("%d: %s", i+1, variant.Name), x, y, mainGame.sprites.IntroFont)
 		buttons[i] = button
-		y += float64(mainGame.sprites.IntroFont.Height)
+		y += float64(fontSize.Y)
 	}
 	keyboardHandler := NewKeyboardHandler()
 	for i := 1; i <= len(mainGame.variants); i++ {

@@ -8,9 +8,13 @@ import "os"
 import "path"
 
 type Font struct {
-	Width, Height int
-	fallback      image.Image
-	characters    map[rune]image.Image
+	fallback   image.Image
+	characters map[rune]image.Image
+}
+
+func (f *Font) Size() image.Point {
+	fontBounds := f.fallback.Bounds()
+	return fontBounds.Max.Sub(fontBounds.Min)
 }
 
 func (f *Font) Glyph(r rune) image.Image {
@@ -51,10 +55,16 @@ func ReadSprites(dirname string) (Sprites, error) {
 	return ParseSprites(iconSpritesFile, symbolSpritesFile, introSpritesFile)
 }
 
-func ParseSpriteData(data io.Reader, width, height, bits int) ([]*image.Paletted, error) {
+func ParseSpriteData(data io.Reader, width, height, scaleX, scaleY, bits int) ([]*image.Paletted, error) {
 	var sprites []*image.Paletted
 	if bits != 1 && bits != 2 && bits != 4 && bits != 8 {
 		return sprites, fmt.Errorf("Unsupported sprite bit depth %d", bits)
+	}
+	if scaleX < 1 {
+		return sprites, fmt.Errorf("Unsupported scaleX %d", scaleX)
+	}
+	if scaleY < 1 {
+		return sprites, fmt.Errorf("Unsupported scaleY %d", scaleY)
 	}
 	palette := make([]color.Color, 1<<bits)
 	for i := 0; i < len(palette); i++ {
@@ -70,10 +80,10 @@ func ParseSpriteData(data io.Reader, width, height, bits int) ([]*image.Paletted
 		if err != nil && err != io.EOF {
 			return sprites, err
 		}
-		sprite := image.NewPaletted(image.Rect(0, 0, width, height), palette)
-		for y := 0; y < height; y++ {
-			for x := 0; x < width; x++ {
-				pixelNum := y*width + x
+		sprite := image.NewPaletted(image.Rect(0, 0, width*scaleX, height*scaleY), palette)
+		for y := 0; y < height*scaleY; y++ {
+			for x := 0; x < width*scaleX; x++ {
+				pixelNum := y/scaleY*width + x/scaleX
 				pixelByte := spriteData[pixelNum*bits/8]
 				byteChunkNum := pixelNum % (8 / bits)
 				pixelByte = (pixelByte << byte(byteChunkNum*bits)) >> (byteChunkNum * bits)
@@ -87,7 +97,7 @@ func ParseSpriteData(data io.Reader, width, height, bits int) ([]*image.Paletted
 
 func ParseSprites(iconData, symbolData, introData io.Reader) (Sprites, error) {
 	var sprites Sprites
-	iconSprites, err := ParseSpriteData(iconData, 8, 8, 1)
+	iconSprites, err := ParseSpriteData(iconData, 8, 8, 2, 2, 1)
 	if err != nil {
 		return sprites, err
 	}
@@ -95,7 +105,7 @@ func ParseSprites(iconData, symbolData, introData io.Reader) (Sprites, error) {
 		return sprites, fmt.Errorf("Too few icon sprites read. Expected 128, read %d",
 			len(iconSprites))
 	}
-	symbolSprites, err := ParseSpriteData(symbolData, 8, 8, 1)
+	symbolSprites, err := ParseSpriteData(symbolData, 8, 8, 2, 2, 1)
 	if err != nil {
 		return sprites, err
 	}
@@ -103,7 +113,7 @@ func ParseSprites(iconData, symbolData, introData io.Reader) (Sprites, error) {
 		return sprites, fmt.Errorf("Too few symbol sprites read. Expected 128, read %d",
 			len(symbolSprites))
 	}
-	introSprites, err := ParseSpriteData(introData, 4, 8, 2)
+	introSprites, err := ParseSpriteData(introData, 4, 8, 2, 1, 2)
 	if err != nil {
 		return sprites, err
 	}
@@ -140,15 +150,11 @@ func ParseSprites(iconData, symbolData, introData io.Reader) (Sprites, error) {
 		introCharacters[char] = introSprites[i]
 	}
 	sprites.IntroFont = &Font{
-		Width: 4, Height: 8,
 		characters: introCharacters,
-		fallback:   introCharacters['?'],
-	}
+		fallback:   introCharacters['?']}
 	sprites.GameFont = &Font{
-		Width: 8, Height: 8,
 		characters: characters,
-		fallback:   characters['?'],
-	}
+		fallback:   characters['?']}
 	copy(sprites.TerrainTiles[:], iconSprites[64:])
 	copy(sprites.UnitIconSprites[:], iconSprites[112:])
 	copy(sprites.UnitSymbolSprites[:], symbolSprites[112:])
