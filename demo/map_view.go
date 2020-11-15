@@ -14,6 +14,8 @@ type MapView struct {
 	unitIcons   *[16]*image.Paletted
 	icons       *[24]*image.Paletted
 
+	tileWidth, tileHeight float64
+
 	isNight  int // 0 or 1
 	useIcons bool
 
@@ -35,6 +37,9 @@ func NewMapView(terrainMap *data.Map,
 	icons *[24]*image.Paletted,
 	daytimePalette *[8]byte,
 	nightPalette *[8]byte) *MapView {
+
+	tileBounds := tiles[0].Bounds()
+
 	v := &MapView{
 		terrainMap:     terrainMap,
 		minX:           minX,
@@ -45,6 +50,8 @@ func NewMapView(terrainMap *data.Map,
 		unitSymbols:    unitSymbols,
 		unitIcons:      unitIcons,
 		icons:          icons,
+		tileWidth:      float64(tileBounds.Dx()),
+		tileHeight:     float64(tileBounds.Dy()),
 		daytimePalette: daytimePalette,
 		nightPalette:   nightPalette}
 	return v
@@ -122,33 +129,49 @@ func (v *MapView) getBackgroundForegroundColors(colorScheme int) []color.Color {
 	}
 	return colors
 }
-func (v *MapView) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
+
+func (v *MapView) MapCoordsToScreenCoords(mapX, mapY int) (x, y float64) {
+	x = float64(mapX-v.minX)*v.tileWidth + float64(mapY%2)*v.tileWidth/2
+	y = float64(mapY-v.minY) * v.tileHeight
+	return
+}
+func (v *MapView) DrawTileAt(tileNum int, mapX, mapY int, screen *ebiten.Image, options *ebiten.DrawImageOptions) {
+	x, y := v.MapCoordsToScreenCoords(mapX, mapY)
+	v.drawTileAtScreenCoords(tileNum, x, y, screen, options)
+}
+func (v *MapView) DrawTileBetween(tileNum, mapX0, mapY0, mapX1, mapY1 int, alpha float64, screen *ebiten.Image, options *ebiten.DrawImageOptions) {
+	x0, y0 := v.MapCoordsToScreenCoords(mapX0, mapY0)
+	x1, y1 := v.MapCoordsToScreenCoords(mapX1, mapY1)
+	x, y := x0+(x1-x0)*alpha, y0+(y1-y0)*alpha
+	v.drawTileAtScreenCoords(tileNum, x, y, screen, options)
+}
+
+func (v *MapView) drawTileAtScreenCoords(tileNum int, x, y float64, screen *ebiten.Image, options *ebiten.DrawImageOptions) {
+	var tileImage *ebiten.Image
+	if tileNum%64 < 48 {
+		tileImage = v.getTileImage(tileNum/64, tileNum%64)
+	} else if v.useIcons {
+		tileImage = v.getUnitIconImage(tileNum/64, tileNum%16)
+	} else {
+		tileImage = v.getUnitSymbolImage(tileNum/64, tileNum%16)
+	}
 	geoM := options.GeoM
-	tileBounds := v.tiles[0].Bounds()
-	tileSize := tileBounds.Max.Sub(tileBounds.Min)
-	for my := v.minY; my <= v.maxY; my++ {
-		if my >= v.terrainMap.Height {
+	options.GeoM.Translate(x, y)
+	screen.DrawImage(tileImage, options)
+	options.GeoM = geoM
+}
+
+func (v *MapView) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
+	for y := v.minY; y <= v.maxY; y++ {
+		if y >= v.terrainMap.Height {
 			break
 		}
-		y := my - v.minY
-		for mx := v.minX; mx <= v.maxX; mx++ {
-			if mx >= v.terrainMap.Width-my%2 {
+		for x := v.minX; x <= v.maxX; x++ {
+			if x >= v.terrainMap.Width-y%2 {
 				break
 			}
-			x := mx - v.minX
-			tileNum := int(v.terrainMap.GetTile(mx, my))
-			var tileImage *ebiten.Image
-			if tileNum%64 < 48 {
-				tileImage = v.getTileImage(tileNum/64, tileNum%64)
-			} else if v.useIcons {
-				tileImage = v.getUnitIconImage(tileNum/64, tileNum%16)
-			} else {
-				tileImage = v.getUnitSymbolImage(tileNum/64, tileNum%16)
-			}
-			options.GeoM = geoM
-			options.GeoM.Translate(float64(x*tileSize.X+(my%2)*tileSize.X/2), float64(y*tileSize.Y))
-			screen.DrawImage(tileImage, options)
+			tileNum := int(v.terrainMap.GetTile(x, y))
+			v.DrawTileAt(tileNum, x, y, screen, options)
 		}
 	}
-	options.GeoM = geoM
 }

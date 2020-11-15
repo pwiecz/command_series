@@ -2,6 +2,7 @@ package main
 
 import "fmt"
 
+import "image"
 import "image/color"
 
 import "github.com/hajimehoshi/ebiten"
@@ -41,6 +42,7 @@ type ShowMap struct {
 	keyboardHandler *KeyboardHandler
 	mouseHandler    *MouseHandler
 	mapView         *MapView
+	animation       *Animation
 	mapImage        *ebiten.Image
 	options         Options
 	dx, dy          int
@@ -74,6 +76,10 @@ func NewShowMap(g *Game) *ShowMap {
 	s.options.GameBalance = 2
 	s.gameState = NewGameState(&scenario, &s.mainGame.scenarioData, &variant, g.selectedVariant, s.mainGame.units, &s.mainGame.terrain, &s.mainGame.terrainMap, &s.mainGame.generic, &s.mainGame.hexes, s.mainGame.generals, s.options, s.sync)
 	s.keyboardHandler.AddKeyToHandle(ebiten.KeyF)
+	s.keyboardHandler.AddKeyToHandle(ebiten.KeyH)
+	s.keyboardHandler.AddKeyToHandle(ebiten.KeyJ)
+	s.keyboardHandler.AddKeyToHandle(ebiten.KeyK)
+	s.keyboardHandler.AddKeyToHandle(ebiten.KeyL)
 	s.keyboardHandler.AddKeyToHandle(ebiten.KeyQ)
 	s.keyboardHandler.AddKeyToHandle(ebiten.KeyU)
 	s.keyboardHandler.AddKeyToHandle(ebiten.KeySlash)
@@ -90,9 +96,6 @@ func NewShowMap(g *Game) *ShowMap {
 		&g.sprites.TerrainTiles, &g.sprites.UnitSymbolSprites, &g.sprites.UnitIconSprites,
 		&g.icons.Sprites, &g.scenarioData.DaytimePalette, &g.scenarioData.NightPalette)
 	s.unitIconView = true
-
-	s.gameState.Init()
-
 	return s
 }
 
@@ -101,58 +104,68 @@ func (s *ShowMap) screenCoordsToMapCoords(screenX, screenY int) (x, y int) {
 }
 
 func (s *ShowMap) Update() error {
-	s.keyboardHandler.Update()
-	s.mouseHandler.Update()
-	if s.keyboardHandler.IsKeyJustPressed(ebiten.KeySlash) && ebiten.IsKeyPressed(ebiten.KeyShift) {
-		fmt.Println(s.gameState.statusReport())
-		s.idleTicksLeft = 60 * s.currentSpeed
-	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyF) {
-		s.isFrozen = !s.isFrozen
-		s.idleTicksLeft = 0
-		if s.isFrozen {
-			fmt.Println("FROZEN")
+	if s.animation != nil {
+		s.animation.Update()
+		if s.animation.Done() {
+			s.animation = nil
 		} else {
-			fmt.Println("UNFROZEN")
+			return nil
 		}
-	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyComma) && ebiten.IsKeyPressed(ebiten.KeyShift) {
-		s.idleTicksLeft = 60 * s.currentSpeed
-		s.decreaseGameSpeed()
-	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyPeriod) && ebiten.IsKeyPressed(ebiten.KeyShift) {
-		s.idleTicksLeft = 60 * s.currentSpeed
-		s.increaseGameSpeed()
-	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyU) {
-		s.idleTicksLeft = 60 * s.currentSpeed
-		s.unitIconView = !s.unitIconView
-	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyQ) {
-		s.sync.Stop()
-		return fmt.Errorf("QUIT")
-	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyDown) {
-		s.idleTicksLeft = 60 * s.currentSpeed
-		s.dy++
-		fmt.Println("dy", s.dy)
-	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyUp) {
-		s.idleTicksLeft = 60 * s.currentSpeed
-		s.dy--
-		fmt.Println("dy up", s.dy)
-	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyRight) {
-		s.idleTicksLeft = 60 * s.currentSpeed
-		s.dx++
-		fmt.Println("dx right", s.dy)
-	} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyLeft) {
-		s.idleTicksLeft = 60 * s.currentSpeed
-		s.dx--
-		fmt.Println("dx left", s.dy)
-	} else if s.mouseHandler.IsButtonJustPressed(ebiten.MouseButtonLeft) {
-		mouseX, mouseY := ebiten.CursorPosition()
-		x, y := s.screenCoordsToMapCoords(mouseX, mouseY)
-		if unit, ok := s.gameState.FindUnit(x, y); ok {
-			fmt.Println()
-			fmt.Println(s.gameState.unitInfo(unit))
-		} else {
-			fmt.Println("NO UNIT")
+		// Do not handle key events just after finishing animation to let logic
+		// update the state - e.g. mark the final location of the unit.
+	} else {
+		s.keyboardHandler.Update()
+		s.mouseHandler.Update()
+		if s.keyboardHandler.IsKeyJustPressed(ebiten.KeySlash) && ebiten.IsKeyPressed(ebiten.KeyShift) {
+			fmt.Println(s.gameState.statusReport())
+			s.idleTicksLeft = 60 * s.currentSpeed
+		} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyF) {
+			s.isFrozen = !s.isFrozen
+			s.idleTicksLeft = 0
+			if s.isFrozen {
+				fmt.Println("FROZEN")
+			} else {
+				fmt.Println("UNFROZEN")
+			}
+		} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyComma) && ebiten.IsKeyPressed(ebiten.KeyShift) {
+			s.idleTicksLeft = 60 * s.currentSpeed
+			s.decreaseGameSpeed()
+		} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyPeriod) && ebiten.IsKeyPressed(ebiten.KeyShift) {
+			s.idleTicksLeft = 60 * s.currentSpeed
+			s.increaseGameSpeed()
+		} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyU) {
+			s.idleTicksLeft = 60 * s.currentSpeed
+			s.unitIconView = !s.unitIconView
+		} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyQ) {
+			s.sync.Stop()
+			return fmt.Errorf("QUIT")
+		} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyDown) ||
+			s.keyboardHandler.IsKeyJustPressed(ebiten.KeyJ) {
+			s.idleTicksLeft = 60 * s.currentSpeed
+			s.dy++
+		} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyUp) ||
+			s.keyboardHandler.IsKeyJustPressed(ebiten.KeyK) {
+			s.idleTicksLeft = 60 * s.currentSpeed
+			s.dy--
+		} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyRight) ||
+			s.keyboardHandler.IsKeyJustPressed(ebiten.KeyL) {
+			s.idleTicksLeft = 60 * s.currentSpeed
+			s.dx++
+		} else if s.keyboardHandler.IsKeyJustPressed(ebiten.KeyLeft) ||
+			s.keyboardHandler.IsKeyJustPressed(ebiten.KeyH) {
+			s.idleTicksLeft = 60 * s.currentSpeed
+			s.dx--
+		} else if s.mouseHandler.IsButtonJustPressed(ebiten.MouseButtonLeft) {
+			mouseX, mouseY := ebiten.CursorPosition()
+			x, y := s.screenCoordsToMapCoords(mouseX, mouseY)
+			if unit, ok := s.gameState.FindUnit(x, y); ok {
+				fmt.Println()
+				fmt.Println(s.gameState.unitInfo(unit))
+			} else {
+				fmt.Println("NO UNIT")
+			}
 		}
 	}
-
 	if s.isFrozen {
 		return nil
 	}
@@ -163,6 +176,9 @@ func (s *ShowMap) Update() error {
 	if !s.started {
 		go func() {
 			if !s.sync.Wait() {
+				return
+			}
+			if !s.gameState.Init() {
 				return
 			}
 			for {
@@ -193,7 +209,10 @@ func (s *ShowMap) Update() error {
 			fmt.Printf("\n%s\n", message.Results)
 			return fmt.Errorf("GAME OVER!")
 		case UnitMove:
-			fmt.Println("Placeholder for unit move...")
+			if s.areMapCoordsVisible(message.X0, message.Y0) || s.areMapCoordsVisible(message.X1, message.Y1) {
+				s.animation = NewAnimation(s.mapView, message.Unit,
+					message.X0, message.Y0, message.X1, message.Y1, 30, true)
+			}
 		default:
 			return fmt.Errorf("Unknown message: %v", message)
 		}
@@ -202,6 +221,12 @@ func (s *ShowMap) Update() error {
 	return nil
 }
 
+func (s *ShowMap) areMapCoordsVisible(x, y int) bool {
+	screenX, screenY := s.mapView.MapCoordsToScreenCoords(x, y)
+	dx, dy := s.dx*int(s.mapView.tileWidth), s.dy*int(s.mapView.tileHeight)
+	screenRect := image.Rect(dx, dy, dx+320, dy+192)
+	return image.Pt(int(screenX), int(screenY)).In(screenRect)
+}
 func (s *ShowMap) giveOrder(unit data.Unit, order data.OrderType) {
 	unit.Order = order
 	unit.State &= 223
@@ -243,11 +268,15 @@ func (s *ShowMap) dateTimeString() string {
 func (s *ShowMap) Draw(screen *ebiten.Image) {
 	screen.Fill(color.White)
 	opts := &ebiten.DrawImageOptions{}
-	opts.GeoM.Translate(float64(s.dx)*(-8), float64(s.dy)*(-8))
+	opts.GeoM.Translate(float64(s.dx)*(-s.mapView.tileWidth), float64(s.dy)*(-s.mapView.tileHeight))
 
 	s.mapView.SetIsNight(s.gameState.isNight)
 	s.mapView.SetUseIcons(s.unitIconView)
+
 	s.mapView.Draw(screen, opts)
+	if s.animation != nil {
+		s.animation.Draw(screen, opts)
+	}
 
 	ebitenutil.DebugPrint(screen, s.dateTimeString())
 }

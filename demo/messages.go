@@ -105,5 +105,5 @@ type GameOver struct {
 
 type UnitMove struct {
 	Unit           data.Unit
-	X0, X1, Y0, Y1 int
+	X0, Y0, X1, Y1 int
 }

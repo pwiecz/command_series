@@ -764,15 +764,15 @@ l21:
 				break
 			}
 			v57 -= temp
+			
+			s.hideUnit(unit)
 			if s.options.IsPlayerControlled(unit.Side) ||
 				s.options.Intelligence == Full || unit.State&65 > 0 {
-				if !s.sync.SendUpdate(UnitMove{unit, unit.X, unit.Y, sx, sy}) {
+				if !s.sync.SendUpdate(UnitMove{unit, unit.X/2, unit.Y, sx/2, sy}) {
 					quit = true
 					return
 				}
-				//function28(offset) - animate function move?
 			}
-			s.hideUnit(unit)
 			unit.X = sx
 			unit.Y = sy
 			unit.Terrain = s.terrainAt(unit.X, unit.Y)
@@ -852,11 +852,11 @@ l21:
 			goto end
 		}
 		if unit.FormationTopBit {
-			if !s.sync.SendUpdate(UnitMove{unit, unit.X, unit.Y, sx, sy}) {
-				quit = false
+			s.hideUnit(unit)
+			if !s.sync.SendUpdate(UnitMove{unit, unit.X/2, unit.Y, sx/2, sy}) {
+				quit = true
 				return
 			}
-			// * function28 - animate unit move
 			s.showUnit(unit)
 			if false /* CiV */ {
 				unit.State |= 65

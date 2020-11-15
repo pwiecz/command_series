@@ -13,8 +13,7 @@ type Font struct {
 }
 
 func (f *Font) Size() image.Point {
-	fontBounds := f.fallback.Bounds()
-	return fontBounds.Max.Sub(fontBounds.Min)
+	return f.fallback.Bounds().Size()
 }
 
 func (f *Font) Glyph(r rune) image.Image {
