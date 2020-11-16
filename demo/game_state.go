@@ -762,11 +762,11 @@ l21:
 				break
 			}
 			v57 -= temp
-			
+
 			s.hideUnit(unit)
 			if s.options.IsPlayerControlled(unit.Side) ||
 				s.options.Intelligence == Full || unit.State&65 > 0 {
-				if !s.sync.SendUpdate(UnitMove{unit, unit.X/2, unit.Y, sx/2, sy}) {
+				if !s.sync.SendUpdate(UnitMove{unit, unit.X / 2, unit.Y, sx / 2, sy}) {
 					quit = true
 					return
 				}
@@ -851,7 +851,7 @@ l21:
 		}
 		if unit.FormationTopBit {
 			s.hideUnit(unit)
-			if !s.sync.SendUpdate(UnitMove{unit, unit.X/2, unit.Y, sx/2, sy}) {
+			if !s.sync.SendUpdate(UnitMove{unit, unit.X / 2, unit.Y, sx / 2, sy}) {
 				quit = true
 				return
 			}
@@ -882,7 +882,7 @@ l21:
 			v = 0
 		}
 		v2 := s.scenarioData.TerrainTankAttack[arg1] * s.scenarioData.FormationTankAttack[unit.Formation] * s.scenarioData.Data16High[unit.Type] / 2 * unit.EquipCount / 64
-		// in Civ the second term is s.scenarioData.Data32[unit.Type]&32 > 0
+		// in CiV the second term is s.scenarioData.Data32[unit.Type]&32 > 0
 		if unit.FormationTopBit && s.scenarioData.Data32[unit.Type]&8 > 0 {
 			if weather > 3 {
 				goto end
@@ -905,7 +905,7 @@ l21:
 		}
 		w *= s.magicCoeff(s.hexes.Arr144[:], unit2.X, unit2.Y, 1-unit.Side) / 8
 		w++
-		d := w / 16 / v
+		d := w * 16 / v
 		if s.scenarioData.UnitMask[unit.Type]&4 == 0 {
 			d += weather
 		}
@@ -929,12 +929,12 @@ l21:
 		}
 		unit.Fatigue = Clamp(unit.Fatigue+arg1, 0, 255)
 		unit.SupplyLevel = Clamp(unit.SupplyLevel-s.scenarioData.Data162, 0, 255)
-		arg1 = Clamp(v/16/w-weather, 0, 63)
+		arg1 = Clamp(v*16/w-weather, 0, 63)
 		if false /* DitD || CiV */ {
-			arg1 = Clamp(v/16/w-weather, 0, 128)
+			arg1 = Clamp(v*16/w-weather, 0, 128)
 		}
 		// function13(sx, sy)
-		// function4 - some delay?
+		// function4(arg1) - some delay?
 		menLost2 := Clamp((Rand(unit2.MenCount*arg1)+500)/512, 0, unit2.MenCount)
 		s.menLost[1-unit.Side] += menLost2
 		tanksLost2 := Clamp((Rand(unit2.EquipCount*arg1)+255)/512, 0, unit2.EquipCount)
@@ -1455,7 +1455,7 @@ outerLoop:
 					}
 				}
 				if s.options.IsPlayerControlled(unit.Side) || s.options.Intelligence == Full {
-				//  function13(x, y) (show truck icon at x, y)?
+					//  function13(x, y) (show truck icon at x, y)?
 				}
 				//dx, dy := moveToXY(move)
 				supplyX, supplyY = x, y
