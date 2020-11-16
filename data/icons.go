@@ -6,9 +6,24 @@ import "io"
 import "os"
 import "path"
 
+type IconType int
+
+const (
+	Cursor           IconType = 0
+	LightningBold    IconType = 1
+	SupplyTruck      IconType = 8
+	FightingUnit     IconType = 9
+	UnitOnKnees      IconType = 10
+	SurrenderingUnit IconType = 11
+	ExclamationMark  IconType = 12
+	SmilingFace      IconType = 13
+	MovingUnit       IconType = 14
+	QuestionMark     IconType = 15
+)
+
 type Icons struct {
 	// cursor, lightning bolt, 6 x concentric cicles, supply track, fighting unit,
-	// unit on knees, surrending unit, exclamation mark, smiling face, running unit,
+	// unit on knees, surrendering unit, exclamation mark, smiling face, running unit,
 	// question mark, 8 x pairs of arrows
 	Sprites [24]*image.Paletted
 }

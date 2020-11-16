@@ -106,10 +106,8 @@ func (s *GameState) Update() bool {
 		if quit {
 			return false
 		}
-		if message != nil {
-			if !s.sync.SendUpdate(message) {
-				return false
-			}
+		if !s.sync.SendUpdate(message) {
+			return false
 		}
 	}
 	s.unitsUpdated = 0
@@ -1456,7 +1454,9 @@ outerLoop:
 						break
 					}
 				}
-				// if should be visible: function13(x, y) (move?)
+				if s.options.IsPlayerControlled(unit.Side) || s.options.Intelligence == Full {
+				//  function13(x, y) (show truck icon at x, y)?
+				}
 				//dx, dy := moveToXY(move)
 				supplyX, supplyY = x, y
 				if s.ContainsUnitOfSide(supplyX, supplyY, 1-unit.Side) {
