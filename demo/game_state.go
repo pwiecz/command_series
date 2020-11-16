@@ -489,8 +489,8 @@ nextUnit:
 					s.map0[unit.Side][sx+bestDx][sy+bestDy] += temp2 / 2
 				}
 				s.map3[unit.Side][sx+bestDx][sy+bestDy] += temp2 / 2
-				unit.ObjectiveY = (((sy+bestDy)&240)/4 + Rand(2)/256 + 1) & 63
-				unit.ObjectiveX = ((((sy+bestDy)&15)*4+Rand(2)/256+1)*2 + (unit.ObjectiveY & 1)) & 127
+				unit.ObjectiveY = (((sy+bestDy)&240)/4 + Rand(2) + 1) & 63
+				unit.ObjectiveX = ((((sy+bestDy)&15)*4+Rand(2)+1)*2 + (unit.ObjectiveY & 1)) & 127
 				mode = data.Move
 				if v9 != 0 {
 					unit.Order = data.Defend
@@ -507,7 +507,7 @@ l24:
 		terrainType := s.terrainType(unit.Terrain)
 		menCoeff := s.scenarioData.TerrainMenAttack[terrainType] * unit.MenCount
 		equipCoeff := s.scenarioData.TerrainTankAttack[terrainType] * unit.EquipCount * s.scenarioData.Data16High[unit.Type] / 4
-		coeff := (menCoeff + equipCoeff) / 8 * (255 - unit.Fatigue) / 255 * (unit.Morale + s.scenarioData.Data0High[unit.Type]*16) / 128
+		coeff := (menCoeff + equipCoeff) / 8 * (255 - unit.Fatigue) / 256 * (unit.Morale + s.scenarioData.Data0High[unit.Type]*16) / 128
 		temp2 := coeff * s.magicCoeff(s.hexes.Arr144[:], unit.X, unit.Y, unit.Side) / 8
 		v := 0
 		if v9 > 0 && s.scenarioData.Data200Low[unit.Type] < 3 {
@@ -889,7 +889,7 @@ l21:
 			}
 			v2 = v2 * (4 - weather) / 4
 		}
-		v = (v + v2) * unit.Morale / 255 * (255 - unit.Fatigue) / 128
+		v = (v + v2) * unit.Morale / 256 * (255 - unit.Fatigue) / 128
 		v = v * s.generals[unit.Side][unit.GeneralIndex].Data1Low / 16
 		v = v * s.magicCoeff(s.hexes.Arr144[:], unit.X, unit.Y, unit.Side) / 8
 		v++
