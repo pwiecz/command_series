@@ -24,9 +24,10 @@ type MapView struct {
 
 	colorSchemes [2][4][]color.Color
 
-	ebitenTiles   [2][4][48]*ebiten.Image
-	ebitenSymbols [2][4][16]*ebiten.Image
-	ebitenIcons   [2][4][16]*ebiten.Image
+	ebitenTiles       [2][4][48]*ebiten.Image
+	ebitenUnitSymbols [2][4][16]*ebiten.Image
+	ebitenUnitIcons   [2][4][16]*ebiten.Image
+	ebitenIcons       [24]*ebiten.Image
 }
 
 func NewMapView(terrainMap *data.Map,
@@ -68,22 +69,22 @@ func (v *MapView) getTileImage(colorScheme, tileNum int) *ebiten.Image {
 	return ebitenTile
 }
 func (v *MapView) getUnitSymbolImage(colorScheme, spriteNum int) *ebiten.Image {
-	ebitenSprite := v.ebitenSymbols[v.isNight][colorScheme][spriteNum]
+	ebitenSprite := v.ebitenUnitSymbols[v.isNight][colorScheme][spriteNum]
 	if ebitenSprite == nil {
 		sprite := v.unitSymbols[spriteNum]
 		sprite.Palette = v.getBackgroundForegroundColors(colorScheme)
 		ebitenSprite = ebiten.NewImageFromImage(sprite)
-		v.ebitenSymbols[v.isNight][colorScheme][spriteNum] = ebitenSprite
+		v.ebitenUnitSymbols[v.isNight][colorScheme][spriteNum] = ebitenSprite
 	}
 	return ebitenSprite
 }
 func (v *MapView) getUnitIconImage(colorScheme, spriteNum int) *ebiten.Image {
-	ebitenSprite := v.ebitenIcons[v.isNight][colorScheme][spriteNum]
+	ebitenSprite := v.ebitenUnitIcons[v.isNight][colorScheme][spriteNum]
 	if ebitenSprite == nil {
 		sprite := v.unitIcons[spriteNum]
 		sprite.Palette = v.getBackgroundForegroundColors(colorScheme)
 		ebitenSprite = ebiten.NewImageFromImage(sprite)
-		v.ebitenIcons[v.isNight][colorScheme][spriteNum] = ebitenSprite
+		v.ebitenUnitIcons[v.isNight][colorScheme][spriteNum] = ebitenSprite
 	}
 	return ebitenSprite
 }
@@ -139,22 +140,37 @@ func (v *MapView) DrawTileAt(tileNum int, mapX, mapY int, screen *ebiten.Image, 
 	x, y := v.MapCoordsToScreenCoords(mapX, mapY)
 	v.drawTileAtScreenCoords(tileNum, x, y, screen, options)
 }
-func (v *MapView) DrawTileBetween(tileNum, mapX0, mapY0, mapX1, mapY1 int, alpha float64, screen *ebiten.Image, options *ebiten.DrawImageOptions) {
+func (v *MapView) DrawSpriteBetween(sprite *ebiten.Image, mapX0, mapY0, mapX1, mapY1 int, alpha float64, screen *ebiten.Image, options *ebiten.DrawImageOptions) {
 	x0, y0 := v.MapCoordsToScreenCoords(mapX0, mapY0)
 	x1, y1 := v.MapCoordsToScreenCoords(mapX1, mapY1)
 	x, y := x0+(x1-x0)*alpha, y0+(y1-y0)*alpha
-	v.drawTileAtScreenCoords(tileNum, x, y, screen, options)
+	v.drawSpriteAtScreenCoords(sprite, x, y, screen, options)
+}
+
+func (v *MapView) GetSpriteFromTileNum(tileNum int) *ebiten.Image {
+	if tileNum%64 < 48 {
+		return v.getTileImage(tileNum/64, tileNum%64)
+	} else if v.useIcons {
+		return v.getUnitIconImage(tileNum/64, tileNum%16)
+	} else {
+		return v.getUnitSymbolImage(tileNum/64, tileNum%16)
+	}
+}
+func (v *MapView) GetSpriteFromIcon(icon data.IconType) *ebiten.Image {
+	ebitenTile := v.ebitenIcons[icon]
+	if ebitenTile == nil {
+		tile := v.icons[icon]
+		ebitenTile = ebiten.NewImageFromImage(tile)
+		v.ebitenIcons[icon] = ebitenTile
+	}
+	return ebitenTile
 }
 
 func (v *MapView) drawTileAtScreenCoords(tileNum int, x, y float64, screen *ebiten.Image, options *ebiten.DrawImageOptions) {
-	var tileImage *ebiten.Image
-	if tileNum%64 < 48 {
-		tileImage = v.getTileImage(tileNum/64, tileNum%64)
-	} else if v.useIcons {
-		tileImage = v.getUnitIconImage(tileNum/64, tileNum%16)
-	} else {
-		tileImage = v.getUnitSymbolImage(tileNum/64, tileNum%16)
-	}
+	tileImage := v.GetSpriteFromTileNum(tileNum)
+	v.drawSpriteAtScreenCoords(tileImage, x, y, screen, options)
+}
+func (v *MapView) drawSpriteAtScreenCoords(tileImage *ebiten.Image, x, y float64, screen *ebiten.Image, options *ebiten.DrawImageOptions) {
 	geoM := options.GeoM
 	options.GeoM.Translate(x, y)
 	screen.DrawImage(tileImage, options)

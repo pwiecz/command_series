@@ -117,3 +117,7 @@ type UnitMove struct {
 	Unit           data.Unit
 	X0, Y0, X1, Y1 int
 }
+
+type SupplyTruckMove struct {
+	X0, Y0, X1, Y1 int
+}

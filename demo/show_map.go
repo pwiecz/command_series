@@ -210,8 +210,13 @@ func (s *ShowMap) Update() error {
 			return fmt.Errorf("GAME OVER!")
 		case UnitMove:
 			if s.areMapCoordsVisible(message.X0, message.Y0) || s.areMapCoordsVisible(message.X1, message.Y1) {
-				s.animation = NewAnimation(s.mapView, message.Unit,
-					message.X0, message.Y0, message.X1, message.Y1, 30, true)
+				s.animation = NewUnitAnimation(s.mapView, message.Unit,
+					message.X0, message.Y0, message.X1, message.Y1, 30)
+			}
+		case SupplyTruckMove:
+			if s.areMapCoordsVisible(message.X0, message.Y0) || s.areMapCoordsVisible(message.X1, message.Y1) {
+				s.animation = NewIconAnimation(s.mapView, data.SupplyTruck,
+					message.X0, message.Y0, message.X1, message.Y1, 8)
 			}
 		default:
 			return fmt.Errorf("Unknown message: %v", message)

@@ -2,6 +2,7 @@ package data
 
 import "fmt"
 import "image"
+import "image/color"
 import "io"
 import "os"
 import "path"
@@ -48,6 +49,7 @@ func ParseIcons(iconsData io.Reader) (Icons, error) {
 	}
 	res := Icons{}
 	for i, icon := range icons {
+		icon.Palette = []color.Color{color.RGBA{0, 0, 0, 0}, color.RGBA{255, 255, 255, 255}}
 		res.Sprites[i] = icon
 	}
 	return res, nil
