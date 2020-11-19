@@ -96,7 +96,7 @@ func ParseSpriteData(data io.Reader, width, height, scaleX, scaleY, bits int) ([
 
 func ParseSprites(iconData, symbolData, introData io.Reader) (Sprites, error) {
 	var sprites Sprites
-	iconSprites, err := ParseSpriteData(iconData, 8, 8, 2, 2, 1)
+	iconSprites, err := ParseSpriteData(iconData, 8, 8, 1, 1, 1)
 	if err != nil {
 		return sprites, err
 	}
@@ -104,7 +104,7 @@ func ParseSprites(iconData, symbolData, introData io.Reader) (Sprites, error) {
 		return sprites, fmt.Errorf("Too few icon sprites read. Expected 128, read %d",
 			len(iconSprites))
 	}
-	symbolSprites, err := ParseSpriteData(symbolData, 8, 8, 2, 2, 1)
+	symbolSprites, err := ParseSpriteData(symbolData, 8, 8, 1, 1, 1)
 	if err != nil {
 		return sprites, err
 	}
