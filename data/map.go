@@ -35,15 +35,22 @@ func (m *Map) IsIndexValid(ix int) bool {
 }
 // x, y in map coords, not unit coords
 func (m *Map) GetTile(x, y int) byte {
-	return m.terrain[y*m.Width+x-y/2]
+	return m.GetTileAtIndex(y*m.Width+x-y/2)
 }
 func (m *Map) SetTile(x, y int, tile byte) {
-	m.terrain[y*m.Width+x-y/2] = tile
+	m.SetTileAtIndex(y*m.Width+x-y/2, tile)
 }
 func (m *Map) GetTileAtIndex(ix int) byte {
+	if ix < 0 || ix >= len(m.terrain) {
+		fmt.Println("invalid index", ix)
+		return 0
+	}
 	return m.terrain[ix]
 }
 func (m *Map) SetTileAtIndex(ix int, tile byte) {
+	if ix < 0 || ix >= len(m.terrain) {
+		return
+	}
 	m.terrain[ix] = tile
 }
 
