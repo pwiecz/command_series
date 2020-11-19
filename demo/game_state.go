@@ -1596,9 +1596,6 @@ func (s *GameState) FindBestMoveFromTowards(supplyX, supplyY, unitX, unitY, unit
 	neighbour1 := s.generic.DxDyToNeighbour(dx, dy, 2*variant)
 	supplyX1 := supplyX + s.generic.Dx[neighbour1]
 	supplyY1 := supplyY + s.generic.Dy[neighbour1]
-	// in the original code the source and target spots in the terrain map are filled
-	// with the unit tiles, but it *shouldn't* impact the logic here.
-	// also in original code there's map offset used not x,y coords.
 	terrainType1 := s.terrainTypeAt(supplyX1, supplyY1)
 	cost1 := s.scenarioData.MoveCostPerTerrainTypesAndUnit[terrainType1][unitType]
 
