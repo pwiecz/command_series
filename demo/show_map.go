@@ -39,12 +39,12 @@ func (o Options) Num() int {
 }
 
 type ShowMap struct {
-	mainGame        *Game
-	mapView         *MapView
-	animation       *Animation
-	mapImage        *ebiten.Image
-	options         Options
-	dx, dy          int
+	mainGame  *Game
+	mapView   *MapView
+	animation *Animation
+	mapImage  *ebiten.Image
+	options   Options
+	dx, dy    int
 
 	currentSpeed  int
 	idleTicksLeft int
@@ -61,17 +61,25 @@ type ShowMap struct {
 func NewShowMap(g *Game) *ShowMap {
 	scenario := g.scenarios[g.selectedScenario]
 	variant := g.variants[g.selectedVariant]
+	for x := scenario.MinX - 1; x <= scenario.MaxX+1; x++ {
+		g.terrainMap.SetTile(x, scenario.MinY-1, 12)
+		g.terrainMap.SetTile(x, scenario.MaxY+1, 12)
+	}
+	for y := scenario.MinY; y <= scenario.MaxY; y++ {
+		g.terrainMap.SetTile(scenario.MinX-1, y, 10)
+		g.terrainMap.SetTile(scenario.MaxX+1, y, 12)
+	}
 	s := &ShowMap{
-		mainGame:        g,
-		dx:              0,
-		dy:              0,
-		currentSpeed:    2,
-		idleTicksLeft:   60,
-		sync:            NewMessageSync()}
+		mainGame:      g,
+		dx:            0,
+		dy:            0,
+		currentSpeed:  2,
+		idleTicksLeft: 60,
+		sync:          NewMessageSync()}
 	s.options.AlliedCommander = 0
 	s.options.GermanCommander = 0
 	s.options.GameBalance = 2
-	s.gameState = NewGameState(&scenario, &s.mainGame.scenarioData, &variant, g.selectedVariant, s.mainGame.units, &s.mainGame.terrain, &s.mainGame.terrainMap, &s.mainGame.generic, &s.mainGame.hexes, s.mainGame.generals, s.options, s.sync)
+	s.gameState = NewGameState(&scenario, &g.scenarioData, &variant, g.selectedVariant, g.units, &g.terrain, &g.terrainMap, &g.generic, &g.hexes, g.generals, s.options, s.sync)
 	s.mapView = NewMapView(
 		&g.terrainMap, scenario.MinX, scenario.MinY, scenario.MaxX, scenario.MaxY,
 		&g.sprites.TerrainTiles, &g.sprites.UnitSymbolSprites, &g.sprites.UnitIconSprites,
