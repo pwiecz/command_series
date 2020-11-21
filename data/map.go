@@ -30,12 +30,19 @@ func GetPalette(n int, palette *[8]byte) []color.Color {
 	}
 	return pal
 }
+func (m *Map) AreCoordsValid(x, y int) bool {
+	if y < 0 || y >= m.Height || x < 0 || x >= m.Width-y%2 {
+		return false
+	}
+	return true
+}
 func (m *Map) IsIndexValid(ix int) bool {
 	return ix >= 0 && ix < len(m.terrain)
 }
+
 // x, y in map coords, not unit coords
 func (m *Map) GetTile(x, y int) byte {
-	return m.GetTileAtIndex(y*m.Width+x-y/2)
+	return m.GetTileAtIndex(y*m.Width + x - y/2)
 }
 func (m *Map) SetTile(x, y int, tile byte) {
 	m.SetTileAtIndex(y*m.Width+x-y/2, tile)

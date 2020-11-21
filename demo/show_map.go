@@ -52,7 +52,8 @@ type ShowMap struct {
 	unitIconView  bool
 	playerSide    int
 
-	gameState *GameState
+	gameState     *GameState
+	commandBuffer *CommandBuffer
 
 	sync    *MessageSync
 	started bool
@@ -75,6 +76,7 @@ func NewShowMap(g *Game) *ShowMap {
 		dy:            0,
 		currentSpeed:  2,
 		idleTicksLeft: 60,
+		commandBuffer: NewCommandBuffer(20),
 		sync:          NewMessageSync()}
 	s.options.AlliedCommander = 0
 	s.options.GermanCommander = 0
@@ -93,73 +95,6 @@ func (s *ShowMap) screenCoordsToMapCoords(screenX, screenY int) (x, y int) {
 }
 
 func (s *ShowMap) Update() error {
-	if s.animation != nil {
-		s.animation.Update()
-		if s.animation.Done() {
-			s.animation = nil
-		} else {
-			return nil
-		}
-		// Do not handle key events just after finishing animation to let logic
-		// update the state - e.g. mark the final location of the unit.
-	} else {
-		if inpututil.IsKeyJustPressed(ebiten.KeySlash) && ebiten.IsKeyPressed(ebiten.KeyShift) {
-			fmt.Println(s.gameState.statusReport())
-			s.idleTicksLeft = 60 * s.currentSpeed
-		} else if inpututil.IsKeyJustPressed(ebiten.KeyF) {
-			s.isFrozen = !s.isFrozen
-			s.idleTicksLeft = 0
-			if s.isFrozen {
-				fmt.Println("FROZEN")
-			} else {
-				fmt.Println("UNFROZEN")
-			}
-		} else if inpututil.IsKeyJustPressed(ebiten.KeyComma) && ebiten.IsKeyPressed(ebiten.KeyShift) {
-			s.idleTicksLeft = 60 * s.currentSpeed
-			s.decreaseGameSpeed()
-		} else if inpututil.IsKeyJustPressed(ebiten.KeyPeriod) && ebiten.IsKeyPressed(ebiten.KeyShift) {
-			s.idleTicksLeft = 60 * s.currentSpeed
-			s.increaseGameSpeed()
-		} else if inpututil.IsKeyJustPressed(ebiten.KeyU) {
-			s.idleTicksLeft = 60 * s.currentSpeed
-			s.unitIconView = !s.unitIconView
-		} else if inpututil.IsKeyJustPressed(ebiten.KeyQ) {
-			s.sync.Stop()
-			return fmt.Errorf("QUIT")
-		} else if inpututil.IsKeyJustPressed(ebiten.KeyDown) ||
-			inpututil.IsKeyJustPressed(ebiten.KeyJ) {
-			s.idleTicksLeft = 60 * s.currentSpeed
-			s.dy++
-		} else if inpututil.IsKeyJustPressed(ebiten.KeyUp) ||
-			inpututil.IsKeyJustPressed(ebiten.KeyK) {
-			s.idleTicksLeft = 60 * s.currentSpeed
-			s.dy--
-		} else if inpututil.IsKeyJustPressed(ebiten.KeyRight) ||
-			inpututil.IsKeyJustPressed(ebiten.KeyL) {
-			s.idleTicksLeft = 60 * s.currentSpeed
-			s.dx++
-		} else if inpututil.IsKeyJustPressed(ebiten.KeyLeft) ||
-			inpututil.IsKeyJustPressed(ebiten.KeyH) {
-			s.idleTicksLeft = 60 * s.currentSpeed
-			s.dx--
-		} else if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-			mouseX, mouseY := ebiten.CursorPosition()
-			x, y := s.screenCoordsToMapCoords(mouseX, mouseY)
-			if unit, ok := s.gameState.FindUnit(x, y); ok {
-				fmt.Println()
-				fmt.Println(s.gameState.unitInfo(unit))
-			} else {
-				fmt.Println("NO UNIT")
-			}
-		}
-	}
-	if s.isFrozen {
-		return nil
-	}
-	if s.idleTicksLeft > 0 {
-		s.idleTicksLeft--
-		return nil
-	}
 	if !s.started {
 		go func() {
 			if !s.sync.Wait() {
@@ -177,6 +112,80 @@ func (s *ShowMap) Update() error {
 		s.started = true
 	}
 
+	s.commandBuffer.Update()
+	if s.animation != nil {
+		s.animation.Update()
+		if s.animation.Done() {
+			s.animation = nil
+		} else {
+			return nil
+		}
+		// Do not handle key events just after finishing animation to let logic
+		// update the state - e.g. mark the final location of the unit.
+	} else {
+		select {
+		case cmd := <-s.commandBuffer.Commands:
+			switch cmd {
+			case Freeze:
+				s.isFrozen = !s.isFrozen
+				s.idleTicksLeft = 0
+				if s.isFrozen {
+					fmt.Println("FROZEN")
+				} else {
+					fmt.Println("UNFROZEN")
+				}
+			case StatusReport:
+				fmt.Println(s.gameState.statusReport())
+				s.idleTicksLeft = 60 * s.currentSpeed
+			case DecreaseSpeed:
+				s.idleTicksLeft = 60 * s.currentSpeed
+				s.decreaseGameSpeed()
+			case IncreaseSpeed:
+				s.idleTicksLeft = 60 * s.currentSpeed
+				s.increaseGameSpeed()
+			case SwitchUnitDisplay:
+				s.idleTicksLeft = 60 * s.currentSpeed
+				s.unitIconView = !s.unitIconView
+			case Quit:
+				s.sync.Stop()
+				return fmt.Errorf("QUIT")
+			case ScrollDown:
+				s.idleTicksLeft = 60 * s.currentSpeed
+				s.mapView.cursorY++
+				s.applyCursorChange()
+			case ScrollUp:
+				s.idleTicksLeft = 60 * s.currentSpeed
+				s.mapView.cursorY--
+				s.applyCursorChange()
+			case ScrollRight:
+				s.idleTicksLeft = 60 * s.currentSpeed
+				s.mapView.cursorX++
+				s.applyCursorChange()
+			case ScrollLeft:
+				s.idleTicksLeft = 60 * s.currentSpeed
+				s.mapView.cursorX--
+				s.applyCursorChange()
+			}
+		default:
+		}
+		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+			mouseX, mouseY := ebiten.CursorPosition()
+			x, y := s.screenCoordsToMapCoords(mouseX, mouseY)
+			if unit, ok := s.gameState.FindUnit(x, y); ok {
+				fmt.Println()
+				fmt.Println(s.gameState.unitInfo(unit))
+			} else {
+				fmt.Println("NO UNIT")
+			}
+		}
+	}
+	if s.isFrozen {
+		return nil
+	}
+	if s.idleTicksLeft > 0 {
+		s.idleTicksLeft--
+		return nil
+	}
 	update := s.sync.GetUpdate()
 	if update != nil {
 		switch message := update.(type) {
@@ -203,7 +212,7 @@ func (s *ShowMap) Update() error {
 		case SupplyTruckMove:
 			if s.areMapCoordsVisible(message.X0, message.Y0) || s.areMapCoordsVisible(message.X1, message.Y1) {
 				s.animation = NewIconAnimation(s.mapView, data.SupplyTruck,
-					message.X0, message.Y0, message.X1, message.Y1, 8)
+					message.X0, message.Y0, message.X1, message.Y1, 4)
 			}
 		default:
 			return fmt.Errorf("Unknown message: %v", message)
@@ -213,11 +222,27 @@ func (s *ShowMap) Update() error {
 	return nil
 }
 
+func (s *ShowMap) applyCursorChange() {
+	scenario := s.mainGame.scenarios[s.mainGame.selectedScenario]
+	s.mapView.cursorX = Clamp(s.mapView.cursorX, scenario.MinX, scenario.MaxX)
+	s.mapView.cursorY = Clamp(s.mapView.cursorY, scenario.MinY, scenario.MaxY)
+	if s.mapView.cursorX-scenario.MinX < s.dx {
+		s.dx = s.mapView.cursorX - scenario.MinX
+	}
+	if s.mapView.cursorY-scenario.MinY < s.dy {
+		s.dy = s.mapView.cursorY - scenario.MinY
+	}
+	if s.mapView.cursorX-scenario.MinX-s.dx >= int(320/s.mapView.tileWidth) {
+		s.dx = s.mapView.cursorX - scenario.MinX - int(320/s.mapView.tileWidth) + 1
+	}
+	if s.mapView.cursorY-scenario.MinY-s.dy >= int(192/s.mapView.tileHeight) {
+		s.dy = s.mapView.cursorY - scenario.MinY - int(192/s.mapView.tileHeight) + 1
+	}
+}
 func (s *ShowMap) areMapCoordsVisible(x, y int) bool {
 	screenX, screenY := s.mapView.MapCoordsToScreenCoords(x, y)
 	dx, dy := s.dx*int(s.mapView.tileWidth), s.dy*int(s.mapView.tileHeight)
-	screenRect := image.Rect(dx, dy, dx+320, dy+192)
-	return image.Pt(int(screenX), int(screenY)).In(screenRect)
+	return image.Pt(int(screenX), int(screenY)).In(image.Rect(dx, dy, dx+320, dy+192))
 }
 func (s *ShowMap) giveOrder(unit data.Unit, order data.OrderType) {
 	unit.Order = order

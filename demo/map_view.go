@@ -9,6 +9,8 @@ type MapView struct {
 	terrainMap             *data.Map
 	minX, minY, maxX, maxY int // map bounds to draw in map coordinates
 
+	cursorX, cursorY int
+
 	tiles       *[48]*image.Paletted
 	unitSymbols *[16]*image.Paletted
 	unitIcons   *[16]*image.Paletted
@@ -47,6 +49,8 @@ func NewMapView(terrainMap *data.Map,
 		minY:           minY,
 		maxX:           maxX,
 		maxY:           maxY,
+		cursorX:        minX,
+		cursorY:        minY,
 		tiles:          tiles,
 		unitSymbols:    unitSymbols,
 		unitIcons:      unitIcons,
@@ -170,10 +174,10 @@ func (v *MapView) drawTileAtScreenCoords(tileNum int, x, y float64, screen *ebit
 	tileImage := v.GetSpriteFromTileNum(tileNum)
 	v.drawSpriteAtScreenCoords(tileImage, x, y, screen, options)
 }
-func (v *MapView) drawSpriteAtScreenCoords(tileImage *ebiten.Image, x, y float64, screen *ebiten.Image, options *ebiten.DrawImageOptions) {
+func (v *MapView) drawSpriteAtScreenCoords(sprite *ebiten.Image, x, y float64, screen *ebiten.Image, options *ebiten.DrawImageOptions) {
 	geoM := options.GeoM
 	options.GeoM.Translate(x, y)
-	screen.DrawImage(tileImage, options)
+	screen.DrawImage(sprite, options)
 	options.GeoM = geoM
 }
 
@@ -190,4 +194,11 @@ func (v *MapView) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
 			v.DrawTileAt(tileNum, x, y, screen, options)
 		}
 	}
+	cursorSprite := v.GetSpriteFromIcon(data.Cursor)
+	cursorX, cursorY := v.MapCoordsToScreenCoords(v.cursorX, v.cursorY)
+	geoM := options.GeoM
+	options.GeoM.Scale(2, 1)
+	v.drawSpriteAtScreenCoords(cursorSprite, cursorX-6, cursorY-2, screen, options)
+	options.GeoM = geoM
+	return
 }

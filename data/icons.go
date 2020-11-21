@@ -40,7 +40,7 @@ func ReadIcons(dirname string) (Icons, error) {
 }
 
 func ParseIcons(iconsData io.Reader) (Icons, error) {
-	icons, err := ParseSpriteData(iconsData, 8, 16, 2, 1, 1)
+	icons, err := ParseSpriteData(iconsData, 8, 16, 1, 1, 1)
 	if err != nil {
 		return Icons{}, err
 	}
