@@ -92,7 +92,7 @@ func (v *MapView) getUnitIconImage(colorScheme, spriteNum int) *ebiten.Image {
 	}
 	return ebitenSprite
 }
-func (v *MapView) ToMapCoords(imageX, imageY int) (x, y int) {
+func (v *MapView) ToUnitCoords(imageX, imageY int) (x, y int) {
 	y = imageY/8 + v.minY
 	x = ((imageX+(y%2)*4)/8)*2 - y%2 + v.minX*2
 	return
@@ -135,18 +135,18 @@ func (v *MapView) getBackgroundForegroundColors(colorScheme int) []color.Color {
 	return colors
 }
 
-func (v *MapView) MapCoordsToScreenCoords(mapX, mapY int) (x, y float64) {
+func (v *MapView) UnitCoordsToScreenCoords(mapX, mapY int) (x, y float64) {
 	x = float64(mapX-v.minX)*v.tileWidth + float64(mapY%2)*v.tileWidth/2
 	y = float64(mapY-v.minY) * v.tileHeight
 	return
 }
 func (v *MapView) DrawTileAt(tileNum int, mapX, mapY int, screen *ebiten.Image, options *ebiten.DrawImageOptions) {
-	x, y := v.MapCoordsToScreenCoords(mapX, mapY)
+	x, y := v.UnitCoordsToScreenCoords(mapX, mapY)
 	v.drawTileAtScreenCoords(tileNum, x, y, screen, options)
 }
 func (v *MapView) DrawSpriteBetween(sprite *ebiten.Image, mapX0, mapY0, mapX1, mapY1 int, alpha float64, screen *ebiten.Image, options *ebiten.DrawImageOptions) {
-	x0, y0 := v.MapCoordsToScreenCoords(mapX0, mapY0)
-	x1, y1 := v.MapCoordsToScreenCoords(mapX1, mapY1)
+	x0, y0 := v.UnitCoordsToScreenCoords(mapX0, mapY0)
+	x1, y1 := v.UnitCoordsToScreenCoords(mapX1, mapY1)
 	x, y := x0+(x1-x0)*alpha, y0+(y1-y0)*alpha
 	v.drawSpriteAtScreenCoords(sprite, x, y, screen, options)
 }
@@ -195,7 +195,7 @@ func (v *MapView) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
 		}
 	}
 	cursorSprite := v.GetSpriteFromIcon(data.Cursor)
-	cursorX, cursorY := v.MapCoordsToScreenCoords(v.cursorX, v.cursorY)
+	cursorX, cursorY := v.UnitCoordsToScreenCoords(v.cursorX, v.cursorY)
 	geoM := options.GeoM
 	options.GeoM.Scale(2, 1)
 	v.drawSpriteAtScreenCoords(cursorSprite, cursorX-6, cursorY-2, screen, options)

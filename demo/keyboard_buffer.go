@@ -17,6 +17,11 @@ const (
 	ScrollUp
 	ScrollLeft
 	ScrollRight
+	Reserve
+	Defend
+	Attack
+	Move
+	SetObjective
 )
 
 type CommandBuffer struct {
@@ -49,13 +54,23 @@ func (b *CommandBuffer) triggeredCommand() (Command, bool) {
 		return SwitchUnitDisplay, true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyQ) {
 		return Quit, true
-	} else if inpututil.KeyPressDuration(ebiten.KeyDown)%12 == 1 || inpututil.KeyPressDuration(ebiten.KeyJ)%12 == 1 {
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyR) {
+		return Reserve, true
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyD) {
+		return Defend, true
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyA) {
+		return Attack, true
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyM) {
+		return Move, true
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyH) {
+		return SetObjective, true
+	} else if inpututil.KeyPressDuration(ebiten.KeyDown)%12 == 1 {
 		return ScrollDown, true
-	} else if inpututil.KeyPressDuration(ebiten.KeyUp)%12 == 1 || inpututil.KeyPressDuration(ebiten.KeyK)%12 == 1 {
+	} else if inpututil.KeyPressDuration(ebiten.KeyUp)%12 == 1 {
 		return ScrollUp, true
-	} else if inpututil.KeyPressDuration(ebiten.KeyRight)%12 == 1 || inpututil.KeyPressDuration(ebiten.KeyL)%12 == 1 {
+	} else if inpututil.KeyPressDuration(ebiten.KeyRight)%12 == 1 {
 		return ScrollRight, true
-	} else if inpututil.KeyPressDuration(ebiten.KeyLeft)%12 == 1 || inpututil.KeyPressDuration(ebiten.KeyH)%12 == 1 {
+	} else if inpututil.KeyPressDuration(ebiten.KeyLeft)%12 == 1 {
 		return ScrollLeft, true
 	}
 	return 0, false

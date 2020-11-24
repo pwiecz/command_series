@@ -52,6 +52,8 @@ type ShowMap struct {
 	unitIconView  bool
 	playerSide    int
 
+	orderedUnit *data.Unit
+
 	gameState     *GameState
 	commandBuffer *CommandBuffer
 
@@ -90,8 +92,9 @@ func NewShowMap(g *Game) *ShowMap {
 	return s
 }
 
-func (s *ShowMap) screenCoordsToMapCoords(screenX, screenY int) (x, y int) {
-	return s.mapView.ToMapCoords(screenX+s.dx*8, screenY+s.dy*8)
+func (s *ShowMap) screenCoordsToUnitCoords(screenX, screenY int) (x, y int) {
+	return s.mapView.ToUnitCoords(
+		screenX+s.dx*int(s.mapView.tileWidth), screenY+s.dy*int(s.mapView.tileHeight))
 }
 
 func (s *ShowMap) Update() error {
@@ -149,6 +152,21 @@ func (s *ShowMap) Update() error {
 			case Quit:
 				s.sync.Stop()
 				return fmt.Errorf("QUIT")
+			case Reserve:
+				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, data.Reserve)
+				s.idleTicksLeft = 60 * s.currentSpeed
+			case Defend:
+				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, data.Defend)
+				s.idleTicksLeft = 60 * s.currentSpeed
+			case Attack:
+				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, data.Attack)
+				s.idleTicksLeft = 60 * s.currentSpeed
+			case Move:
+				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, data.Move)
+				s.idleTicksLeft = 60 * s.currentSpeed
+			case SetObjective:
+				s.trySetObjective(s.mapView.cursorX, s.mapView.cursorY)
+				s.idleTicksLeft = 60 * s.currentSpeed
 			case ScrollDown:
 				s.idleTicksLeft = 60 * s.currentSpeed
 				s.mapView.cursorY++
@@ -170,7 +188,10 @@ func (s *ShowMap) Update() error {
 		}
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			mouseX, mouseY := ebiten.CursorPosition()
-			x, y := s.screenCoordsToMapCoords(mouseX, mouseY)
+			x, y := s.screenCoordsToUnitCoords(mouseX, mouseY)
+			s.mapView.cursorX = x / 2
+			s.mapView.cursorY = y
+			s.applyCursorChange()
 			if unit, ok := s.gameState.FindUnit(x, y); ok {
 				fmt.Println()
 				fmt.Println(s.gameState.unitInfo(unit))
@@ -205,12 +226,12 @@ func (s *ShowMap) Update() error {
 			fmt.Printf("\n%s\n", message.Results)
 			return fmt.Errorf("GAME OVER!")
 		case UnitMove:
-			if s.areMapCoordsVisible(message.X0, message.Y0) || s.areMapCoordsVisible(message.X1, message.Y1) {
+			if s.areUnitCoordsVisible(message.X0, message.Y0) || s.areUnitCoordsVisible(message.X1, message.Y1) {
 				s.animation = NewUnitAnimation(s.mapView, message.Unit,
 					message.X0, message.Y0, message.X1, message.Y1, 30)
 			}
 		case SupplyTruckMove:
-			if s.areMapCoordsVisible(message.X0, message.Y0) || s.areMapCoordsVisible(message.X1, message.Y1) {
+			if s.areUnitCoordsVisible(message.X0, message.Y0) || s.areUnitCoordsVisible(message.X1, message.Y1) {
 				s.animation = NewIconAnimation(s.mapView, data.SupplyTruck,
 					message.X0, message.Y0, message.X1, message.Y1, 4)
 			}
@@ -239,10 +260,18 @@ func (s *ShowMap) applyCursorChange() {
 		s.dy = s.mapView.cursorY - scenario.MinY - int(192/s.mapView.tileHeight) + 1
 	}
 }
-func (s *ShowMap) areMapCoordsVisible(x, y int) bool {
-	screenX, screenY := s.mapView.MapCoordsToScreenCoords(x, y)
+func (s *ShowMap) areUnitCoordsVisible(x, y int) bool {
+	screenX, screenY := s.mapView.UnitCoordsToScreenCoords(x, y)
 	dx, dy := s.dx*int(s.mapView.tileWidth), s.dy*int(s.mapView.tileHeight)
 	return image.Pt(int(screenX), int(screenY)).In(image.Rect(dx, dy, dx+320, dy+192))
+}
+func (s *ShowMap) tryGiveOrderAtMapCoords(x, y int, order data.OrderType) {
+	if unit, ok := s.gameState.FindUnitAtMapCoords(x, y); ok {
+		s.giveOrder(unit, order)
+		s.orderedUnit = &unit
+	} else {
+		fmt.Println("NO FRIENDLY UNIT.")
+	}
 }
 func (s *ShowMap) giveOrder(unit data.Unit, order data.OrderType) {
 	unit.Order = order
@@ -250,16 +279,38 @@ func (s *ShowMap) giveOrder(unit data.Unit, order data.OrderType) {
 	switch order {
 	case data.Reserve:
 		unit.ObjectiveX = 0
+		fmt.Println("RESERVE")
 	case data.Attack:
 		unit.ObjectiveX = 0
+		fmt.Println("ATTACKING")
 	case data.Defend:
+		fmt.Println("DEFENDING")
 		unit.ObjectiveX, unit.ObjectiveY = unit.X, unit.Y
+	case data.Move:
+		fmt.Println("MOVE WHERE ?")
 	}
 	s.mainGame.units[unit.Side][unit.Index] = unit
 }
+func (s *ShowMap) trySetObjective(x, y int) {
+	if s.orderedUnit == nil {
+		fmt.Println("GIVE ORDERS FIRST!")
+		return
+	}
+	unitX := 2*x + y%2
+	s.setObjective(s.mainGame.units[s.orderedUnit.Side][s.orderedUnit.Index], unitX, y)
+
+}
 func (s *ShowMap) setObjective(unit data.Unit, x, y int) {
 	unit.ObjectiveX, unit.ObjectiveY = x, y
+	unit.State &= 223 // clean bit 5 (32)
+	fmt.Println(s.gameState.unitInfo(unit))
+	fmt.Println("OBJECTIVE HERE.")
+	distance := Function15_distanceToObjective(unit)
+	if distance > 0 {
+		fmt.Println("DISTANCE:", distance*s.mainGame.scenarioData.HexSizeInMiles, "MILES.")
+	}
 	s.mainGame.units[unit.Side][unit.Index] = unit
+	s.orderedUnit = nil
 }
 func (s *ShowMap) increaseGameSpeed() {
 	s.changeGameSpeed(-1)
