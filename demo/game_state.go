@@ -21,6 +21,8 @@ type GameState struct {
 	isNight                          bool
 	lastUpdatedUnit                  int
 
+	isInitialized bool
+
 	menLost                   [2]int // 29927 + side*2
 	tanksLost                 [2]int // 29927 + 4 + side*2
 	citiesHeld                [2]int // 29927 + 13 + side*2
@@ -97,7 +99,9 @@ func NewGameState(scenario *data.Scenario, scenarioData *data.ScenarioData, vari
 }
 
 func (s *GameState) Init() bool {
-	return s.everyHour()
+	ret := s.everyHour()
+	s.isInitialized = true
+	return ret
 }
 func (s *GameState) Update() bool {
 	s.unitsUpdated++

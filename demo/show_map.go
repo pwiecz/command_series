@@ -203,12 +203,15 @@ func (s *ShowMap) Update() error {
 	if s.isFrozen {
 		return nil
 	}
-	if s.idleTicksLeft > 0 {
+	if s.gameState.isInitialized && s.idleTicksLeft > 0 {
 		s.idleTicksLeft--
 		return nil
 	}
-	update := s.sync.GetUpdate()
-	if update != nil {
+	for {
+		update := s.sync.GetUpdate()
+		if update == nil {
+			break
+		}
 		switch message := update.(type) {
 		case MessageFromUnit:
 			unit := message.Unit()
@@ -216,11 +219,13 @@ func (s *ShowMap) Update() error {
 				fmt.Printf("\nMESSAGE FROM ...\n%s %s:\n", unit.Name, s.mainGame.scenarioData.UnitTypes[unit.Type])
 				fmt.Printf("'%s'\n", message.String())
 				s.idleTicksLeft = 60 * s.currentSpeed
+				break
 			}
 		case Reinforcements:
 			if message.Sides[s.playerSide] {
 				fmt.Println("\nREINFORCEMENTS!")
 				s.idleTicksLeft = 100
+				break
 			}
 		case GameOver:
 			fmt.Printf("\n%s\n", message.Results)
@@ -229,17 +234,18 @@ func (s *ShowMap) Update() error {
 			if s.areUnitCoordsVisible(message.X0, message.Y0) || s.areUnitCoordsVisible(message.X1, message.Y1) {
 				s.animation = NewUnitAnimation(s.mapView, message.Unit,
 					message.X0, message.Y0, message.X1, message.Y1, 30)
+				break
 			}
 		case SupplyTruckMove:
 			if s.areUnitCoordsVisible(message.X0, message.Y0) || s.areUnitCoordsVisible(message.X1, message.Y1) {
 				s.animation = NewIconAnimation(s.mapView, data.SupplyTruck,
 					message.X0, message.Y0, message.X1, message.Y1, 4)
+				break
 			}
 		default:
 			return fmt.Errorf("Unknown message: %v", message)
 		}
 	}
-
 	return nil
 }
 
@@ -261,7 +267,7 @@ func (s *ShowMap) applyCursorChange() {
 	}
 }
 func (s *ShowMap) areUnitCoordsVisible(x, y int) bool {
-	screenX, screenY := s.mapView.UnitCoordsToScreenCoords(x, y)
+	screenX, screenY := s.mapView.MapCoordsToScreenCoords(x/2, y)
 	dx, dy := s.dx*int(s.mapView.tileWidth), s.dy*int(s.mapView.tileHeight)
 	return image.Pt(int(screenX), int(screenY)).In(image.Rect(dx, dy, dx+320, dy+192))
 }

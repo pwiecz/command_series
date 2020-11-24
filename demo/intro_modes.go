@@ -273,6 +273,7 @@ func (l *VariantLoading) Update() error {
 				return err
 			}
 			l.mainGame.subGame = NewShowMap(l.mainGame)
+			l.mainGame.subGame.Update()
 		default:
 		}
 	}
