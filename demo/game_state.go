@@ -668,7 +668,7 @@ l21:
 			if unit.ObjectiveX == 0 {
 				break
 			}
-			distance = s.function15_distanceToObjective(unit)
+			distance = Function15_distanceToObjective(unit)
 			d32 := s.scenarioData.Data32[unit.Type]
 			attackRange := (d32 & 31) * 2
 			if distance > 0 && distance <= attackRange && unit.Order == data.Attack {
@@ -775,7 +775,7 @@ l21:
 			unit.Y = sy
 			unit.Terrain = s.terrainAt(unit.X, unit.Y)
 			s.function29_showUnit(unit)
-			if s.function15_distanceToObjective(unit) == 0 {
+			if Function15_distanceToObjective(unit) == 0 {
 				unit.ObjectiveX = 0
 				unit.TargetFormation = s.function10(unit.Order, 1)
 				if (unit.Order == data.Defend || unit.Order == data.Move) &&
@@ -1184,7 +1184,7 @@ func (s *GameState) function10(order data.OrderType, offset int) int {
 	return s.scenarioData.Data176[int(order)][offset]
 }
 
-func (s *GameState) function15_distanceToObjective(unit data.Unit) int {
+func Function15_distanceToObjective(unit data.Unit) int {
 	dx := unit.ObjectiveX - unit.X
 	dy := unit.ObjectiveY - unit.Y
 	if Abs(dy) > Abs(dx)/2 {
@@ -1503,9 +1503,12 @@ func (s *GameState) ContainsCity(x, y int) bool {
 }
 
 func (s *GameState) FindUnit(x, y int) (data.Unit, bool) {
+	return s.FindUnitAtMapCoords(x/2, y)
+}
+func (s *GameState) FindUnitAtMapCoords(x, y int) (data.Unit, bool) {
 	for _, sideUnits := range s.units {
 		for _, unit := range sideUnits {
-			if unit.State&128 != 0 && unit.X == x && unit.Y == y {
+			if unit.State&128 != 0 && unit.X/2 == x && unit.Y == y {
 				return unit, true
 			}
 		}
@@ -1683,7 +1686,7 @@ func (s *GameState) winningSideAndAdvantage() (winningSide int, advantage int) {
 	}
 	advantage = 4
 	if score >= 3 {
-		advantage = Clamp(advantage-3, 0, 4)
+		advantage = Clamp(score-3, 0, 4)
 	}
 	return
 }
