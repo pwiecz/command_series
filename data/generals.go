@@ -48,9 +48,6 @@ func ParseGenerals(data io.Reader) ([2][]General, error) {
 		for len(generalName) > 0 && generalName[len(generalName)-1] == 0 {
 			generalName = generalName[0 : len(generalName)-1]
 		}
-		if len(generalName) == 0 {
-			continue
-		}
 		general.Name = string(generalName)
 		generals[i/8] = append(generals[i/8], general)
 	}

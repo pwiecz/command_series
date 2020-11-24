@@ -91,13 +91,12 @@ func ParseUnit(data [16]byte, unitNames []string, generals []General) (Unit, err
 	unit.Type = int(data[7] & 15)
 	unit.ColorPalette = int(data[7] / 16)
 	nameIndex := int(data[8] & 127)
-	if nameIndex >= len(unitNames) {
-		// there's problem with one Sidi units having high name index
-		// return unit, fmt.Errorf("Too large unit name index. Expected <%d, got %d", len(unitNames), nameIndex)
-		fmt.Printf("Too large unit name index. Expected <%d, got %d\n", len(unitNames), nameIndex)
-		nameIndex = 0
+	// E.g. one Sidi unit have name index equal to the number of names.
+	// It's a supply depot outside of map bounds, so maybe it's done on purpose.
+	if nameIndex < len(unitNames) {
+		unit.Name = unitNames[nameIndex]
 	}
-	unit.Name = unitNames[nameIndex]
+
 	unit.TargetFormation = int(data[9] & 7)
 	unit.OrderBit4 = data[9]&8 != 0
 	order := data[9] & 48
@@ -116,10 +115,7 @@ func ParseUnit(data [16]byte, unitNames []string, generals []General) (Unit, err
 	}
 	generalIndex := int(data[10])
 	if generalIndex >= len(generals) {
-		// there's problem with one El-Alamein and one Bulge unit having high general index
-		//return units, fmt.Errorf("Error parsing unit %d, %v", i, err)
-		fmt.Printf("Too large general index. Expected <%d, got %d\n", len(generals), generalIndex)
-		generalIndex = 0
+		return Unit{}, fmt.Errorf("Too large general index. Expected <%d, got %d", len(generals), generalIndex)
 	}
 	unit.GeneralIndex = generalIndex
 	unit.General = generals[generalIndex]
