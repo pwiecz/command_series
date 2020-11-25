@@ -197,7 +197,9 @@ func (v *MapView) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
 	cursorSprite := v.GetSpriteFromIcon(data.Cursor)
 	cursorX, cursorY := v.MapCoordsToScreenCoords(v.cursorX, v.cursorY)
 	geoM := options.GeoM
+	options.GeoM.Reset()
 	options.GeoM.Scale(2, 1)
+	options.GeoM.Concat(geoM)
 	v.drawSpriteAtScreenCoords(cursorSprite, cursorX-6, cursorY-2, screen, options)
 	options.GeoM = geoM
 	return
