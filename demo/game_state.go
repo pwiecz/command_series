@@ -1460,7 +1460,7 @@ outerLoop:
 				}
 				if s.options.IsPlayerControlled(unit.Side) || s.options.Intelligence == Full {
 					s.sync.SendUpdate(SupplyTruckMove{supplyX / 2, supplyY, x / 2, y})
-					//  function13(x, y) (show truck icon at x, y)?
+					//  function13(x, y) (show truck icon at x, y)
 				}
 				//dx, dy := moveToXY(move)
 				supplyX, supplyY = x, y

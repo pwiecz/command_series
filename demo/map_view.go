@@ -8,15 +8,20 @@ import "github.com/hajimehoshi/ebiten"
 type MapView struct {
 	terrainMap             *data.Map
 	minX, minY, maxX, maxY int // map bounds to draw in map coordinates
-
-	cursorX, cursorY int
+	cursorX, cursorY       int
 
 	tiles       *[48]*image.Paletted
 	unitSymbols *[16]*image.Paletted
 	unitIcons   *[16]*image.Paletted
 	icons       *[24]*image.Paletted
 
-	tileWidth, tileHeight float64
+	visibleBounds     image.Rectangle
+	mapImage          *ebiten.Image
+	isDirty           bool
+	drawnTerrainTiles [][]byte
+	subImage          *ebiten.Image
+
+	tileWidth, tileHeight int
 
 	isNight  int // 0 or 1
 	useIcons bool
@@ -30,6 +35,7 @@ type MapView struct {
 	ebitenUnitSymbols [2][4][16]*ebiten.Image
 	ebitenUnitIcons   [2][4][16]*ebiten.Image
 	ebitenIcons       [24]*ebiten.Image
+	cursorImage       *ebiten.Image
 }
 
 func NewMapView(terrainMap *data.Map,
@@ -39,7 +45,8 @@ func NewMapView(terrainMap *data.Map,
 	unitIcons *[16]*image.Paletted,
 	icons *[24]*image.Paletted,
 	daytimePalette *[8]byte,
-	nightPalette *[8]byte) *MapView {
+	nightPalette *[8]byte,
+	size image.Point) *MapView {
 
 	tileBounds := tiles[0].Bounds()
 
@@ -55,14 +62,15 @@ func NewMapView(terrainMap *data.Map,
 		unitSymbols:    unitSymbols,
 		unitIcons:      unitIcons,
 		icons:          icons,
-		tileWidth:      float64(tileBounds.Dx()),
-		tileHeight:     float64(tileBounds.Dy()),
+		tileWidth:      tileBounds.Dx(),
+		tileHeight:     tileBounds.Dy(),
 		daytimePalette: daytimePalette,
 		nightPalette:   nightPalette}
+	v.visibleBounds = image.Rect(v.tileWidth/2, 0, v.tileWidth/2+size.X, size.Y)
 	return v
 }
 
-func (v *MapView) getTileImage(colorScheme, tileNum int) *ebiten.Image {
+func (v *MapView) getTileImage(colorScheme, tileNum byte) *ebiten.Image {
 	ebitenTile := v.ebitenTiles[v.isNight][colorScheme][tileNum]
 	if ebitenTile == nil {
 		tile := v.tiles[tileNum]
@@ -72,7 +80,7 @@ func (v *MapView) getTileImage(colorScheme, tileNum int) *ebiten.Image {
 	}
 	return ebitenTile
 }
-func (v *MapView) getUnitSymbolImage(colorScheme, spriteNum int) *ebiten.Image {
+func (v *MapView) getUnitSymbolImage(colorScheme, spriteNum byte) *ebiten.Image {
 	ebitenSprite := v.ebitenUnitSymbols[v.isNight][colorScheme][spriteNum]
 	if ebitenSprite == nil {
 		sprite := v.unitSymbols[spriteNum]
@@ -82,7 +90,7 @@ func (v *MapView) getUnitSymbolImage(colorScheme, spriteNum int) *ebiten.Image {
 	}
 	return ebitenSprite
 }
-func (v *MapView) getUnitIconImage(colorScheme, spriteNum int) *ebiten.Image {
+func (v *MapView) getUnitIconImage(colorScheme, spriteNum byte) *ebiten.Image {
 	ebitenSprite := v.ebitenUnitIcons[v.isNight][colorScheme][spriteNum]
 	if ebitenSprite == nil {
 		sprite := v.unitIcons[spriteNum]
@@ -98,17 +106,59 @@ func (v *MapView) ToUnitCoords(imageX, imageY int) (x, y int) {
 	return
 
 }
-func (v *MapView) SetUseIcons(useIcons bool) {
-	v.useIcons = useIcons
+func (v *MapView) GetCursorPosition() (int, int) {
+	return v.cursorX, v.cursorY
 }
-func (v *MapView) SetIsNight(isNight bool) {
-	if isNight {
-		v.isNight = 1
-	} else {
-		v.isNight = 0
+func (v *MapView) SetCursorPosition(x, y int) {
+	v.cursorX = Clamp(x, v.minX, v.maxX)
+	v.cursorY = Clamp(y, v.minY, v.maxY)
+	v.makeCursorVisible()
+}
+func (v *MapView) makeCursorVisible() {
+	cursorScreenX, cursorScreenY := v.MapCoordsToScreenCoords(v.cursorX, v.cursorY)
+	newBounds := v.visibleBounds
+	if cursorScreenX < 0 {
+		newBounds = newBounds.Add(image.Pt(cursorScreenX, 0))
+	}
+	if cursorScreenY < 0 {
+		newBounds = newBounds.Add(image.Pt(0, cursorScreenY))
+	}
+	if cursorScreenX >= newBounds.Dx() {
+		newBounds = newBounds.Add(image.Pt(cursorScreenX-newBounds.Dx()+v.tileWidth, 0))
+	}
+	if cursorScreenY >= newBounds.Dy() {
+		newBounds = newBounds.Add(image.Pt(0, cursorScreenY-newBounds.Dy()+v.tileHeight))
+	}
+	if newBounds.Min.X < v.tileWidth/2 {
+		newBounds = newBounds.Add(image.Pt(v.tileWidth/2-newBounds.Min.X, 0))
+	}
+
+	if !newBounds.Eq(v.visibleBounds) {
+		v.visibleBounds = newBounds
+		if v.mapImage != nil {
+			v.subImage = v.mapImage.SubImage(v.visibleBounds).(*ebiten.Image)
+		}
+	}
+	return
+}
+
+func (v *MapView) SetUseIcons(useIcons bool) {
+	if v.useIcons != useIcons {
+		v.useIcons = useIcons
+		v.isDirty = true
 	}
 }
-func (v *MapView) getBackgroundForegroundColors(colorScheme int) []color.Color {
+func (v *MapView) SetIsNight(isNight bool) {
+	if isNight != (v.isNight == 1) {
+		if isNight {
+			v.isNight = 1
+		} else {
+			v.isNight = 0
+		}
+		v.isDirty = true
+	}
+}
+func (v *MapView) getBackgroundForegroundColors(colorScheme byte) []color.Color {
 	colors := v.colorSchemes[v.isNight][colorScheme]
 	if colors == nil {
 		var palette *[8]byte
@@ -135,23 +185,35 @@ func (v *MapView) getBackgroundForegroundColors(colorScheme int) []color.Color {
 	return colors
 }
 
-func (v *MapView) MapCoordsToScreenCoords(mapX, mapY int) (x, y float64) {
-	x = float64(mapX-v.minX)*v.tileWidth + float64(mapY%2)*v.tileWidth/2
-	y = float64(mapY-v.minY) * v.tileHeight
+func (v *MapView) MapCoordsToImageCoords(mapX, mapY int) (x, y int) {
+	x = (mapX-v.minX)*v.tileWidth + (mapY%2)*v.tileWidth/2
+	y = (mapY - v.minY) * v.tileHeight
 	return
 }
-func (v *MapView) DrawTileAt(tileNum int, mapX, mapY int, screen *ebiten.Image, options *ebiten.DrawImageOptions) {
-	x, y := v.MapCoordsToScreenCoords(mapX, mapY)
-	v.drawTileAtScreenCoords(tileNum, x, y, screen, options)
+func (v *MapView) MapCoordsToScreenCoords(mapX, mapY int) (x, y int) {
+	x = (mapX-v.minX)*v.tileWidth + (mapY%2)*v.tileWidth/2 - v.visibleBounds.Min.X
+	y = (mapY-v.minY)*v.tileHeight - v.visibleBounds.Min.Y
+	return
+}
+func (v *MapView) AreMapCoordsVisible(mapX, mapY int) bool {
+	x, y := v.MapCoordsToImageCoords(mapX, mapY)
+	return v.AreScreenCoordsVisible(x, y)
+}
+func (v *MapView) AreScreenCoordsVisible(x, y int) bool {
+	return image.Pt(x, y).In(v.visibleBounds)
+}
+func (v *MapView) DrawTileAt(tileNum byte, mapX, mapY int, screen *ebiten.Image, options *ebiten.DrawImageOptions) {
+	x, y := v.MapCoordsToImageCoords(mapX, mapY)
+	v.drawTileAtImageCoords(tileNum, x, y, screen, options)
 }
 func (v *MapView) DrawSpriteBetween(sprite *ebiten.Image, mapX0, mapY0, mapX1, mapY1 int, alpha float64, screen *ebiten.Image, options *ebiten.DrawImageOptions) {
 	x0, y0 := v.MapCoordsToScreenCoords(mapX0, mapY0)
 	x1, y1 := v.MapCoordsToScreenCoords(mapX1, mapY1)
-	x, y := x0+(x1-x0)*alpha, y0+(y1-y0)*alpha
-	v.drawSpriteAtScreenCoords(sprite, x, y, screen, options)
+	x, y := float64(x0)+float64(x1-x0)*alpha, float64(y0)+float64(y1-y0)*alpha
+	v.drawSpriteAtCoords(sprite, x, y, screen, options)
 }
 
-func (v *MapView) GetSpriteFromTileNum(tileNum int) *ebiten.Image {
+func (v *MapView) GetSpriteFromTileNum(tileNum byte) *ebiten.Image {
 	if tileNum%64 < 48 {
 		return v.getTileImage(tileNum/64, tileNum%64)
 	} else if v.useIcons {
@@ -170,18 +232,45 @@ func (v *MapView) GetSpriteFromIcon(icon data.IconType) *ebiten.Image {
 	return ebitenTile
 }
 
-func (v *MapView) drawTileAtScreenCoords(tileNum int, x, y float64, screen *ebiten.Image, options *ebiten.DrawImageOptions) {
+func (v *MapView) drawTileAtImageCoords(tileNum byte, x, y int, screen *ebiten.Image, options *ebiten.DrawImageOptions) {
 	tileImage := v.GetSpriteFromTileNum(tileNum)
-	v.drawSpriteAtScreenCoords(tileImage, x, y, screen, options)
+	v.drawSpriteAtCoords(tileImage, float64(x), float64(y), screen, options)
 }
-func (v *MapView) drawSpriteAtScreenCoords(sprite *ebiten.Image, x, y float64, screen *ebiten.Image, options *ebiten.DrawImageOptions) {
+func (v *MapView) drawSpriteAtCoords(sprite *ebiten.Image, x, y float64, screen *ebiten.Image, options *ebiten.DrawImageOptions) {
 	geoM := options.GeoM
+	options.GeoM.Reset()
 	options.GeoM.Translate(x, y)
+	options.GeoM.Concat(geoM)
 	screen.DrawImage(sprite, options)
 	options.GeoM = geoM
 }
-
+func (v *MapView) getDrawnTile(x, y int) byte {
+	dx, dy := x-v.minX, y-v.minY
+	for dy >= len(v.drawnTerrainTiles) {
+		v.drawnTerrainTiles = append(v.drawnTerrainTiles, make([]byte, v.maxX-v.minX+1))
+	}
+	for dx >= len(v.drawnTerrainTiles[dy]) {
+		v.drawnTerrainTiles[dy] = append(v.drawnTerrainTiles[dy], 0)
+	}
+	return v.drawnTerrainTiles[dy][dx]
+}
+func (v *MapView) setDrawnTile(x, y int, tile byte) {
+	dx, dy := x-v.minX, y-v.minY
+	for dy >= len(v.drawnTerrainTiles) {
+		v.drawnTerrainTiles = append(v.drawnTerrainTiles, make([]byte, v.maxX-v.minX+1))
+	}
+	for dx >= len(v.drawnTerrainTiles[dy]) {
+		v.drawnTerrainTiles[dy] = append(v.drawnTerrainTiles[dy], 0)
+	}
+	v.drawnTerrainTiles[dy][dx] = tile
+}
 func (v *MapView) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
+	if v.mapImage == nil {
+		v.mapImage = ebiten.NewImage((v.maxX-v.minX+1)*v.tileWidth+v.tileWidth/2, (v.maxY-v.minY+1)*v.tileHeight)
+		v.subImage = v.mapImage.SubImage(v.visibleBounds).(*ebiten.Image)
+		v.isDirty = true
+	}
+	var opts ebiten.DrawImageOptions
 	for y := v.minY; y <= v.maxY; y++ {
 		if y >= v.terrainMap.Height {
 			break
@@ -190,17 +279,24 @@ func (v *MapView) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
 			if x >= v.terrainMap.Width-y%2 {
 				break
 			}
-			tileNum := int(v.terrainMap.GetTile(x, y))
-			v.DrawTileAt(tileNum, x, y, screen, options)
+			tileNum := v.terrainMap.GetTile(x, y)
+			if v.isDirty || tileNum != v.getDrawnTile(x, y) {
+				v.DrawTileAt(tileNum, x, y, v.mapImage, &opts)
+				v.setDrawnTile(x, y, tileNum)
+			}
 		}
 	}
-	cursorSprite := v.GetSpriteFromIcon(data.Cursor)
+	v.isDirty = false
+	screen.DrawImage(v.subImage, options)
+	if v.cursorImage == nil {
+		cursorSprite := v.GetSpriteFromIcon(data.Cursor)
+		cursorBounds := cursorSprite.Bounds()
+		v.cursorImage = ebiten.NewImage(cursorBounds.Dx()*2, cursorBounds.Dy())
+		var opts ebiten.DrawImageOptions
+		opts.GeoM.Scale(2, 1)
+		v.cursorImage.DrawImage(cursorSprite, &opts)
+	}
 	cursorX, cursorY := v.MapCoordsToScreenCoords(v.cursorX, v.cursorY)
-	geoM := options.GeoM
-	options.GeoM.Reset()
-	options.GeoM.Scale(2, 1)
-	options.GeoM.Concat(geoM)
-	v.drawSpriteAtScreenCoords(cursorSprite, cursorX-6, cursorY-2, screen, options)
-	options.GeoM = geoM
+	v.drawSpriteAtCoords(v.cursorImage, float64(cursorX-6), float64(cursorY-2), screen, options)
 	return
 }

@@ -15,7 +15,7 @@ func NewUnitAnimation(mapView *MapView, unit data.Unit, x0, y0, x1, y1, rounds i
 	if rounds <= 0 {
 		panic("rounds must be positive")
 	}
-	sprite := mapView.GetSpriteFromTileNum(unit.Type+unit.ColorPalette*16)
+	sprite := mapView.GetSpriteFromTileNum(byte(unit.Type+unit.ColorPalette*16))
 	return &Animation{mapView, sprite, x0, y0, x1, y1, rounds, 0}
 }
 

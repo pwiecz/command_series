@@ -44,7 +44,6 @@ type ShowMap struct {
 	animation *Animation
 	mapImage  *ebiten.Image
 	options   Options
-	dx, dy    int
 
 	currentSpeed  int
 	idleTicksLeft int
@@ -74,8 +73,6 @@ func NewShowMap(g *Game) *ShowMap {
 	}
 	s := &ShowMap{
 		mainGame:      g,
-		dx:            0,
-		dy:            0,
 		currentSpeed:  2,
 		idleTicksLeft: 60,
 		commandBuffer: NewCommandBuffer(20),
@@ -87,14 +84,14 @@ func NewShowMap(g *Game) *ShowMap {
 	s.mapView = NewMapView(
 		&g.terrainMap, scenario.MinX, scenario.MinY, scenario.MaxX, scenario.MaxY,
 		&g.sprites.TerrainTiles, &g.sprites.UnitSymbolSprites, &g.sprites.UnitIconSprites,
-		&g.icons.Sprites, &g.scenarioData.DaytimePalette, &g.scenarioData.NightPalette)
+		&g.icons.Sprites, &g.scenarioData.DaytimePalette, &g.scenarioData.NightPalette,
+		image.Pt(106, 60))
 	s.unitIconView = true
 	return s
 }
 
 func (s *ShowMap) screenCoordsToUnitCoords(screenX, screenY int) (x, y int) {
-	return s.mapView.ToUnitCoords(
-		screenX+s.dx*int(s.mapView.tileWidth), screenY+s.dy*int(s.mapView.tileHeight))
+	return s.mapView.ToUnitCoords(screenX, screenY)
 }
 
 func (s *ShowMap) Update() error {
@@ -169,29 +166,27 @@ func (s *ShowMap) Update() error {
 				s.idleTicksLeft = 60 * s.currentSpeed
 			case ScrollDown:
 				s.idleTicksLeft = 60 * s.currentSpeed
-				s.mapView.cursorY++
-				s.applyCursorChange()
+				curX, curY := s.mapView.GetCursorPosition()
+				s.mapView.SetCursorPosition(curX, curY+1)
 			case ScrollUp:
 				s.idleTicksLeft = 60 * s.currentSpeed
-				s.mapView.cursorY--
-				s.applyCursorChange()
+				curX, curY := s.mapView.GetCursorPosition()
+				s.mapView.SetCursorPosition(curX, curY-1)
 			case ScrollRight:
 				s.idleTicksLeft = 60 * s.currentSpeed
-				s.mapView.cursorX++
-				s.applyCursorChange()
+				curX, curY := s.mapView.GetCursorPosition()
+				s.mapView.SetCursorPosition(curX+1, curY)
 			case ScrollLeft:
 				s.idleTicksLeft = 60 * s.currentSpeed
-				s.mapView.cursorX--
-				s.applyCursorChange()
+				curX, curY := s.mapView.GetCursorPosition()
+				s.mapView.SetCursorPosition(curX-1, curY)
 			}
 		default:
 		}
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			mouseX, mouseY := ebiten.CursorPosition()
 			x, y := s.screenCoordsToUnitCoords(mouseX, mouseY)
-			s.mapView.cursorX = x / 2
-			s.mapView.cursorY = y
-			s.applyCursorChange()
+			s.mapView.SetCursorPosition(x / 2, y)
 			if unit, ok := s.gameState.FindUnit(x, y); ok {
 				fmt.Println()
 				fmt.Println(s.gameState.unitInfo(unit))
@@ -207,10 +202,11 @@ func (s *ShowMap) Update() error {
 		s.idleTicksLeft--
 		return nil
 	}
+loop:
 	for {
 		update := s.sync.GetUpdate()
 		if update == nil {
-			break
+			break loop
 		}
 		switch message := update.(type) {
 		case MessageFromUnit:
@@ -219,28 +215,28 @@ func (s *ShowMap) Update() error {
 				fmt.Printf("\nMESSAGE FROM ...\n%s %s:\n", unit.Name, s.mainGame.scenarioData.UnitTypes[unit.Type])
 				fmt.Printf("'%s'\n", message.String())
 				s.idleTicksLeft = 60 * s.currentSpeed
-				break
+				break loop
 			}
 		case Reinforcements:
 			if message.Sides[s.playerSide] {
 				fmt.Println("\nREINFORCEMENTS!")
 				s.idleTicksLeft = 100
-				break
+				break loop
 			}
 		case GameOver:
 			fmt.Printf("\n%s\n", message.Results)
 			return fmt.Errorf("GAME OVER!")
 		case UnitMove:
-			if s.areUnitCoordsVisible(message.X0, message.Y0) || s.areUnitCoordsVisible(message.X1, message.Y1) {
+			if s.mapView.AreMapCoordsVisible(message.X0, message.Y0) || s.mapView.AreMapCoordsVisible(message.X1, message.Y1) {
 				s.animation = NewUnitAnimation(s.mapView, message.Unit,
 					message.X0, message.Y0, message.X1, message.Y1, 30)
-				break
+				break loop
 			}
 		case SupplyTruckMove:
-			if s.areUnitCoordsVisible(message.X0, message.Y0) || s.areUnitCoordsVisible(message.X1, message.Y1) {
+			if s.mapView.AreMapCoordsVisible(message.X0, message.Y0) || s.mapView.AreMapCoordsVisible(message.X1, message.Y1) {
 				s.animation = NewIconAnimation(s.mapView, data.SupplyTruck,
 					message.X0, message.Y0, message.X1, message.Y1, 4)
-				break
+				break loop
 			}
 		default:
 			return fmt.Errorf("Unknown message: %v", message)
@@ -249,27 +245,8 @@ func (s *ShowMap) Update() error {
 	return nil
 }
 
-func (s *ShowMap) applyCursorChange() {
-	scenario := s.mainGame.scenarios[s.mainGame.selectedScenario]
-	s.mapView.cursorX = Clamp(s.mapView.cursorX, scenario.MinX, scenario.MaxX)
-	s.mapView.cursorY = Clamp(s.mapView.cursorY, scenario.MinY, scenario.MaxY)
-	if s.mapView.cursorX-scenario.MinX < s.dx {
-		s.dx = s.mapView.cursorX - scenario.MinX
-	}
-	if s.mapView.cursorY-scenario.MinY < s.dy {
-		s.dy = s.mapView.cursorY - scenario.MinY
-	}
-	if s.mapView.cursorX-scenario.MinX-s.dx >= int(320/s.mapView.tileWidth) {
-		s.dx = s.mapView.cursorX - scenario.MinX - int(320/s.mapView.tileWidth) + 1
-	}
-	if s.mapView.cursorY-scenario.MinY-s.dy >= int(192/s.mapView.tileHeight) {
-		s.dy = s.mapView.cursorY - scenario.MinY - int(192/s.mapView.tileHeight) + 1
-	}
-}
 func (s *ShowMap) areUnitCoordsVisible(x, y int) bool {
-	screenX, screenY := s.mapView.MapCoordsToScreenCoords(x/2, y)
-	dx, dy := s.dx*int(s.mapView.tileWidth), s.dy*int(s.mapView.tileHeight)
-	return image.Pt(int(screenX), int(screenY)).In(image.Rect(dx, dy, dx+320, dy+192))
+	return s.mapView.AreMapCoordsVisible(x/2, y)
 }
 func (s *ShowMap) tryGiveOrderAtMapCoords(x, y int, order data.OrderType) {
 	if unit, ok := s.gameState.FindUnitAtMapCoords(x, y); ok {
@@ -341,11 +318,13 @@ func (s *ShowMap) dateTimeString() string {
 
 func (s *ShowMap) Draw(screen *ebiten.Image) {
 	screen.Fill(color.White)
-	opts := &ebiten.DrawImageOptions{}
-	opts.GeoM.Translate(float64(s.dx)*(-s.mapView.tileWidth), float64(s.dy)*(-s.mapView.tileHeight))
 
 	s.mapView.SetIsNight(s.gameState.isNight)
 	s.mapView.SetUseIcons(s.unitIconView)
+
+	opts := &ebiten.DrawImageOptions{}
+	opts.GeoM.Scale(3, 2)
+	opts.GeoM.Translate(0, 72)
 
 	s.mapView.Draw(screen, opts)
 	if s.animation != nil {
