@@ -101,6 +101,8 @@ func (v *MapView) getUnitIconImage(colorScheme, spriteNum byte) *ebiten.Image {
 	return ebitenSprite
 }
 func (v *MapView) ToUnitCoords(imageX, imageY int) (x, y int) {
+	imageX += v.visibleBounds.Min.X
+	imageY += v.visibleBounds.Min.Y
 	y = imageY/8 + v.minY
 	x = ((imageX+(y%2)*4)/8)*2 - y%2 + v.minX*2
 	return

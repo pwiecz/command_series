@@ -85,13 +85,9 @@ func NewShowMap(g *Game) *ShowMap {
 		&g.terrainMap, scenario.MinX, scenario.MinY, scenario.MaxX, scenario.MaxY,
 		&g.sprites.TerrainTiles, &g.sprites.UnitSymbolSprites, &g.sprites.UnitIconSprites,
 		&g.icons.Sprites, &g.scenarioData.DaytimePalette, &g.scenarioData.NightPalette,
-		image.Pt(106, 60))
+		image.Pt(200, 160))
 	s.unitIconView = true
 	return s
-}
-
-func (s *ShowMap) screenCoordsToUnitCoords(screenX, screenY int) (x, y int) {
-	return s.mapView.ToUnitCoords(screenX, screenY)
 }
 
 func (s *ShowMap) Update() error {
@@ -186,7 +182,7 @@ func (s *ShowMap) Update() error {
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			mouseX, mouseY := ebiten.CursorPosition()
 			x, y := s.screenCoordsToUnitCoords(mouseX, mouseY)
-			s.mapView.SetCursorPosition(x / 2, y)
+			s.mapView.SetCursorPosition(x/2, y)
 			if unit, ok := s.gameState.FindUnit(x, y); ok {
 				fmt.Println()
 				fmt.Println(s.gameState.unitInfo(unit))
@@ -316,6 +312,10 @@ func (s *ShowMap) dateTimeString() string {
 	return fmt.Sprintf("  %02d:%02d %s %s, %d %d  %s", hour, s.gameState.minute, meridianString, s.mainGame.scenarioData.Months[s.gameState.month], s.gameState.day+1, s.gameState.year, s.mainGame.scenarioData.Weather[s.gameState.weather])
 }
 
+func (s *ShowMap) screenCoordsToUnitCoords(screenX, screenY int) (x, y int) {
+	return s.mapView.ToUnitCoords(screenX/3, (screenY-130)/2)
+}
+
 func (s *ShowMap) Draw(screen *ebiten.Image) {
 	screen.Fill(color.White)
 
@@ -324,7 +324,7 @@ func (s *ShowMap) Draw(screen *ebiten.Image) {
 
 	opts := &ebiten.DrawImageOptions{}
 	opts.GeoM.Scale(3, 2)
-	opts.GeoM.Translate(0, 72)
+	opts.GeoM.Translate(0, 130)
 
 	s.mapView.Draw(screen, opts)
 	if s.animation != nil {
@@ -334,5 +334,5 @@ func (s *ShowMap) Draw(screen *ebiten.Image) {
 	ebitenutil.DebugPrint(screen, s.dateTimeString())
 }
 func (s *ShowMap) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return 320, 192
+	return 600, 450
 }

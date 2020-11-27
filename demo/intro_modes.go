@@ -70,12 +70,12 @@ func (s *ScenarioSelection) Draw(screen *ebiten.Image) {
 	}
 }
 func (s *ScenarioSelection) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return 320, 192
+	return 400, 300
 }
 
 type VariantSelection struct {
-	buttons         []*Button
-	mainGame        *Game
+	buttons  []*Button
+	mainGame *Game
 }
 
 func NewVariantSelection(mainGame *Game) *VariantSelection {
@@ -88,8 +88,8 @@ func NewVariantSelection(mainGame *Game) *VariantSelection {
 		y += float64(fontSize.Y)
 	}
 	return &VariantSelection{
-		buttons:         buttons,
-		mainGame:        mainGame}
+		buttons:  buttons,
+		mainGame: mainGame}
 }
 
 func (s *VariantSelection) Update() error {
@@ -109,7 +109,7 @@ func (s *VariantSelection) Draw(screen *ebiten.Image) {
 	}
 }
 func (s *VariantSelection) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return 320, 192
+	return 400, 300
 }
 
 type GameLoading struct {
@@ -153,7 +153,7 @@ func (l *GameLoading) Draw(screen *ebiten.Image) {
 	ebitenutil.DebugPrint(screen, "... LOADING ...")
 }
 func (s *GameLoading) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return 320, 192
+	return 400, 300
 }
 
 func (l *GameLoading) loadGameData() error {
@@ -220,7 +220,7 @@ func (l *VariantsLoading) Draw(screen *ebiten.Image) {
 	ebitenutil.DebugPrint(screen, "... LOADING ...")
 }
 func (l *VariantsLoading) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return 320, 192
+	return 400, 300
 }
 func (l *VariantsLoading) loadVariants() (err error) {
 	variantsFilename := path.Join(l.mainGame.gameDirname, l.scenario.FilePrefix+".VAR")
@@ -284,7 +284,7 @@ func (l *VariantLoading) Draw(screen *ebiten.Image) {
 	ebitenutil.DebugPrint(screen, "... LOADING ...")
 }
 func (l *VariantLoading) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return 320, 192
+	return 400, 300
 }
 func (l *VariantLoading) loadVariant() error {
 	unitsFilename := path.Join(l.mainGame.gameDirname, l.mainGame.scenarios[l.mainGame.selectedScenario].FilePrefix+".UNI")

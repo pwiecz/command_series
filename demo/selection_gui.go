@@ -25,7 +25,7 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	ebiten.SetWindowSize(640, 384)
+	ebiten.SetWindowSize(1200, 900)
 	ebiten.SetWindowTitle("Command Series Engine")
 	if err := ebiten.RunGame(NewGame(flag.Arg(0))); err != nil {
 		fmt.Println(err.Error())
