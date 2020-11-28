@@ -52,6 +52,7 @@ type ScenarioData struct {
 	ResupplyRate                   [2]int     // Data[232,233]
 	MenReplacementRate             [2]int     // Data[234,235]
 	EquipReplacementRate           [2]int     // Data[236,237]
+	SideColor                      [2]int     // Data[248,249] the value*16 is the hue corresponding to the given side
 	Data252                        [2]int     // Data[252:254] per side
 	MoveCostPerTerrainTypesAndUnit [8][16]int // Data[255:383]
 	// Every chunk of four bytes list possible weather for a year's quarter.
@@ -180,6 +181,8 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 	scenario.MenReplacementRate[1] = int(scenario.Data[235])
 	scenario.EquipReplacementRate[0] = int(scenario.Data[236])
 	scenario.EquipReplacementRate[1] = int(scenario.Data[237])
+	scenario.SideColor[0] = int(scenario.Data[248])
+	scenario.SideColor[1] = int(scenario.Data[249])
 	scenario.Data252[0] = int(scenario.Data[252])
 	scenario.Data252[1] = int(scenario.Data[253])
 	for terrainType := 0; terrainType < 8; terrainType++ {

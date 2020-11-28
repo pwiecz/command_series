@@ -64,5 +64,5 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 	if g.subGame != nil {
 		return g.subGame.Layout(outsideWidth, outsideHeight)
 	}
-	return 600, 450
+	return 336, 240
 }
