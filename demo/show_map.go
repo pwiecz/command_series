@@ -74,7 +74,6 @@ func NewShowMap(g *Game) *ShowMap {
 	s := &ShowMap{
 		mainGame:      g,
 		currentSpeed:  2,
-		idleTicksLeft: 60,
 		commandBuffer: NewCommandBuffer(20),
 		sync:          NewMessageSync()}
 	s.options.AlliedCommander = 0
@@ -194,7 +193,7 @@ func (s *ShowMap) Update() error {
 	if s.isFrozen {
 		return nil
 	}
-	if s.gameState.isInitialized && s.idleTicksLeft > 0 {
+	if s.idleTicksLeft > 0 {
 		s.idleTicksLeft--
 		return nil
 	}
@@ -205,6 +204,9 @@ loop:
 			break loop
 		}
 		switch message := update.(type) {
+		case Initialized:
+			s.idleTicksLeft = 60
+			break loop
 		case MessageFromUnit:
 			unit := message.Unit()
 			if unit.Side == s.playerSide {
@@ -217,8 +219,8 @@ loop:
 			if message.Sides[s.playerSide] {
 				fmt.Println("\nREINFORCEMENTS!")
 				s.idleTicksLeft = 100
-				break loop
 			}
+			break loop
 		case GameOver:
 			fmt.Printf("\n%s\n", message.Results)
 			return fmt.Errorf("GAME OVER!")

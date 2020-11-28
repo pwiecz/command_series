@@ -105,6 +105,8 @@ func (o WeHaveBeenOverrun) String() string {
 	return "WE HAVE BEEN OVERRUN."
 }
 
+type Initialized struct{}
+
 type Reinforcements struct {
 	Sides [2]bool
 }

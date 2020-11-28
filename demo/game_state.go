@@ -21,8 +21,6 @@ type GameState struct {
 	isNight                          bool
 	lastUpdatedUnit                  int
 
-	isInitialized bool
-
 	menLost                   [2]int // 29927 + side*2
 	tanksLost                 [2]int // 29927 + 4 + side*2
 	citiesHeld                [2]int // 29927 + 13 + side*2
@@ -99,9 +97,13 @@ func NewGameState(scenario *data.Scenario, scenarioData *data.ScenarioData, vari
 }
 
 func (s *GameState) Init() bool {
-	ret := s.everyHour()
-	s.isInitialized = true
-	return ret
+	if !s.everyHour() {
+		return false
+	}
+	if !s.sync.SendUpdate(Initialized{}) {
+		return false
+	}
+	return true
 }
 func (s *GameState) Update() bool {
 	s.unitsUpdated++
@@ -766,7 +768,6 @@ l21:
 				break
 			}
 			v57 -= temp
-
 			s.hideUnit(unit)
 			if s.options.IsPlayerControlled(unit.Side) ||
 				s.options.Intelligence == Full || unit.State&65 > 0 {
@@ -1391,8 +1392,10 @@ func (s *GameState) every12Hours() bool {
 		}
 	}
 	s.showAllVisibleUnits()
-	if !s.sync.SendUpdate(Reinforcements{Sides: reinforcements}) {
-		return false
+	if reinforcements[0] || reinforcements[1] {
+		if !s.sync.SendUpdate(Reinforcements{Sides: reinforcements}) {
+			return false
+		}
 	}
 	return true
 }
