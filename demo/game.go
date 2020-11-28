@@ -42,7 +42,7 @@ func (g *Game) onGameLoaded(scenarios []data.Scenario, sprites data.Sprites, ico
 }
 func (g *Game) onScenarioSelected(selectedScenario int) {
 	g.selectedScenario = selectedScenario
-	g.subGame = NewVariantsLoading(g.scenarios[selectedScenario], g)
+	g.subGame = NewVariantsLoading(g.scenarios[selectedScenario], g, g.sprites.IntroFont)
 }
 
 func (g *Game) Update() error {

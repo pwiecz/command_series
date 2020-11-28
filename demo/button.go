@@ -19,10 +19,10 @@ func NewButton(text string, x, y float64, font *data.Font) *Button {
 	var rect image.Rectangle
 	rect.Min.X, rect.Min.Y = int(x), int(y)
 	rect.Max.X, rect.Max.Y = int(x)+len(text)*fontSize.X, int(y)+fontSize.Y
-	opts := &ebiten.DrawImageOptions{}
+	var opts ebiten.DrawImageOptions
 	for _, r := range text {
 		glyphImg := ebiten.NewImageFromImage(font.Glyph(r))
-		img.DrawImage(glyphImg, opts)
+		img.DrawImage(glyphImg, &opts)
 		opts.GeoM.Translate(float64(fontSize.X), 0)
 	}
 	return &Button{

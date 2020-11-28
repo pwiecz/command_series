@@ -3,10 +3,10 @@ package main
 import "fmt"
 
 import "image"
-import "image/color"
 
 import "github.com/hajimehoshi/ebiten"
-import "github.com/hajimehoshi/ebiten/ebitenutil"
+
+//import "github.com/hajimehoshi/ebiten/ebitenutil"
 import "github.com/hajimehoshi/ebiten/inpututil"
 import "github.com/pwiecz/command_series/data"
 
@@ -39,11 +39,12 @@ func (o Options) Num() int {
 }
 
 type ShowMap struct {
-	mainGame  *Game
-	mapView   *MapView
-	animation *Animation
-	mapImage  *ebiten.Image
-	options   Options
+	mainGame   *Game
+	mapView    *MapView
+	messageBox *MessageBox
+	animation  *Animation
+	mapImage   *ebiten.Image
+	options    Options
 
 	currentSpeed  int
 	idleTicksLeft int
@@ -85,6 +86,8 @@ func NewShowMap(g *Game) *ShowMap {
 		&g.sprites.TerrainTiles, &g.sprites.UnitSymbolSprites, &g.sprites.UnitIconSprites,
 		&g.icons.Sprites, &g.scenarioData.DaytimePalette, &g.scenarioData.NightPalette,
 		image.Pt(200, 160))
+	s.messageBox = NewMessageBox(image.Pt(300, 64), g.sprites.GameFont)
+	s.messageBox.Clear(14)
 	s.unitIconView = true
 	return s
 }
@@ -311,7 +314,7 @@ func (s *ShowMap) dateTimeString() string {
 		meridianString = "PM"
 	}
 	hour := Abs(s.gameState.hour - 12*((s.gameState.hour+11)/12-1))
-	return fmt.Sprintf("  %02d:%02d %s %s, %d %d  %s", hour, s.gameState.minute, meridianString, s.mainGame.scenarioData.Months[s.gameState.month], s.gameState.day+1, s.gameState.year, s.mainGame.scenarioData.Weather[s.gameState.weather])
+	return fmt.Sprintf("%02d:%02d %s %s, %d %d  %s", hour, s.gameState.minute, meridianString, s.mainGame.scenarioData.Months[s.gameState.month], s.gameState.day+1, s.gameState.year, s.mainGame.scenarioData.Weather[s.gameState.weather])
 }
 
 func (s *ShowMap) screenCoordsToUnitCoords(screenX, screenY int) (x, y int) {
@@ -319,8 +322,6 @@ func (s *ShowMap) screenCoordsToUnitCoords(screenX, screenY int) (x, y int) {
 }
 
 func (s *ShowMap) Draw(screen *ebiten.Image) {
-	screen.Fill(color.White)
-
 	s.mapView.SetIsNight(s.gameState.isNight)
 	s.mapView.SetUseIcons(s.unitIconView)
 
@@ -333,7 +334,11 @@ func (s *ShowMap) Draw(screen *ebiten.Image) {
 		s.animation.Draw(screen, opts)
 	}
 
-	ebitenutil.DebugPrint(screen, s.dateTimeString())
+	opts.GeoM.Reset()
+	opts.GeoM.Scale(2, 2)
+	s.messageBox.ClearRow(7, 14)
+	s.messageBox.PrintString(s.dateTimeString(), image.Pt(1, 7), 0, 14)
+	s.messageBox.Draw(screen, opts)
 }
 func (s *ShowMap) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return 600, 450

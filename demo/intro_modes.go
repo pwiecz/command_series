@@ -5,7 +5,6 @@ import "image/color"
 import "path"
 
 import "github.com/hajimehoshi/ebiten"
-import "github.com/hajimehoshi/ebiten/ebitenutil"
 import "github.com/hajimehoshi/ebiten/inpututil"
 import "github.com/pwiecz/command_series/data"
 
@@ -113,22 +112,24 @@ func (s *VariantSelection) Layout(outsideWidth, outsideHeight int) (int, int) {
 }
 
 type GameLoading struct {
-	gameDirname string
-	gameLoaded  func([]data.Scenario, data.Sprites, data.Icons, data.Map, data.Generic, data.Hexes)
-	loadingDone chan error
-	scenarios   []data.Scenario
-	sprites     data.Sprites
-	icons       data.Icons
-	terrainMap  data.Map
-	generic     data.Generic
-	hexes       data.Hexes
+	gameDirname  string
+	onGameLoaded func([]data.Scenario, data.Sprites, data.Icons, data.Map, data.Generic, data.Hexes)
+	loadingDone  chan error
+	scenarios    []data.Scenario
+	sprites      data.Sprites
+	icons        data.Icons
+	terrainMap   data.Map
+	generic      data.Generic
+	hexes        data.Hexes
+
+	turnsLoading int
+	loadingRect  *ebiten.Image
 }
 
-func NewGameLoading(gameDirname string, gameLoaded func([]data.Scenario, data.Sprites, data.Icons, data.Map, data.Generic, data.Hexes)) *GameLoading {
+func NewGameLoading(gameDirname string, onGameLoaded func([]data.Scenario, data.Sprites, data.Icons, data.Map, data.Generic, data.Hexes)) *GameLoading {
 	return &GameLoading{
-		gameDirname: gameDirname,
-		gameLoaded:  gameLoaded,
-	}
+		gameDirname:  gameDirname,
+		onGameLoaded: onGameLoaded}
 }
 
 func (l *GameLoading) Update() error {
@@ -143,15 +144,27 @@ func (l *GameLoading) Update() error {
 			if err != nil {
 				return err
 			}
-			l.gameLoaded(l.scenarios, l.sprites, l.icons, l.terrainMap, l.generic, l.hexes)
+			l.onGameLoaded(l.scenarios, l.sprites, l.icons, l.terrainMap, l.generic, l.hexes)
 		default:
 		}
 	}
+	l.turnsLoading++
 	return nil
 }
 func (l *GameLoading) Draw(screen *ebiten.Image) {
-	ebitenutil.DebugPrint(screen, "... LOADING ...")
+	if l.loadingRect == nil {
+		l.loadingRect = ebiten.NewImage(100, 1)
+	}
+	if l.turnsLoading%200 < 100 {
+		l.loadingRect.Set(l.turnsLoading%100, 0, color.White)
+	} else {
+		l.loadingRect.Set(l.turnsLoading%100, 0, color.Black)
+	}
+	var opts ebiten.DrawImageOptions
+	opts.GeoM.Translate(100, 50)
+	l.loadingRect.DrawImage(screen, &opts)
 }
+
 func (s *GameLoading) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return 400, 300
 }
@@ -189,13 +202,14 @@ type VariantsLoading struct {
 	mainGame    *Game
 	scenario    data.Scenario
 	loadingDone chan error
+	loadingText *Button
 }
 
-func NewVariantsLoading(scenario data.Scenario, mainGame *Game) *VariantsLoading {
+func NewVariantsLoading(scenario data.Scenario, mainGame *Game, font *data.Font) *VariantsLoading {
 	return &VariantsLoading{
-		mainGame: mainGame,
-		scenario: scenario,
-	}
+		mainGame:    mainGame,
+		scenario:    scenario,
+		loadingText: NewButton("... LOADING ...", 0, 0, font)}
 }
 func (l *VariantsLoading) Update() error {
 	if l.loadingDone == nil {
@@ -217,7 +231,7 @@ func (l *VariantsLoading) Update() error {
 
 }
 func (l *VariantsLoading) Draw(screen *ebiten.Image) {
-	ebitenutil.DebugPrint(screen, "... LOADING ...")
+	l.loadingText.Draw(screen)
 }
 func (l *VariantsLoading) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return 400, 300
@@ -281,7 +295,7 @@ func (l *VariantLoading) Update() error {
 
 }
 func (l *VariantLoading) Draw(screen *ebiten.Image) {
-	ebitenutil.DebugPrint(screen, "... LOADING ...")
+	//	ebitenutil.DebugPrint(screen, "... LOADING ...")
 }
 func (l *VariantLoading) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return 400, 300

@@ -8,15 +8,15 @@ import "os"
 import "path"
 
 type Font struct {
-	fallback   image.Image
-	characters map[rune]image.Image
+	fallback   *image.Paletted
+	characters map[rune]*image.Paletted
 }
 
 func (f *Font) Size() image.Point {
 	return f.fallback.Bounds().Size()
 }
 
-func (f *Font) Glyph(r rune) image.Image {
+func (f *Font) Glyph(r rune) *image.Paletted {
 	if c, ok := f.characters[r]; ok {
 		return c
 	}
@@ -131,8 +131,8 @@ func ParseSprites(iconData, symbolData, introData io.Reader) (Sprites, error) {
 		'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
 		'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
 	}
-	characters := make(map[rune]image.Image)
-	introCharacters := make(map[rune]image.Image)
+	characters := make(map[rune]*image.Paletted)
+	introCharacters := make(map[rune]*image.Paletted)
 	for i, char := range chars {
 		if char == 0 {
 			continue
