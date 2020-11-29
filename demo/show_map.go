@@ -136,7 +136,7 @@ func (s *ShowMap) Update() error {
 					fmt.Println("UNFROZEN")
 				}
 			case StatusReport:
-				fmt.Println(s.gameState.statusReport())
+				s.showStatusReport()
 				s.idleTicksLeft = 60 * s.currentSpeed
 			case UnitInfo:
 				s.showUnitInfo()
@@ -386,6 +386,27 @@ func (s *ShowMap) showUnitInfo() {
 	}
 	s.messageBox.Print(orderStr, 7, nextRow, false)
 }
+func (s *ShowMap) showStatusReport() {
+	s.messageBox.Clear()
+	s.messageBox.Print("STATUS REPORT", 2, 0, true)
+	s.messageBox.Print(s.mainGame.scenarioData.Sides[0], 16, 0, false)
+	s.messageBox.Print(s.mainGame.scenarioData.Sides[1], 26, 0, false)
+	s.messageBox.Print(" TROOPS LOST ", 2, 1, true)
+	menMultiplier, tanksMultiplier := s.mainGame.scenarioData.MenMultiplier, s.mainGame.scenarioData.TanksMultiplier
+	s.messageBox.Print(fmt.Sprintf("%d", s.gameState.menLost[0]*menMultiplier), 16, 1, false)
+	s.messageBox.Print(fmt.Sprintf("%d", s.gameState.menLost[1]*menMultiplier), 26, 1, false)
+	s.messageBox.Print(" TANKS  LOST ", 2, 2, true)
+	s.messageBox.Print(fmt.Sprintf("%d", s.gameState.tanksLost[0]*tanksMultiplier), 16, 2, false)
+	s.messageBox.Print(fmt.Sprintf("%d", s.gameState.tanksLost[1]*tanksMultiplier), 26, 2, false)
+	s.messageBox.Print(" CITIES HELD ", 2, 3, true)
+	s.messageBox.Print(fmt.Sprintf("%d", s.gameState.citiesHeld[0]), 16, 3, false)
+	s.messageBox.Print(fmt.Sprintf("%d", s.gameState.citiesHeld[1]), 26, 3, false)
+	winningSide, advantage := s.gameState.winningSideAndAdvantage()
+	advantageStrs := []string{"SLIGHT", "MARGINAL", "TACTICAL", "DECISIVE", "TOTAL"}
+	winningSideStr := s.mainGame.scenarioData.Sides[winningSide]
+	s.messageBox.Print(fmt.Sprintf("%s %s ADVANTAGE.", advantageStrs[advantage], winningSideStr), 2, 4, false)
+}
+
 func (s *ShowMap) increaseGameSpeed() {
 	s.changeGameSpeed(-1)
 }
