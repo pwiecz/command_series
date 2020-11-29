@@ -46,6 +46,8 @@ func (b *CommandBuffer) triggeredCommand() (Command, bool) {
 		return Freeze, true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeySlash) && ebiten.IsKeyPressed(ebiten.KeyShift) {
 		return StatusReport, true
+	} else if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+		return UnitInfo, true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyComma) && ebiten.IsKeyPressed(ebiten.KeyShift) {
 		return DecreaseSpeed, true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyPeriod) && ebiten.IsKeyPressed(ebiten.KeyShift) {

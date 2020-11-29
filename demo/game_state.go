@@ -1346,6 +1346,9 @@ func (s *GameState) every12Hours() bool {
 	s.supplyLevels[0] += s.scenarioData.ResupplyRate[0] * 2
 	s.supplyLevels[1] += s.scenarioData.ResupplyRate[1] * 2
 	s.hideAllUnits()
+	if s.isNight { // in CiV - opposite
+		s.sync.SendUpdate(SupplyDistributionStart{})
+	}
 	for _, sideUnits := range s.units {
 		for i, unit := range sideUnits {
 			if unit.State&128 != 0 {
@@ -1392,6 +1395,9 @@ func (s *GameState) every12Hours() bool {
 		}
 	}
 	s.showAllVisibleUnits()
+	if s.isNight { // in CiV - opposite
+		s.sync.SendUpdate(SupplyDistributionEnd{})
+	}
 	if reinforcements[0] || reinforcements[1] {
 		if !s.sync.SendUpdate(Reinforcements{Sides: reinforcements}) {
 			return false
@@ -1644,14 +1650,13 @@ func (s *GameState) everyDay() bool {
 	if rnd < 140 {
 		s.weather = int(s.scenarioData.PossibleWeather[4*(s.month/3)+rnd/35])
 	}
-	fmt.Printf("WEATHER FORECAST: %s\n", s.scenarioData.Weather[s.weather])
-	fmt.Println("SUPPLY DISTRIBUTION")
+	s.sync.SendUpdate(WeatherForecast{s.weather})
 	if !s.every12Hours() {
 		return false
 	}
-	fmt.Printf("%d DAYS REMAINING.\n", s.variant.LengthInDays-s.daysElapsed+1)
-	supplyLevels := []string{"CRITICAL", "SUFFICIENT", "AMPLE"}
-	fmt.Printf("SUPPLY LEVEL: %s\n", supplyLevels[Clamp(s.supplyLevels[s.playerSide]/256, 0, 2)])
+	s.sync.SendUpdate(DailyUpdate{
+		DaysRemaining: s.variant.LengthInDays - s.daysElapsed + 1,
+		SupplyLevel:   Clamp(s.supplyLevels[s.playerSide]/256, 0, 2)})
 	for _, update := range s.scenarioData.DataUpdates {
 		if update.Day == s.daysElapsed {
 			s.scenarioData.UpdateData(update.Offset, update.Value)
@@ -1708,49 +1713,6 @@ func (s *GameState) statusReport() string {
 	advantageStrs := []string{"SLIGHT", "MARGINAL", "TACTICAL", "DECISIVE", "TOTAL"}
 	winningSideStr := s.scenarioData.Sides[winningSide]
 	strs = append(strs, fmt.Sprintf("   %s %s ADVANTAGE.", advantageStrs[advantage], winningSideStr))
-	return strings.Join(strs, "\n")
-}
-func (s *GameState) unitInfo(unit data.Unit) string {
-	if unit.Side != s.playerSide && unit.State&1 == 0 {
-		return "NO INFORMATION"
-	}
-	// show objective
-	var strs []string
-	if unit.Side != s.playerSide {
-		strs = append(strs, "ENEMY UNIT ")
-	}
-	strs = append(strs, fmt.Sprintf("WHO  %s %s", unit.Name, s.scenarioData.UnitTypes[unit.Type]))
-	manCount := unit.MenCount
-	if unit.Side != s.playerSide {
-		manCount -= manCount % 10
-	}
-	if manCount > 0 {
-		strs = append(strs, fmt.Sprintf("     %d MEN, ", manCount*s.scenarioData.MenMultiplier))
-	}
-	tankCount := unit.EquipCount
-	if unit.Side != s.playerSide {
-		tankCount -= tankCount % 10
-	}
-	if tankCount > 0 {
-		strs[len(strs)-1] = strs[len(strs)-1] + fmt.Sprintf("%d %s, ", tankCount*s.scenarioData.TanksMultiplier, s.scenarioData.Equipments[unit.Type])
-	}
-	if unit.Side == s.playerSide {
-		supplyDays := unit.SupplyLevel / (s.scenarioData.AvgDailySupplyUse + s.scenarioData.Data163)
-		strs = append(strs, fmt.Sprintf("     %d DAYS SUPPLY", supplyDays))
-		if unit.State&8 != 0 {
-			strs = append(strs, fmt.Sprintf(" (NO SUPPLY LINE!)"))
-		}
-	}
-	strs = append(strs, fmt.Sprintf("FORM %s", s.scenarioData.Formations[unit.Formation]))
-	if unit.Side != s.playerSide {
-		return strings.Join(strs, "\n")
-	}
-	strs[len(strs)-1] = strs[len(strs)-1] + fmt.Sprintf(" EXP %s EFF %d", s.scenarioData.Experience[unit.Morale/27], 10*((256-unit.Fatigue)/25))
-	var local string
-	if unit.State&32 != 0 {
-		local = "(LOCAL COMMAND)"
-	}
-	strs = append(strs, fmt.Sprintf("ORDR %s   %s", unit.Order.String(), local))
 	return strings.Join(strs, "\n")
 }
 

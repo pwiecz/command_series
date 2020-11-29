@@ -9,12 +9,9 @@ type Rectangle struct {
 	currentColor, targetColor int
 }
 
-func NewRectangle(size image.Point, color int) *Rectangle {
-	r := &Rectangle{
-		image:        ebiten.NewImage(size.X, size.Y),
-		targetColor:  color,
-		currentColor: color}
-	r.image.Fill(data.RGBPalette[color])
+func NewRectangle(size image.Point) *Rectangle {
+	r := &Rectangle{image: ebiten.NewImage(size.X, size.Y)}
+	r.image.Fill(data.RGBPalette[0])
 	return r
 }
 

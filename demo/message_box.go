@@ -13,7 +13,7 @@ type MessageBox struct {
 	size                image.Point
 	font                *data.Font
 	numRows, numColumns int
-
+	rowBackgrounds []int
 	currentContent, targetContent [][]coordsContent
 }
 
@@ -25,6 +25,7 @@ func NewMessageBox(size image.Point, font *data.Font) *MessageBox {
 	fontSize := font.Size()
 	b.numRows = (size.Y + fontSize.Y - 1) / fontSize.Y
 	b.numColumns = (size.X + fontSize.X - 1) / fontSize.X
+	b.rowBackgrounds = make([]int, b.numRows)
 	b.currentContent = make([][]coordsContent, b.numRows)
 	b.targetContent = make([][]coordsContent, b.numRows)
 	for y := 0; y < b.numRows; y++ {
@@ -37,32 +38,56 @@ func NewMessageBox(size image.Point, font *data.Font) *MessageBox {
 	return b
 }
 
-func (b *MessageBox) Clear(color int) {
-	for y := 0; y < b.numRows; y++ {
-		b.ClearRow(y, color)
+func (b *MessageBox) SetRowBackground(y, color int) {
+	if y >= b.numRows {
+		return
 	}
-}
-func (b *MessageBox) ClearRow(y, color int) {
 	row := b.targetContent[y]
 	for x := 0; x < b.numColumns; x++ {
-		row[x].textColor = color
-		row[x].backgroundColor = color
+		if row[x].backgroundColor == b.rowBackgrounds[y] {
+			row[x].backgroundColor = color
+		}
+		if row[x].textColor == b.rowBackgrounds[y] {
+			row[x].textColor = color
+		}
+	}
+	b.rowBackgrounds[y] = color
+}
+func (b *MessageBox) Clear() {
+	for y := 0; y < b.numRows; y++ {
+		b.ClearRow(y)
+	}
+}
+func (b *MessageBox) ClearRow(y int) {
+	if y >= b.numRows {
+		return
+	}
+	backgroundColor := b.rowBackgrounds[y]
+	row := b.targetContent[y]
+	for x := 0; x < b.numColumns; x++ {
+		row[x].backgroundColor = backgroundColor
 		row[x].rune = ' '
 	}
 }
-func (b *MessageBox) PrintString(str string, pos image.Point, textColor int, backgroundColor int) {
-	if pos.Y >= b.numRows {
+func (b *MessageBox) Print(str string, x, y int, inverted bool) {
+	if y >= b.numRows {
 		return
 	}
-	row := b.targetContent[pos.Y]
-	for i, r := range str {
-		x := pos.X + i
+	row := b.targetContent[y]
+	background := b.rowBackgrounds[y]
+	for _, r := range str {
 		if x >= b.numColumns {
 			return
 		}
-		row[x].textColor = textColor
-		row[x].backgroundColor = backgroundColor
+		if !inverted {
+			row[x].textColor = 0
+			row[x].backgroundColor = background
+		} else {
+			row[x].backgroundColor = 0
+			row[x].textColor = background
+		}
 		row[x].rune = r
+		x++
 	}
 }
 

@@ -107,13 +107,9 @@ func (o WeHaveBeenOverrun) String() string {
 
 type Initialized struct{}
 
-type Reinforcements struct {
-	Sides [2]bool
-}
+type Reinforcements struct{ Sides [2]bool }
 
-type GameOver struct {
-	Results string
-}
+type GameOver struct{ Results string }
 
 type UnitMove struct {
 	Unit           data.Unit
@@ -122,4 +118,14 @@ type UnitMove struct {
 
 type SupplyTruckMove struct {
 	X0, Y0, X1, Y1 int
+}
+
+type WeatherForecast struct{ Weather int }
+
+type SupplyDistributionStart struct{}
+type SupplyDistributionEnd struct{}
+
+type DailyUpdate struct{
+	DaysRemaining int
+	SupplyLevel int
 }

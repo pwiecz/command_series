@@ -1,11 +1,10 @@
 package main
 
 import "fmt"
-
 import "image"
+import "strings"
 
 import "github.com/hajimehoshi/ebiten"
-
 import "github.com/hajimehoshi/ebiten/inpututil"
 import "github.com/pwiecz/command_series/data"
 
@@ -79,7 +78,7 @@ func NewShowMap(g *Game) *ShowMap {
 		currentSpeed:  2,
 		commandBuffer: NewCommandBuffer(20),
 		sync:          NewMessageSync()}
-	s.options.AlliedCommander = 0
+	s.options.AlliedCommander = 1
 	s.options.GermanCommander = 0
 	s.options.GameBalance = 2
 	s.gameState = NewGameState(&scenario, &g.scenarioData, &variant, g.selectedVariant, g.units, &g.terrain, &g.terrainMap, &g.generic, &g.hexes, g.generals, s.options, s.sync)
@@ -90,9 +89,8 @@ func NewShowMap(g *Game) *ShowMap {
 		image.Pt(160, 19*8))
 	s.messageBox = NewMessageBox(image.Pt(336, 48), g.sprites.GameFont)
 
-	playerBaseColor := s.mainGame.scenarioData.SideColor[s.playerSide] * 16
-	s.topRect = NewRectangle(image.Pt(336, 22), playerBaseColor + 10)
-	s.separatorRect = NewRectangle(image.Pt(336, 2), 0)
+	s.topRect = NewRectangle(image.Pt(336, 22))
+	s.separatorRect = NewRectangle(image.Pt(336, 2))
 	s.unitIconView = true
 	return s
 }
@@ -139,6 +137,9 @@ func (s *ShowMap) Update() error {
 				}
 			case StatusReport:
 				fmt.Println(s.gameState.statusReport())
+				s.idleTicksLeft = 60 * s.currentSpeed
+			case UnitInfo:
+				s.showUnitInfo()
 				s.idleTicksLeft = 60 * s.currentSpeed
 			case DecreaseSpeed:
 				s.idleTicksLeft = 60 * s.currentSpeed
@@ -190,12 +191,6 @@ func (s *ShowMap) Update() error {
 			mouseX, mouseY := ebiten.CursorPosition()
 			x, y := s.screenCoordsToUnitCoords(mouseX, mouseY)
 			s.mapView.SetCursorPosition(x/2, y)
-			if unit, ok := s.gameState.FindUnit(x, y); ok {
-				fmt.Println()
-				fmt.Println(s.gameState.unitInfo(unit))
-			} else {
-				fmt.Println("NO UNIT")
-			}
 		}
 	}
 	if s.isFrozen {
@@ -218,8 +213,16 @@ loop:
 		case MessageFromUnit:
 			unit := message.Unit()
 			if unit.Side == s.playerSide {
-				fmt.Printf("\nMESSAGE FROM ...\n%s %s:\n", unit.Name, s.mainGame.scenarioData.UnitTypes[unit.Type])
-				fmt.Printf("'%s'\n", message.String())
+				for y := 0; y < 5; y++ {
+					s.messageBox.ClearRow(y)
+				}
+				s.messageBox.Print("MESSAGE FROM ...", 2, 0, true)
+				unitName := fmt.Sprintf("%s %s:", unit.Name, s.mainGame.scenarioData.UnitTypes[unit.Type])
+				s.messageBox.Print(unitName, 2, 1, false)
+				lines := strings.Split("\""+message.String()+"\"", "\n")
+				for i, line := range lines {
+					s.messageBox.Print(line, 2, 2+i, false)
+				}
 				s.idleTicksLeft = 60 * s.currentSpeed
 				break loop
 			}
@@ -244,6 +247,19 @@ loop:
 					message.X0, message.Y0, message.X1, message.Y1, 4)
 				break loop
 			}
+		case WeatherForecast:
+			s.messageBox.Clear()
+			s.messageBox.Print(fmt.Sprintf("WEATHER FORECAST: %s", s.mainGame.scenarioData.Weather[message.Weather]), 2, 0, false)
+		case SupplyDistributionStart:
+			s.messageBox.Print(" SUPPLY DISTRIBUTION ", 2, 1, true)
+		case SupplyDistributionEnd:
+		case DailyUpdate:
+			s.messageBox.Print(fmt.Sprintf("%d DAYS REMAINING.", message.DaysRemaining), 2, 2, false)
+			s.messageBox.Print("SUPPLY LEVEL:", 2, 3, true)
+			supplyLevels := []string{"CRITICAL", "SUFFICIENT", "AMPLE"}
+			s.messageBox.Print(supplyLevels[message.SupplyLevel], 16, 3, false)
+			s.idleTicksLeft = 60 * s.currentSpeed
+			break loop
 		default:
 			return fmt.Errorf("Unknown message: %v", message)
 		}
@@ -292,7 +308,6 @@ func (s *ShowMap) trySetObjective(x, y int) {
 func (s *ShowMap) setObjective(unit data.Unit, x, y int) {
 	unit.ObjectiveX, unit.ObjectiveY = x, y
 	unit.State &= 223 // clean bit 5 (32)
-	fmt.Println(s.gameState.unitInfo(unit))
 	fmt.Println("OBJECTIVE HERE.")
 	distance := Function15_distanceToObjective(unit)
 	if distance > 0 {
@@ -300,6 +315,76 @@ func (s *ShowMap) setObjective(unit data.Unit, x, y int) {
 	}
 	s.mainGame.units[unit.Side][unit.Index] = unit
 	s.orderedUnit = nil
+}
+func (s *ShowMap) showUnitInfo() {
+	cursorX, cursorY := s.mapView.GetCursorPosition()
+	unit, ok := s.gameState.FindUnitAtMapCoords(cursorX, cursorY)
+	if !ok {
+		return
+	}
+	s.messageBox.Clear()
+	if unit.Side != s.playerSide && unit.State&1 == 0 {
+		s.messageBox.Print(" NO INFORMATION ", 2, 0, true)
+		return
+	}
+	var nextRow int
+	if unit.Side != s.playerSide {
+		s.messageBox.Print(" ENEMY UNIT ", 2, 0, true)
+		nextRow++
+	}
+	s.messageBox.Print("WHO ", 2, nextRow, true)
+	s.messageBox.Print(fmt.Sprintf("%s %s", unit.Name, s.mainGame.scenarioData.UnitTypes[unit.Type]), 7, nextRow, false)
+	nextRow++
+
+	s.messageBox.Print("    ", 2, nextRow, true)
+	var menStr string
+	men := unit.MenCount
+	if unit.Side != s.playerSide {
+		men -= men % 10
+	}
+	if men > 0 {
+		menStr = fmt.Sprintf("%d MEN, ", men*s.mainGame.scenarioData.MenMultiplier)
+	}
+	tanks := unit.EquipCount
+	if unit.Side != s.playerSide {
+		tanks -= tanks % 10
+	}
+	if tanks > 0 {
+		menStr += fmt.Sprintf("%d %s, ", tanks*s.mainGame.scenarioData.TanksMultiplier, s.mainGame.scenarioData.Equipments[unit.Type])
+	}
+	s.messageBox.Print(menStr, 7, nextRow, false)
+	nextRow++
+
+	if unit.Side == s.playerSide {
+		s.messageBox.Print("    ", 2, nextRow, true)
+		supplyDays := unit.SupplyLevel / (s.mainGame.scenarioData.AvgDailySupplyUse + s.mainGame.scenarioData.Data163)
+		supplyStr := fmt.Sprintf("%d DAYS SUPPLY.", supplyDays)
+		if unit.State&8 != 0 {
+			supplyStr += " (NO SUPPLY LINE!)"
+		}
+		s.messageBox.Print(supplyStr, 7, nextRow, false)
+		nextRow++
+	}
+
+	s.messageBox.Print("FORM", 2, nextRow, true)
+	formationStr := s.mainGame.scenarioData.Formations[unit.Formation]
+	s.messageBox.Print(formationStr, 7, nextRow, false)
+	if unit.Side != s.playerSide {
+		return
+	}
+	s.messageBox.Print("EXP", 7+len(formationStr)+1, nextRow, true)
+	expStr := s.mainGame.scenarioData.Experience[unit.Morale/27]
+	s.messageBox.Print(expStr, 7+len(formationStr)+5, nextRow, false)
+	s.messageBox.Print("EFF", 7+len(formationStr)+5+len(expStr)+1, nextRow, true)
+	s.messageBox.Print(fmt.Sprintf("%d", 10*((256-unit.Fatigue)/25)), 7+len(formationStr)+5+len(expStr)+5, nextRow, false)
+	nextRow++
+
+	s.messageBox.Print("ORDR", 2, nextRow, true)
+	orderStr := unit.Order.String()
+	if unit.State&32 != 0 {
+		orderStr += " (LOCAL COMMAND)"
+	}
+	s.messageBox.Print(orderStr, 7, nextRow, false)
 }
 func (s *ShowMap) increaseGameSpeed() {
 	s.changeGameSpeed(-1)
@@ -323,7 +408,7 @@ func (s *ShowMap) dateTimeString() string {
 }
 
 func (s *ShowMap) screenCoordsToUnitCoords(screenX, screenY int) (x, y int) {
-	return s.mapView.ToUnitCoords(screenX/3, (screenY-130)/2)
+	return s.mapView.ToUnitCoords((screenX-8)/2, screenY-72)
 }
 
 func (s *ShowMap) Draw(screen *ebiten.Image) {
@@ -349,16 +434,17 @@ func (s *ShowMap) Draw(screen *ebiten.Image) {
 	opts.GeoM.Reset()
 	opts.GeoM.Translate(0, 22)
 	playerBaseColor := s.mainGame.scenarioData.SideColor[s.playerSide] * 16
-	s.messageBox.ClearRow(0, playerBaseColor+12)
-	s.messageBox.ClearRow(1, playerBaseColor+10)
-	s.messageBox.ClearRow(2, playerBaseColor+12)
-	s.messageBox.ClearRow(3, playerBaseColor+10)
-	s.messageBox.ClearRow(4, playerBaseColor+12)
-	s.messageBox.ClearRow(5, 30)
-	s.messageBox.PrintString(s.dateTimeString(), image.Pt(2, 5), 0, 30)
+	s.messageBox.SetRowBackground(0, playerBaseColor+12)
+	s.messageBox.SetRowBackground(1, playerBaseColor+10)
+	s.messageBox.SetRowBackground(2, playerBaseColor+12)
+	s.messageBox.SetRowBackground(3, playerBaseColor+10)
+	s.messageBox.SetRowBackground(4, playerBaseColor+12)
+	s.messageBox.SetRowBackground(5, 30)
+	s.messageBox.Print(s.dateTimeString(), 2, 5, false)
 	s.messageBox.Draw(screen, &opts)
 
 	opts.GeoM.Reset()
+	s.topRect.SetColor(playerBaseColor + 10)
 	s.topRect.Draw(screen, &opts)
 
 	opts.GeoM.Translate(0, 70)
