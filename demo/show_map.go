@@ -274,11 +274,12 @@ func (s *ShowMap) areUnitCoordsVisible(x, y int) bool {
 	return s.mapView.AreMapCoordsVisible(x/2, y)
 }
 func (s *ShowMap) tryGiveOrderAtMapCoords(x, y int, order data.OrderType) {
-	if unit, ok := s.gameState.FindUnitAtMapCoords(x, y); ok {
+	s.messageBox.Clear()
+	if unit, ok := s.gameState.FindUnitAtMapCoords(x, y); ok && unit.Side == s.playerSide {
 		s.giveOrder(unit, order)
 		s.orderedUnit = &unit
 	} else {
-		fmt.Println("NO FRIENDLY UNIT.")
+		s.messageBox.Print("NO FRIENDLY UNIT.", 2, 0, false)
 	}
 }
 func (s *ShowMap) giveOrder(unit data.Unit, order data.OrderType) {
@@ -287,21 +288,22 @@ func (s *ShowMap) giveOrder(unit data.Unit, order data.OrderType) {
 	switch order {
 	case data.Reserve:
 		unit.ObjectiveX = 0
-		fmt.Println("RESERVE")
+		s.messageBox.Print("RESERVE", 2, 0, false)
 	case data.Attack:
 		unit.ObjectiveX = 0
-		fmt.Println("ATTACKING")
+		s.messageBox.Print("ATTACKING", 2, 0, false)
 	case data.Defend:
-		fmt.Println("DEFENDING")
 		unit.ObjectiveX, unit.ObjectiveY = unit.X, unit.Y
+		s.messageBox.Print("DEFENDING", 2, 0, false)
 	case data.Move:
-		fmt.Println("MOVE WHERE ?")
+		s.messageBox.Print("MOVE WHERE ?", 2, 0, false)
 	}
 	s.mainGame.units[unit.Side][unit.Index] = unit
 }
 func (s *ShowMap) trySetObjective(x, y int) {
 	if s.orderedUnit == nil {
-		fmt.Println("GIVE ORDERS FIRST!")
+		s.messageBox.Clear()
+		s.messageBox.Print("GIVE ORDERS FIRST!", 2, 0, false)
 		return
 	}
 	unitX := 2*x + y%2
@@ -311,10 +313,13 @@ func (s *ShowMap) trySetObjective(x, y int) {
 func (s *ShowMap) setObjective(unit data.Unit, x, y int) {
 	unit.ObjectiveX, unit.ObjectiveY = x, y
 	unit.State &= 223 // clean bit 5 (32)
-	fmt.Println("OBJECTIVE HERE.")
+	s.messageBox.Clear()
+	s.messageBox.Print("WHO ", 2, 0, true)
+	s.messageBox.Print(fmt.Sprintf("%s %s", unit.Name, s.mainGame.scenarioData.UnitTypes[unit.Type]), 7, 0, false)
+	s.messageBox.Print("OBJECTIVE HERE.", 2, 1, false)
 	distance := Function15_distanceToObjective(unit)
 	if distance > 0 {
-		fmt.Println("DISTANCE:", distance*s.mainGame.scenarioData.HexSizeInMiles, "MILES.")
+		s.messageBox.Print(fmt.Sprintf("DISTANCE: %d MILES.", distance*s.mainGame.scenarioData.HexSizeInMiles), 2, 2, false)
 	}
 	s.mainGame.units[unit.Side][unit.Index] = unit
 	s.orderedUnit = nil
@@ -429,8 +434,9 @@ func (s *ShowMap) decreaseGameSpeed() {
 }
 func (s *ShowMap) changeGameSpeed(delta int) {
 	s.currentSpeed = Clamp(s.currentSpeed+delta, 1, 3)
+	s.messageBox.Clear()
 	speedNames := []string{"FAST", "MEDIUM", "SLOW"}
-	fmt.Printf("SPEED: %s\n", speedNames[s.currentSpeed-1])
+	s.messageBox.Print(fmt.Sprintf("SPEED: %s", speedNames[s.currentSpeed-1]), 2, 0, false)
 }
 
 func (s *ShowMap) dateTimeString() string {
