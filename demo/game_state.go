@@ -1537,8 +1537,11 @@ func (s *GameState) FindUnitOfSide(x, y, side int) (data.Unit, bool) {
 	return data.Unit{}, false
 }
 func (s *GameState) FindCity(x, y int) (data.City, bool) {
+	return s.FindCityAtMapCoords(x/2, y)
+}
+func (s *GameState) FindCityAtMapCoords(x, y int) (data.City, bool) {
 	for _, city := range s.terrain.Cities {
-		if city.X == x && city.Y == y {
+		if city.X/2 == x && city.Y == y {
 			return city, true
 		}
 	}

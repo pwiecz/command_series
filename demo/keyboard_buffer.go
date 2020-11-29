@@ -9,6 +9,7 @@ const (
 	Freeze Command = iota
 	StatusReport
 	UnitInfo
+	CityInfo
 	DecreaseSpeed
 	IncreaseSpeed
 	SwitchUnitDisplay
@@ -48,6 +49,8 @@ func (b *CommandBuffer) triggeredCommand() (Command, bool) {
 		return StatusReport, true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
 		return UnitInfo, true
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyC) {
+		return CityInfo, true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyComma) && ebiten.IsKeyPressed(ebiten.KeyShift) {
 		return DecreaseSpeed, true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyPeriod) && ebiten.IsKeyPressed(ebiten.KeyShift) {

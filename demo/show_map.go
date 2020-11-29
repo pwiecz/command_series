@@ -141,6 +141,9 @@ func (s *ShowMap) Update() error {
 			case UnitInfo:
 				s.showUnitInfo()
 				s.idleTicksLeft = 60 * s.currentSpeed
+			case CityInfo:
+				s.showCityInfo()
+				s.idleTicksLeft = 60 * s.currentSpeed
 			case DecreaseSpeed:
 				s.idleTicksLeft = 60 * s.currentSpeed
 				s.decreaseGameSpeed()
@@ -385,6 +388,17 @@ func (s *ShowMap) showUnitInfo() {
 		orderStr += " (LOCAL COMMAND)"
 	}
 	s.messageBox.Print(orderStr, 7, nextRow, false)
+}
+func (s *ShowMap) showCityInfo() {
+	s.messageBox.Clear()
+	cursorX, cursorY := s.mapView.GetCursorPosition()
+	city, ok := s.gameState.FindCityAtMapCoords(cursorX, cursorY)
+	if !ok {
+		s.messageBox.Print("NONE", 2, 0, false)
+		return
+	}
+	s.messageBox.Print(city.Name, 2, 0, false)
+	s.messageBox.Print(fmt.Sprintf("%d VICTORY POINTS, %s", city.VictoryPoints, s.mainGame.scenarioData.Sides[city.Owner]), 2, 1, false)
 }
 func (s *ShowMap) showStatusReport() {
 	s.messageBox.Clear()
