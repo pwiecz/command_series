@@ -50,6 +50,7 @@ type ShowMap struct {
 	currentSpeed  int
 	idleTicksLeft int
 	isFrozen      bool
+	areUnitsHidden bool
 	unitIconView  bool
 	playerSide    int
 
@@ -96,7 +97,7 @@ func NewShowMap(g *Game) *ShowMap {
 }
 
 func (s *ShowMap) Update() error {
-	if !s.started {
+	if !s.started && !s.areUnitsHidden {
 		go func() {
 			if !s.sync.Wait() {
 				return
@@ -144,6 +145,8 @@ func (s *ShowMap) Update() error {
 			case CityInfo:
 				s.showCityInfo()
 				s.idleTicksLeft = 60 * s.currentSpeed
+				case HideUnits:
+				s.hideUnits()
 			case DecreaseSpeed:
 				s.idleTicksLeft = 60 * s.currentSpeed
 				s.decreaseGameSpeed()
@@ -196,7 +199,7 @@ func (s *ShowMap) Update() error {
 			s.mapView.SetCursorPosition(x/2, y)
 		}
 	}
-	if s.isFrozen {
+	if s.isFrozen || s.areUnitsHidden {
 		return nil
 	}
 	if s.idleTicksLeft > 0 {
@@ -325,6 +328,9 @@ func (s *ShowMap) setObjective(unit data.Unit, x, y int) {
 	s.orderedUnit = nil
 }
 func (s *ShowMap) showUnitInfo() {
+	if s.areUnitsHidden {
+		return
+	}
 	cursorX, cursorY := s.mapView.GetCursorPosition()
 	unit, ok := s.gameState.FindUnitAtMapCoords(cursorX, cursorY)
 	if !ok {
@@ -425,7 +431,14 @@ func (s *ShowMap) showStatusReport() {
 	winningSideStr := s.mainGame.scenarioData.Sides[winningSide]
 	s.messageBox.Print(fmt.Sprintf("%s %s ADVANTAGE.", advantageStrs[advantage], winningSideStr), 2, 4, false)
 }
-
+func (s *ShowMap) hideUnits() {
+	if s.areUnitsHidden {
+		s.gameState.showAllVisibleUnits()
+	} else {
+		s.gameState.hideAllUnits()
+	}
+	s.areUnitsHidden = !s.areUnitsHidden
+}
 func (s *ShowMap) increaseGameSpeed() {
 	s.changeGameSpeed(-1)
 }

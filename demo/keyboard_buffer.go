@@ -10,6 +10,7 @@ const (
 	StatusReport
 	UnitInfo
 	CityInfo
+	HideUnits
 	DecreaseSpeed
 	IncreaseSpeed
 	SwitchUnitDisplay
@@ -51,6 +52,8 @@ func (b *CommandBuffer) triggeredCommand() (Command, bool) {
 		return UnitInfo, true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyC) {
 		return CityInfo, true
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyT) {
+		return HideUnits, true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyComma) && ebiten.IsKeyPressed(ebiten.KeyShift) {
 		return DecreaseSpeed, true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyPeriod) && ebiten.IsKeyPressed(ebiten.KeyShift) {
