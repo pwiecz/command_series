@@ -181,7 +181,7 @@ func (s *GameState) updateUnit() (message MessageFromUnit, quit bool) {
 	}
 nextUnit:
 	s.lastUpdatedUnit = (s.lastUpdatedUnit + 1) % 128
-	unit := s.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2]
+	unit := s.units[s.lastUpdatedUnit/64][s.lastUpdatedUnit%64]
 	if unit.State&128 == 0 {
 		goto nextUnit
 	}
@@ -807,6 +807,7 @@ l21:
 		// l2:
 		unit.SupplyLevel = Clamp(unit.SupplyLevel-2, 0, 255)
 		wasInContactWithEnemy := unit.State&1 != 0
+
 		if Rand(s.scenarioData.Data252[unit.Side]) > 0 {
 			unit.State &= 232
 		} else {
@@ -828,14 +829,16 @@ l21:
 						arg1 = 7
 						// arg2 = i
 					}
-					if s.scenarioData.UnitMask[unit2.Type]&128 == 0 {
-						unit.State = unit.State | 16
+				}
+				if s.scenarioData.UnitMask[unit2.Type]&128 == 0 {
+					unit.State = unit.State | 16
+				}
+				if s.scenarioData.UnitCanMove[unit2.Type] {
+					unit.State = unit.State | 65
+					if unit.Side == 0 {
 					}
-					if s.scenarioData.UnitCanMove[unit2.Type] {
-						unit.State = unit.State | 65
-						if !wasInContactWithEnemy {
-							message = WeAreInContactWithEnemy{unit}
-						}
+					if !wasInContactWithEnemy {
+						message = WeAreInContactWithEnemy{unit}
 					}
 				}
 			}
