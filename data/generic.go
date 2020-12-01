@@ -8,13 +8,14 @@ import "path"
 // Representation of data parsed from GENERIC.DTA file.
 type Generic struct {
 	DirectionToNeighbourIndex map[int]int // Data[0:19]
-	Neighbours                [4][12]int // Data[20:44], Data[128:152]
+	Neighbours                [4][12]int  // Data[20:44], Data[128:152]
 	// Offsets on a 2-byte square map 4x4.
 	// First 0 offset to the origin field itself,
 	// then to its 4 neighbours in cardinal directions,
 	// then to its 4 neighbours in diagonal direction.
 	tinyMapOffsets [9]int // Bytes [44:52]
 	MapOffsets     [7]int // Bytes [53:60]
+	Data60         [4]int
 	TerrainTypes   [64]int // Bytes [64:128]
 	Dx152          [19]int //
 	Dy153          [19]int // Bytes [152:190] (Dx, Dy interleaved, overlaps following arrays)
@@ -113,6 +114,10 @@ func ParseGeneric(reader io.Reader) (Generic, error) {
 
 	for i, offset := range data[53:60] {
 		generic.MapOffsets[i] = int(int8(offset))
+	}
+
+	for i, value := range data[60:64] {
+		generic.Data60[i] = int(value)
 	}
 
 	for i, terrain := range data[64:128] {

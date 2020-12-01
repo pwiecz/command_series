@@ -47,12 +47,12 @@ type ShowMap struct {
 	mapImage  *ebiten.Image
 	options   Options
 
-	currentSpeed  int
-	idleTicksLeft int
-	isFrozen      bool
+	currentSpeed   int
+	idleTicksLeft  int
+	isFrozen       bool
 	areUnitsHidden bool
-	unitIconView  bool
-	playerSide    int
+	unitIconView   bool
+	playerSide     int
 
 	orderedUnit *data.Unit
 
@@ -61,6 +61,8 @@ type ShowMap struct {
 
 	sync    *MessageSync
 	started bool
+
+	overviewMap *OverviewMap
 }
 
 func NewShowMap(g *Game) *ShowMap {
@@ -97,6 +99,19 @@ func NewShowMap(g *Game) *ShowMap {
 }
 
 func (s *ShowMap) Update() error {
+	if s.overviewMap != nil {
+		for k := ebiten.Key(0); k <= ebiten.KeyMax; k++ {
+			if inpututil.IsKeyJustPressed(k) {
+				s.overviewMap = nil
+				s.gameState.showAllVisibleUnits()
+				break
+			}
+		}
+		if s.overviewMap != nil {
+			s.overviewMap.Update()
+		}
+		return nil
+	}
 	if !s.started && !s.areUnitsHidden {
 		go func() {
 			if !s.sync.Wait() {
@@ -145,8 +160,10 @@ func (s *ShowMap) Update() error {
 			case CityInfo:
 				s.showCityInfo()
 				s.idleTicksLeft = 60 * s.currentSpeed
-				case HideUnits:
+			case HideUnits:
 				s.hideUnits()
+			case ShowOverviewMap:
+				s.showOverviewMap()
 			case DecreaseSpeed:
 				s.idleTicksLeft = 60 * s.currentSpeed
 				s.decreaseGameSpeed()
@@ -439,6 +456,10 @@ func (s *ShowMap) hideUnits() {
 	}
 	s.areUnitsHidden = !s.areUnitsHidden
 }
+func (s *ShowMap) showOverviewMap() {
+	s.gameState.hideAllUnits()
+	s.overviewMap = NewOverviewMap(&s.mainGame.terrainMap, &s.mainGame.units, &s.mainGame.generic, &s.mainGame.scenarioData, &s.options)
+}
 func (s *ShowMap) increaseGameSpeed() {
 	s.changeGameSpeed(-1)
 }
@@ -466,6 +487,14 @@ func (s *ShowMap) screenCoordsToUnitCoords(screenX, screenY int) (x, y int) {
 }
 
 func (s *ShowMap) Draw(screen *ebiten.Image) {
+	if s.overviewMap != nil {
+		screen.Fill(data.RGBPalette[8])
+		opts := ebiten.DrawImageOptions{}
+		opts.GeoM.Scale(4, 2)
+		opts.GeoM.Translate(float64(336-4*s.mainGame.terrainMap.Width)/2, float64(240-2*s.mainGame.terrainMap.Height)/2)
+		s.overviewMap.Draw(screen, &opts)
+		return
+	}
 	if !s.gameState.isNight {
 		screen.Fill(data.RGBPalette[s.mainGame.scenarioData.DaytimePalette[2]])
 		s.separatorRect.SetColor(int(s.mainGame.scenarioData.DaytimePalette[0]))
