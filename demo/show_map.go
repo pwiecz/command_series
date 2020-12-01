@@ -146,10 +146,11 @@ func (s *ShowMap) Update() error {
 			case Freeze:
 				s.isFrozen = !s.isFrozen
 				s.idleTicksLeft = 0
+				s.messageBox.ClearRow(5)
 				if s.isFrozen {
-					fmt.Println("FROZEN")
+					s.messageBox.Print("FROZEN", 2, 5, false)
 				} else {
-					fmt.Println("UNFROZEN")
+					s.messageBox.Print("UNFROZEN", 2, 5, false)
 				}
 			case StatusReport:
 				s.showStatusReport()
@@ -232,6 +233,8 @@ loop:
 		switch message := update.(type) {
 		case Initialized:
 			s.idleTicksLeft = 60
+			s.messageBox.ClearRow(5)
+			s.messageBox.Print(s.dateTimeString(), 2, 5, false)
 			break loop
 		case MessageFromUnit:
 			unit := message.Unit()
@@ -283,6 +286,9 @@ loop:
 			s.messageBox.Print(supplyLevels[message.SupplyLevel], 16, 3, false)
 			s.idleTicksLeft = 60 * s.currentSpeed
 			break loop
+		case TimeChanged:
+			s.messageBox.ClearRow(5)
+			s.messageBox.Print(s.dateTimeString(), 2, 5, false)
 		default:
 			return fmt.Errorf("Unknown message: %v", message)
 		}
@@ -523,7 +529,6 @@ func (s *ShowMap) Draw(screen *ebiten.Image) {
 	s.messageBox.SetRowBackground(3, playerBaseColor+10)
 	s.messageBox.SetRowBackground(4, playerBaseColor+12)
 	s.messageBox.SetRowBackground(5, 30)
-	s.messageBox.Print(s.dateTimeString(), 2, 5, false)
 	s.messageBox.Draw(screen, &opts)
 
 	opts.GeoM.Reset()

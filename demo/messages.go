@@ -129,3 +129,4 @@ type DailyUpdate struct{
 	DaysRemaining int
 	SupplyLevel int
 }
+type TimeChanged struct{}

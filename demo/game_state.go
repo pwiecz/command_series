@@ -150,6 +150,7 @@ func (s *GameState) Update() bool {
 			return false
 		}
 	}
+	s.sync.SendUpdate(TimeChanged{})
 	return true
 }
 
