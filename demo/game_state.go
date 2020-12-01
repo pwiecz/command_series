@@ -143,8 +143,7 @@ func (s *GameState) Update() bool {
 		s.year++
 	}
 	if s.hour == 18 && s.minute == 0 {
-		fmt.Println(s.dateTimeString())
-		fmt.Println(s.statusReport())
+	s.sync.SendUpdate(TimeChanged{})
 		if s.isGameOver() {
 			s.sync.SendUpdate(GameOver{s.finalResults()})
 			return false
@@ -738,7 +737,7 @@ l21:
 				v /= 8
 			}
 			v *= (512 - unit.Fatigue) / 32
-			v = v * s.generals[unit.Side][unit.GeneralIndex].Data3Low / 16
+			v = v * s.generals[unit.Side][unit.GeneralIndex].Movement / 16
 			if unit.SupplyLevel == 0 {
 				v /= 2
 			}
@@ -899,7 +898,7 @@ l21:
 			v2 = v2 * (4 - weather) / 4
 		}
 		v = (v + v2) * unit.Morale / 256 * (255 - unit.Fatigue) / 128
-		v = v * s.generals[unit.Side][unit.GeneralIndex].Data1Low / 16
+		v = v * s.generals[unit.Side][unit.GeneralIndex].Attack / 16
 		v = v * s.magicCoeff(s.hexes.Arr144[:], unit.X, unit.Y, unit.Side) / 8
 		v++
 		tt2 := s.terrainType(unit2.Terrain)
@@ -908,7 +907,7 @@ l21:
 		}
 		menCoeff := s.scenarioData.TerrainMenDefence[tt2] * s.scenarioData.FormationMenDefence[unit2.Formation] * unit2.MenCount / 32
 		equipCoeff := s.scenarioData.TerrainTankAttack[tt2] * s.scenarioData.FormationTankDefence[unit2.Formation] * s.scenarioData.Data16Low[unit2.Type] / 2 * unit2.EquipCount / 64
-		w := (menCoeff + equipCoeff) * unit2.Morale / 256 * (240 - unit2.Fatigue/2) / 128 * s.generals[1-unit.Side][unit2.GeneralIndex].Data2Low / 16
+		w := (menCoeff + equipCoeff) * unit2.Morale / 256 * (240 - unit2.Fatigue/2) / 128 * s.generals[1-unit.Side][unit2.GeneralIndex].Defence / 16
 		if unit2.SupplyLevel == 0 {
 			w = w * s.scenarioData.Data167 / 8
 		}
@@ -1770,13 +1769,4 @@ func (s *GameState) isGameOver() bool {
 		return true
 	}
 	return false
-}
-
-func (s *GameState) dateTimeString() string {
-	meridianString := "AM"
-	if s.hour >= 12 {
-		meridianString = "PM"
-	}
-	hour := Abs(s.hour - 12*((s.hour+11)/12-1))
-	return fmt.Sprintf("%02d:%02d %s %s, %d %d  %s", hour, s.minute, meridianString, s.scenarioData.Months[s.month], s.day+1, s.year, s.scenarioData.Weather[s.weather])
 }

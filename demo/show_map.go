@@ -101,6 +101,9 @@ func NewShowMap(g *Game) *ShowMap {
 func (s *ShowMap) Update() error {
 	if s.overviewMap != nil {
 		for k := ebiten.Key(0); k <= ebiten.KeyMax; k++ {
+			if k == ebiten.KeyAlt || k == ebiten.KeyControl || k == ebiten.KeyShift || k == ebiten.KeySuper {
+				continue
+			}
 			if inpututil.IsKeyJustPressed(k) {
 				s.overviewMap = nil
 				s.gameState.showAllVisibleUnits()
@@ -157,6 +160,9 @@ func (s *ShowMap) Update() error {
 				s.idleTicksLeft = 60 * s.currentSpeed
 			case UnitInfo:
 				s.showUnitInfo()
+				s.idleTicksLeft = 60 * s.currentSpeed
+			case GeneralInfo:
+				s.showGeneralInfo()
 				s.idleTicksLeft = 60 * s.currentSpeed
 			case CityInfo:
 				s.showCityInfo()
@@ -289,6 +295,9 @@ loop:
 		case TimeChanged:
 			s.messageBox.ClearRow(5)
 			s.messageBox.Print(s.dateTimeString(), 2, 5, false)
+			if s.gameState.hour == 18 && s.gameState.minute == 0 {
+				s.showStatusReport()
+			}
 		default:
 			return fmt.Errorf("Unknown message: %v", message)
 		}
@@ -422,6 +431,38 @@ func (s *ShowMap) showUnitInfo() {
 		orderStr += " (LOCAL COMMAND)"
 	}
 	s.messageBox.Print(orderStr, 7, nextRow, false)
+}
+func numberToGeneralRating(num int) string {
+	if num < 10 {
+		return "POOR"
+	}
+	ratings := []string{"FAIR", "GOOD", "EXCELLNT"}
+	return ratings[(num-10)/2]
+}
+func (s *ShowMap) showGeneralInfo() {
+	if s.areUnitsHidden {
+		return
+	}
+	cursorX, cursorY := s.mapView.GetCursorPosition()
+	unit, ok := s.gameState.FindUnitAtMapCoords(cursorX, cursorY)
+	if !ok {
+		return
+	}
+	s.messageBox.Clear()
+	if unit.Side != s.playerSide {
+		s.messageBox.Print(" NO INFORMATION ", 2, 0, true)
+		return
+	}
+	general := unit.General
+	s.messageBox.Print("GENERAL ", 2, 0, true)
+	s.messageBox.Print(general.Name, 11, 0, false)
+	s.messageBox.Print("("+s.mainGame.scenarioData.Sides[unit.Side]+")", 23, 0, false)
+	s.messageBox.Print("ATTACK  ", 2, 1, true)
+	s.messageBox.Print(numberToGeneralRating(general.Attack), 11, 1, false)
+	s.messageBox.Print("DEFEND  ", 2, 2, true)
+	s.messageBox.Print(numberToGeneralRating(general.Defence), 11, 2, false)
+	s.messageBox.Print("MOVEMENT", 2, 3, true)
+	s.messageBox.Print(numberToGeneralRating(general.Movement), 11, 3, false)
 }
 func (s *ShowMap) showCityInfo() {
 	s.messageBox.Clear()

@@ -9,6 +9,7 @@ const (
 	Freeze Command = iota
 	StatusReport
 	UnitInfo
+	GeneralInfo
 	CityInfo
 	HideUnits
 	ShowOverviewMap
@@ -51,6 +52,8 @@ func (b *CommandBuffer) triggeredCommand() (Command, bool) {
 		return StatusReport, true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
 		return UnitInfo, true
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyG) {
+		return GeneralInfo, true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyC) {
 		return CityInfo, true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyT) {
