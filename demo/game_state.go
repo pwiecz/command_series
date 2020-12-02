@@ -883,13 +883,13 @@ l21:
 		if !ok {
 			panic("")
 		}
-		arg1 = s.terrainType(unit.Terrain)
-		message = WeAreAttacking{unit, unit2, arg1 /* placeholder value */, s.scenarioData.Formations}
-		v := s.scenarioData.TerrainMenAttack[arg1] * s.scenarioData.FormationMenAttack[unit.Formation] * unit.MenCount / 32
-		if unit.FormationTopBit {
-			v = 0
+		tt := s.terrainType(unit.Terrain)
+		message = WeAreAttacking{unit, unit2, tt /* placeholder value */, s.scenarioData.Formations}
+		var attackingSideScore int
+		if !unit.FormationTopBit {
+			attackingSideScore = s.scenarioData.TerrainMenAttack[tt] * s.scenarioData.FormationMenAttack[unit.Formation] * unit.MenCount / 32
 		}
-		v2 := s.scenarioData.TerrainTankAttack[arg1] * s.scenarioData.FormationTankAttack[unit.Formation] * s.scenarioData.Data16High[unit.Type] / 2 * unit.EquipCount / 64
+		v2 := s.scenarioData.TerrainTankAttack[tt] * s.scenarioData.FormationTankAttack[unit.Formation] * s.scenarioData.Data16High[unit.Type] / 2 * unit.EquipCount / 64
 		// in CiV the second term is s.scenarioData.Data32[unit.Type]&32 > 0
 		if unit.FormationTopBit && s.scenarioData.Data32[unit.Type]&8 > 0 {
 			if weather > 3 {
@@ -897,27 +897,27 @@ l21:
 			}
 			v2 = v2 * (4 - weather) / 4
 		}
-		v = (v + v2) * unit.Morale / 256 * (255 - unit.Fatigue) / 128
-		v = v * s.generals[unit.Side][unit.GeneralIndex].Attack / 16
-		v = v * s.magicCoeff(s.hexes.Arr144[:], unit.X, unit.Y, unit.Side) / 8
-		v++
+		attackingSideScore = (attackingSideScore + v2) * unit.Morale / 256 * (255 - unit.Fatigue) / 128
+		attackingSideScore = attackingSideScore * s.generals[unit.Side][unit.GeneralIndex].Attack / 16
+		attackingSideScore = attackingSideScore * s.magicCoeff(s.hexes.Arr144[:], unit.X, unit.Y, unit.Side) / 8
+		attackingSideScore++
 		tt2 := s.terrainType(unit2.Terrain)
 		if s.scenarioData.UnitScores[unit2.Type]&248 > 0 {
 			unit.State |= 4
 		}
 		menCoeff := s.scenarioData.TerrainMenDefence[tt2] * s.scenarioData.FormationMenDefence[unit2.Formation] * unit2.MenCount / 32
 		equipCoeff := s.scenarioData.TerrainTankAttack[tt2] * s.scenarioData.FormationTankDefence[unit2.Formation] * s.scenarioData.Data16Low[unit2.Type] / 2 * unit2.EquipCount / 64
-		w := (menCoeff + equipCoeff) * unit2.Morale / 256 * (240 - unit2.Fatigue/2) / 128 * s.generals[1-unit.Side][unit2.GeneralIndex].Defence / 16
+		defendingSideScore := (menCoeff + equipCoeff) * unit2.Morale / 256 * (240 - unit2.Fatigue/2) / 128 * s.generals[1-unit.Side][unit2.GeneralIndex].Defence / 16
 		if unit2.SupplyLevel == 0 {
-			w = w * s.scenarioData.Data167 / 8
+			defendingSideScore = defendingSideScore * s.scenarioData.Data167 / 8
 		}
-		w *= s.magicCoeff(s.hexes.Arr144[:], unit2.X, unit2.Y, 1-unit.Side) / 8
-		w++
-		d := w * 16 / v
+		defendingSideScore = defendingSideScore * s.magicCoeff(s.hexes.Arr144[:], unit2.X, unit2.Y, 1-unit.Side) / 8
+		defendingSideScore++
+		arg1 = defendingSideScore * 16 / attackingSideScore
 		if s.scenarioData.UnitMask[unit.Type]&4 == 0 {
-			d += weather
+			arg1 += weather
 		}
-		arg1 = Clamp(d, 0, 63)
+		arg1 = Clamp(arg1, 0, 63)
 		if !unit.FormationTopBit || s.scenarioData.Data32[unit.Type]&128 == 0 {
 			menLost := Clamp((Rand(unit.MenCount*arg1)+255)/512, 0, unit.MenCount)
 			s.menLost[unit.Side] += menLost
@@ -937,9 +937,9 @@ l21:
 		}
 		unit.Fatigue = Clamp(unit.Fatigue+arg1, 0, 255)
 		unit.SupplyLevel = Clamp(unit.SupplyLevel-s.scenarioData.Data162, 0, 255)
-		arg1 = Clamp(v*16/w-weather, 0, 63)
+		arg1 = Clamp(attackingSideScore*16/defendingSideScore-weather, 0, 63)
 		if false /* DitD || CiV */ {
-			arg1 = Clamp(v*16/w-weather, 0, 128)
+			arg1 = Clamp(attackingSideScore*16/defendingSideScore-weather, 0, 128)
 		}
 		// function13(sx, sy)
 		// function4(arg1) - some delay?
@@ -974,7 +974,7 @@ l21:
 					message = WeHaveBeenOverrun{unit2}
 				}
 			}
-			v = -128
+			bestDefence := -128
 			bestX, bestY := unit2.X, unit2.Y
 			for i := 0; i < 6; i++ {
 				nx := unit2.X + s.generic.Dx[i]
@@ -984,8 +984,8 @@ l21:
 				if s.scenarioData.MoveCostPerTerrainTypesAndUnit[tt][unit2.Type] > 0 {
 					if !s.ContainsUnit(nx, ny) && !s.ContainsCity(nx, ny) {
 						r += s.magicCoeff(s.hexes.Arr96[:], nx, ny, 1-unit.Side) * 4
-						if r > 11 && r >= v {
-							v = r
+						if r > 11 && r >= bestDefence {
+							bestDefence = r
 							bestX, bestY = nx, ny
 						}
 					}
