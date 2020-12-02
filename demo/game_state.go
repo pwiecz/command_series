@@ -143,7 +143,7 @@ func (s *GameState) Update() bool {
 		s.year++
 	}
 	if s.hour == 18 && s.minute == 0 {
-	s.sync.SendUpdate(TimeChanged{})
+		s.sync.SendUpdate(TimeChanged{})
 		if s.isGameOver() {
 			s.sync.SendUpdate(GameOver{s.finalResults()})
 			return false
@@ -208,7 +208,7 @@ nextUnit:
 
 	if s.options.IsPlayerControlled(unit.Side) {
 		s.update = unit.Side
-		if unit.Order == data.Defend || unit.Order == data.Move || unit.ObjectiveX != 0 || unit.State&32 != 0 { // ... maybe?
+		if unit.State&32 == 0 && (unit.Order == data.Defend || unit.Order == data.Move || unit.ObjectiveX != 0) { // ... maybe?
 			goto l21
 		} else {
 			mode = unit.Order
@@ -284,7 +284,7 @@ nextUnit:
 			}
 		}
 		{
-			v58 := s.generals[unit.Side][unit.GeneralIndex].Data0
+			generalMask := s.generals[unit.Side][unit.GeneralIndex].Data0
 			arg1 = -17536 // 0xBB80
 			//var bestI int
 			var bestDx, bestDy int
@@ -348,10 +348,10 @@ nextUnit:
 						if unit.State&64 > 0 {
 							v /= 2 /* logical shift not the arithmetic one, actually) */
 						}
-						if v58&4 > 0 {
+						if generalMask&4 > 0 {
 							v *= 2
 						}
-						if v58&64 > 0 {
+						if generalMask&64 > 0 {
 							v /= 2
 						}
 						if j > 0 {
@@ -363,10 +363,10 @@ nextUnit:
 						temp = data.Reserve
 						if v51 > 0 {
 							v := s.map1[unit.Side][sx+dx][sy+dy] * v55
-							if v58&2 > 0 {
+							if generalMask&2 > 0 {
 								v *= 2
 							}
-							if v58&32 > 0 {
+							if generalMask&32 > 0 {
 								v /= 2
 							}
 							v53 += v
@@ -378,10 +378,10 @@ nextUnit:
 						}
 						if v51 > 0 {
 							v := v48
-							if v58&8 > 0 {
+							if generalMask&8 > 0 {
 								v *= 2
 							}
-							if v58&128 > 0 {
+							if generalMask&128 > 0 {
 								v /= 2
 							}
 							v *= v51
@@ -392,10 +392,10 @@ nextUnit:
 						if unit.MenCount > 0 {
 							temp = data.Defend
 							v := unit.MenCount * v55
-							if v58&1 > 0 {
+							if generalMask&1 > 0 {
 								v *= 2
 							}
-							if v58&16 > 0 {
+							if generalMask&16 > 0 {
 								v /= 2
 							}
 							v50 += v
@@ -707,6 +707,7 @@ l21:
 					sy = unit.ObjectiveY
 					tt := s.terrainTypeAt(sx, sy)
 					moveCost = s.scenarioData.MoveCostPerTerrainTypesAndUnit[tt][unit.Type]
+					arg1 = tt // shouldn't have any impact
 					mvAdd = 1
 				} else if unit.Formation != 0 { /* CiV */
 					if s.scenarioData.UnitMask[unit.Type]&32 != 0 {
