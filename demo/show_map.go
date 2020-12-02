@@ -255,6 +255,7 @@ loop:
 				for i, line := range lines {
 					s.messageBox.Print(line, 2, 2+i, false)
 				}
+				s.mapView.ShowIcon(message.Icon(), unit.X/2, unit.Y)
 				s.idleTicksLeft = 60 * s.currentSpeed
 				break loop
 			}

@@ -36,6 +36,8 @@ type MapView struct {
 	ebitenUnitIcons   [2][4][16]*ebiten.Image
 	ebitenIcons       [24]*ebiten.Image
 	cursorImage       *ebiten.Image
+	shownIcon         *ebiten.Image
+	iconX, iconY      int
 }
 
 func NewMapView(terrainMap *data.Map,
@@ -225,13 +227,13 @@ func (v *MapView) GetSpriteFromTileNum(tileNum byte) *ebiten.Image {
 	}
 }
 func (v *MapView) GetSpriteFromIcon(icon data.IconType) *ebiten.Image {
-	ebitenTile := v.ebitenIcons[icon]
-	if ebitenTile == nil {
-		tile := v.icons[icon]
-		ebitenTile = ebiten.NewImageFromImage(tile)
-		v.ebitenIcons[icon] = ebitenTile
+	ebitenIcon := v.ebitenIcons[icon]
+	if ebitenIcon == nil {
+		iconImage := v.icons[icon]
+		ebitenIcon = ebiten.NewImageFromImage(iconImage)
+		v.ebitenIcons[icon] = ebitenIcon
 	}
-	return ebitenTile
+	return ebitenIcon
 }
 
 func (v *MapView) drawTileAtImageCoords(tileNum byte, x, y int, screen *ebiten.Image, options *ebiten.DrawImageOptions) {
@@ -300,5 +302,17 @@ func (v *MapView) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
 	}
 	cursorX, cursorY := v.MapCoordsToScreenCoords(v.cursorX, v.cursorY)
 	v.drawSpriteAtCoords(v.cursorImage, float64(cursorX-6), float64(cursorY-2), screen, options)
+	if v.shownIcon != nil {
+		iconX, iconY := v.MapCoordsToScreenCoords(v.iconX, v.iconY)
+		v.drawSpriteAtCoords(v.shownIcon, float64(iconX), float64(iconY-5), screen, options)
+	}
 	return
+}
+func (v *MapView) ShowIcon(icon data.IconType, x, y int) {
+	v.shownIcon = v.GetSpriteFromIcon(icon)
+	v.iconX = x
+	v.iconY = y
+}
+func (v *MapView) HideIcon() {
+	v.shownIcon = nil
 }
