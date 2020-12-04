@@ -30,7 +30,7 @@ const (
 
 type Unit struct {
 	Side                 int  // 0 or 1
-	State                byte // bit 8 - is added to game, bit 6 - visible to enemy, bit 5 - local command, bit 4 - has contact with enemy, bit 3 - no supply line to unit, bit 1 - has contact with enemy?
+	State                byte // bit 8 - is added to game, bit 6 - visible to enemy, bit 5 - local command, bit 4 - has contact with enemy, bit 3 - no supply line to unit, bin 1 - unit under attack, bit 0 - has contact with enemy?
 	X, Y                 int
 	MenCount, EquipCount int
 	Formation            int

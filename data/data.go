@@ -45,7 +45,7 @@ type ScenarioData struct {
 	Data173                        int        // Data[173] (a fatigue increase)
 	Data175                        int        // Data[175]
 	Data176                        [4][4]int  // Data[176:190] four bytes per order (numbers 0-5)
-	Data192                        [8]int     // Data[192:200] per formation
+	Data192                        [8]int     // Data[192:200] move cost per formation
 	Data200Low                     [16]int    // Data[200:216] lower three bits per type
 	UnitResupplyPerType            [16]int    // Data[200:216] top four bits div 2
 	Data216                        [16]int    // Data[216:232]
