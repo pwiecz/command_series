@@ -41,9 +41,9 @@ func InRange(v, min, max int) bool {
 	}
 	return true
 }
-func Rand(n int) int {
+func Rand(n int, rnd *rand.Rand) int {
 	if n == 0 {
 		return 0
 	}
-	return rand.Intn(n)
+	return rnd.Intn(n)
 }

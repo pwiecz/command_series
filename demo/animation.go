@@ -5,6 +5,7 @@ import "github.com/hajimehoshi/ebiten"
 
 type Animation struct {
 	mapView *MapView
+	player  *AudioPlayer
 	sprite  *ebiten.Image
 	hasUnit bool
 	unit    data.Unit
@@ -15,13 +16,14 @@ type Animation struct {
 	elapsed        int
 }
 
-func NewUnitAnimation(mapView *MapView, unit data.Unit, x0, y0, x1, y1, frames int) *Animation {
+func NewUnitAnimation(mapView *MapView, player *AudioPlayer, unit data.Unit, x0, y0, x1, y1, frames int) *Animation {
 	if frames <= 0 {
 		panic("frames must be positive")
 	}
 
 	return &Animation{
 		mapView: mapView,
+		player:  player,
 		hasUnit: true,
 		unit:    unit,
 		x0:      x0,
@@ -48,6 +50,16 @@ func NewIconAnimation(mapView *MapView, icon data.IconType, x0, y0, x1, y1, fram
 
 func (a *Animation) Update() {
 	a.elapsed++
+	if a.player != nil {
+		if a.elapsed < a.frames {
+			a.player.SetFrequency(2, 70)
+			freq := byte(54 + 9*a.elapsed/a.frames)
+			a.player.SetFrequency(3, freq)
+		} else {
+			a.player.SetFrequency(2, 0)
+			a.player.SetFrequency(3, 0)
+		}
+	}
 }
 
 func (a *Animation) Done() bool {

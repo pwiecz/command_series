@@ -2,10 +2,13 @@ package main
 
 import "fmt"
 import "strings"
+import "math/rand"
 
 import "github.com/pwiecz/command_series/data"
 
 type GameState struct {
+	rand *rand.Rand
+
 	minute       int
 	hour         int
 	daysElapsed  int
@@ -49,8 +52,9 @@ type GameState struct {
 	sync *MessageSync
 }
 
-func NewGameState(scenario *data.Scenario, scenarioData *data.ScenarioData, variant *data.Variant, variantNum int, units [2][]data.Unit, terrain *data.Terrain, terrainMap *data.Map, generic *data.Generic, hexes *data.Hexes, generals [2][]data.General, gameOptions Options, sync *MessageSync) *GameState {
+func NewGameState(rand *rand.Rand, scenario *data.Scenario, scenarioData *data.ScenarioData, variant *data.Variant, variantNum int, units [2][]data.Unit, terrain *data.Terrain, terrainMap *data.Map, generic *data.Generic, hexes *data.Hexes, generals [2][]data.General, gameOptions Options, sync *MessageSync) *GameState {
 	s := &GameState{}
+	s.rand = rand
 	s.minute = scenario.StartMinute
 	s.hour = scenario.StartHour
 	s.day = scenario.StartDay
@@ -285,7 +289,7 @@ nextUnit:
 				s.map2_0[unit.Side][bestX][bestY] += temp
 				unit.ObjectiveX = bestX*32 + 16 // ((v20&6)*16)|16
 				if false /* CiV */ {
-					unit.ObjectiveX += Rand(3) * 2
+					unit.ObjectiveX += Rand(3, s.rand) * 2
 				}
 				unit.ObjectiveY = bestY*16 + 8 // ((v20&24)*2)| 8
 				goto l21
@@ -502,8 +506,8 @@ nextUnit:
 					s.map0[unit.Side][sx+bestDx][sy+bestDy] += temp2 / 2
 				}
 				s.map3[unit.Side][sx+bestDx][sy+bestDy] += temp2 / 2
-				unit.ObjectiveY = (((sy+bestDy)&240)/4 + Rand(2) + 1) & 63
-				unit.ObjectiveX = ((((sy+bestDy)&15)*4+Rand(2)+1)*2 + (unit.ObjectiveY & 1)) & 127
+				unit.ObjectiveY = (((sy+bestDy)&240)/4 + Rand(2, s.rand) + 1) & 63
+				unit.ObjectiveX = ((((sy+bestDy)&15)*4+Rand(2, s.rand)+1)*2 + (unit.ObjectiveY & 1)) & 127
 				mode = data.Move
 				if v9 != 0 {
 					unit.Order = data.Defend
@@ -668,7 +672,7 @@ l24:
 		// in CiV the weather term is (d32&32)+weather < 34
 		if attackRange > 0 && (d32&8)+weather < 10 && unit.Fatigue/4 < 32 {
 			for i := 0; i <= 32-unit.Fatigue/4; i++ {
-				unit2 := s.units[1-unit.Side][Rand(64)]
+				unit2 := s.units[1-unit.Side][Rand(64, s.rand)]
 				// in CiV instead of IsUnderAttack||State2 is SeenByEnemy.
 				if (unit2.IsUnderAttack || unit2.State2) && Abs(unit.X-unit2.X)/2+Abs(unit.Y-unit2.Y) <= attackRange {
 					unit.ObjectiveX = unit2.X
@@ -785,7 +789,7 @@ l21:
 			} else /* DitD || CiV */ {
 				temp = w / v
 			}
-			if temp > v57 && Rand(temp) > v57 {
+			if temp > v57 && Rand(temp, s.rand) > v57 {
 				break
 			}
 			v57 -= temp
@@ -830,7 +834,7 @@ l21:
 		unit.SupplyLevel = Clamp(unit.SupplyLevel-2, 0, 255)
 		wasInContactWithEnemy := unit.InContactWithEnemy
 
-		if Rand(s.scenarioData.Data252[unit.Side]) > 0 {
+		if Rand(s.scenarioData.Data252[unit.Side], s.rand) > 0 {
 			unit.InContactWithEnemy = false
 			unit.IsUnderAttack = false
 			unit.State2 = false
@@ -842,7 +846,7 @@ l21:
 			unit.State4 = false
 			unit.SeenByEnemy = false // &= 168
 		}
-		if false /* CiV */ && Rand(s.scenarioData.Data175)/8 > 0 {
+		if false /* CiV */ && Rand(s.scenarioData.Data175, s.rand)/8 > 0 {
 			unit.SeenByEnemy = true // |= 64
 		}
 		for i := 0; i < 6; i++ {
@@ -963,10 +967,10 @@ l21:
 		}
 		arg1 = Clamp(arg1, 0, 63)
 		if !unit.FormationTopBit || s.scenarioData.Data32[unit.Type]&128 == 0 {
-			menLost := Clamp((Rand(unit.MenCount*arg1)+255)/512, 0, unit.MenCount)
+			menLost := Clamp((Rand(unit.MenCount*arg1, s.rand)+255)/512, 0, unit.MenCount)
 			s.menLost[unit.Side] += menLost
 			unit.MenCount -= menLost
-			tanksLost := Clamp((Rand(unit.EquipCount*arg1)+255)/512, 0, unit.EquipCount)
+			tanksLost := Clamp((Rand(unit.EquipCount*arg1, s.rand)+255)/512, 0, unit.EquipCount)
 			s.tanksLost[unit.Side] += tanksLost
 			unit.EquipCount -= tanksLost
 			if arg1 < 24 {
@@ -987,9 +991,9 @@ l21:
 		}
 		// function13(sx, sy)
 		// function4(arg1) - some delay?
-		menLost2 := Clamp((Rand(unit2.MenCount*arg1)+500)/512, 0, unit2.MenCount)
+		menLost2 := Clamp((Rand(unit2.MenCount*arg1, s.rand)+500)/512, 0, unit2.MenCount)
 		s.menLost[1-unit.Side] += menLost2
-		tanksLost2 := Clamp((Rand(unit2.EquipCount*arg1)+255)/512, 0, unit2.EquipCount)
+		tanksLost2 := Clamp((Rand(unit2.EquipCount*arg1, s.rand)+255)/512, 0, unit2.EquipCount)
 		s.tanksLost[1-unit.Side] += tanksLost2
 		unit2.SupplyLevel = Clamp(unit2.SupplyLevel-s.scenarioData.Data163, 0, 255)
 		// in CiV instead of the second term it's s.scenarioData.UnitMask[unit2.Type]&2 == 0
@@ -1094,7 +1098,7 @@ end: // l3
 		// changing to target formation???
 		dif := Sign((unit.Formation & 7) - unit.TargetFormation)
 		temp := s.scenarioData.Data216[4+dif*4+unit.Formation]
-		if temp > Rand(15) {
+		if temp > Rand(15, s.rand) {
 			unit.FormationTopBit = false
 			unit.Formation -= dif
 		}
@@ -1154,7 +1158,7 @@ func (s *GameState) function6(offsetIx, add, x, y, unitType int) (int, int) {
 	tt2 := s.terrainTypeAtIndex(ix2)
 	mc2 := s.scenarioData.MoveCostPerTerrainTypesAndUnit[tt2][unitType]
 
-	if mc2 > mc1-Rand(2) {
+	if mc2 > mc1-Rand(2, s.rand) {
 		return neigh2, mc2
 	}
 	return neigh1, mc1
@@ -1379,7 +1383,7 @@ func (s *GameState) everyHour() bool {
 	sunriseOffset := Abs(6-s.month) / 2
 	s.isNight = s.hour < 5+sunriseOffset || s.hour > 20-sunriseOffset
 
-	if s.scenarioData.AvgDailySupplyUse > Rand(24) {
+	if s.scenarioData.AvgDailySupplyUse > Rand(24, s.rand) {
 		for _, sideUnits := range s.units {
 			for i, unit := range sideUnits {
 				if !unit.IsInGame ||
@@ -1417,7 +1421,7 @@ func (s *GameState) every12Hours() bool {
 				unit.HalfDaysUntilAppear--
 				if unit.HalfDaysUntilAppear == 0 {
 					shouldSpawnUnit := !s.ContainsUnit(unit.X, unit.Y) &&
-						Rand(unit.InvAppearProbability) == 0
+						Rand(unit.InvAppearProbability, s.rand) == 0
 					if city, ok := s.FindCity(unit.X, unit.Y); ok && city.Owner != unit.Side {
 						shouldSpawnUnit = false
 					}
@@ -1440,10 +1444,10 @@ func (s *GameState) every12Hours() bool {
 		for i, unit := range sideUnits {
 			if unit.HasSupplyLine { // (has supply line)
 				if unit.MenCount <= s.scenarioData.MenCountLimit[unit.Type] {
-					unit.MenCount += Rand(s.scenarioData.MenReplacementRate[unit.Side]+32) / 32
+					unit.MenCount += Rand(s.scenarioData.MenReplacementRate[unit.Side]+32, s.rand) / 32
 				}
 				if unit.EquipCount <= s.scenarioData.EquipCountLimit[unit.Type] {
-					unit.EquipCount += Rand(s.scenarioData.EquipReplacementRate[unit.Side]+32) / 32
+					unit.EquipCount += Rand(s.scenarioData.EquipReplacementRate[unit.Side]+32, s.rand) / 32
 				}
 			}
 			sideUnits[i] = unit
@@ -1679,7 +1683,7 @@ func (s *GameState) FindBestMoveFromTowards(supplyX, supplyY, unitX, unitY, unit
 	supplyY2 := supplyY + s.generic.Dy[neighbour2]
 	terrainType2 := s.terrainTypeAt(supplyX2, supplyY2)
 	cost2 := s.scenarioData.MoveCostPerTerrainTypesAndUnit[terrainType2][unitType]
-	if cost2 > cost1-Rand(2) {
+	if cost2 > cost1-Rand(2, s.rand) {
 		return supplyX2, supplyY2, cost2
 	}
 	return supplyX1, supplyY1, cost1
@@ -1705,7 +1709,7 @@ func (s *GameState) everyDay() bool {
 
 	s.flashback = append(s.flashback, flashback)
 	// todo: save today's map for flashback
-	rnd := Rand(256)
+	rnd := Rand(256, s.rand)
 	if rnd < 140 {
 		s.weather = int(s.scenarioData.PossibleWeather[4*(s.month/3)+rnd/35])
 	}

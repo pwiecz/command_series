@@ -3,9 +3,12 @@ package main
 import "fmt"
 import "image"
 import "strings"
+import "math/rand"
 
 import "github.com/hajimehoshi/ebiten"
 import "github.com/hajimehoshi/ebiten/inpututil"
+import "github.com/hajimehoshi/oto"
+
 import "github.com/pwiecz/command_series/data"
 
 type IntelligenceType int
@@ -63,6 +66,9 @@ type ShowMap struct {
 	started bool
 
 	overviewMap *OverviewMap
+
+	otoContext *oto.Context
+	player     *AudioPlayer
 }
 
 func NewShowMap(g *Game) *ShowMap {
@@ -84,7 +90,8 @@ func NewShowMap(g *Game) *ShowMap {
 	s.options.AlliedCommander = 1
 	s.options.GermanCommander = 0
 	s.options.GameBalance = 2
-	s.gameState = NewGameState(&scenario, &g.scenarioData, &variant, g.selectedVariant, g.units, &g.terrain, &g.terrainMap, &g.generic, &g.hexes, g.generals, s.options, s.sync)
+	rnd := rand.New(rand.NewSource(1))
+	s.gameState = NewGameState(rnd, &scenario, &g.scenarioData, &variant, g.selectedVariant, g.units, &g.terrain, &g.terrainMap, &g.generic, &g.hexes, g.generals, s.options, s.sync)
 	s.mapView = NewMapView(
 		&g.terrainMap, scenario.MinX, scenario.MinY, scenario.MaxX, scenario.MaxY,
 		&g.sprites.TerrainTiles, &g.sprites.UnitSymbolSprites, &g.sprites.UnitIconSprites,
@@ -95,6 +102,12 @@ func NewShowMap(g *Game) *ShowMap {
 	s.topRect = NewRectangle(image.Pt(336, 22))
 	s.separatorRect = NewRectangle(image.Pt(336, 2))
 	s.unitIconView = true
+	otoContext, err := oto.NewContext(44100, 4 /* num channels */, 1 /* num bytes per sample */, 4096 /* buffer size */)
+	if err != nil {
+		panic(err)
+	}
+	s.otoContext = otoContext
+	s.player = NewAudioPlayer(s.otoContext)
 	return s
 }
 
@@ -270,7 +283,7 @@ loop:
 			return fmt.Errorf("GAME OVER!")
 		case UnitMove:
 			if s.mapView.AreMapCoordsVisible(message.X0, message.Y0) || s.mapView.AreMapCoordsVisible(message.X1, message.Y1) {
-				s.animation = NewUnitAnimation(s.mapView, message.Unit,
+				s.animation = NewUnitAnimation(s.mapView, s.player, message.Unit,
 					message.X0, message.Y0, message.X1, message.Y1, 30)
 				break loop
 			}
