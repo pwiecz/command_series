@@ -29,8 +29,15 @@ const (
 )
 
 type Unit struct {
-	Side                 int  // 0 or 1
-	State                byte // bit 8 - is added to game, bit 6 - visible to enemy, bit 5 - local command, bit 4 - has contact with enemy, bit 3 - no supply line to unit, bin 1 - unit under attack, bit 0 - has contact with enemy?
+	Side int // 0 or 1
+	InContactWithEnemy  bool // &1 != 0
+	IsUnderAttack        bool // &2 != 0
+	State2               bool // &4 != 0
+	HasSupplyLine        bool // &8 == 0
+	State4               bool // &16 != 0
+	HasLocalCommand      bool // &32 != 0
+	SeenByEnemy          bool // &64 != 0
+	IsInGame             bool // &128 != 0
 	X, Y                 int
 	MenCount, EquipCount int
 	Formation            int
@@ -58,6 +65,17 @@ type Unit struct {
 	Index int
 }
 
+func (u *Unit) ClearState() {
+	u.InContactWithEnemy = false
+	u.IsUnderAttack = false
+	u.State2 = false
+	u.HasSupplyLine = true
+	u.State4 = false
+	u.HasLocalCommand = false
+	u.SeenByEnemy = false
+	u.IsInGame = false
+
+}
 type FlashbackUnit struct {
 	X, Y         int
 	ColorPalette int
@@ -79,7 +97,15 @@ func ReadUnits(filename string, unitNames [2][]string, generals [2][]General) ([
 
 func ParseUnit(data [16]byte, unitNames []string, generals []General) (Unit, error) {
 	var unit Unit
-	unit.State = data[0]
+	state := data[0]
+	unit.InContactWithEnemy = state&1 != 0
+	unit.IsUnderAttack = state&2 != 0
+	unit.State2 = state&4 != 0
+	unit.HasSupplyLine = state&8 == 0
+	unit.State4 = state&16 != 0
+	unit.HasLocalCommand = state&32 != 0
+	unit.SeenByEnemy = state&64 != 0
+	unit.IsInGame = state&128 != 0
 	unit.X = int(data[1])
 	unit.Y = int(data[2])
 	unit.MenCount = int(data[3])

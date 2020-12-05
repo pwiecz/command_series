@@ -13,6 +13,7 @@ type ScenarioData struct {
 	Data16High [16]int // Data[16:32] per unit type (higher 4 bits)
 	Data32     [16]int // Data[32:48] per unit type (&31 attack range)
 	// Score gained by destroying enemy unit of this type
+	// Units with score >= 4 are high importance units which are priority targets.
 	UnitScores   [16]int // Data[48:64]
 	RecoveryRate [16]int // Data[64:80]
 	// Various bits concerning unit types... not all clear yet (&4 weather has no impact?)

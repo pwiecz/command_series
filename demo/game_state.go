@@ -34,7 +34,7 @@ type GameState struct {
 	map2_0, map2_1 [2][4][4]int // 0x400 - two byte values
 
 	// Side of the most recently updated unit. Used for detecting moment when we switch analysing sides.
-	update         int
+	update int
 
 	scenarioData *data.ScenarioData
 	terrain      *data.Terrain
@@ -75,7 +75,7 @@ func NewGameState(scenario *data.Scenario, scenarioData *data.ScenarioData, vari
 	for side, sideUnits := range s.units {
 		for i, unit := range sideUnits {
 			if unit.VariantBitmap&(1<<variantNum) != 0 {
-				unit.State = 0
+				unit.ClearState()
 				unit.HalfDaysUntilAppear = 0
 			}
 			unit.VariantBitmap = 0 // not really needed
@@ -184,7 +184,7 @@ func (s *GameState) updateUnit() (message MessageFromUnit, quit bool) {
 nextUnit:
 	s.lastUpdatedUnit = (s.lastUpdatedUnit + 1) % 128
 	unit := s.units[s.lastUpdatedUnit/64][s.lastUpdatedUnit%64]
-	if unit.State&128 == 0 {
+	if !unit.IsInGame {
 		goto nextUnit
 	}
 	var v9 int
@@ -193,7 +193,7 @@ nextUnit:
 		unit.Fatigue == 255 {
 		s.hideUnit(unit)
 		message = WeMustSurrender{unit}
-		unit.State = 0
+		unit.ClearState()
 		unit.HalfDaysUntilAppear = 0
 		s.citiesHeld[1-unit.Side] += s.scenarioData.UnitScores[unit.Type]
 		s.menLost[unit.Side] += unit.MenCount
@@ -205,17 +205,17 @@ nextUnit:
 	}
 	v9 = s.countNeighbourUnits(unit.X, unit.Y, 1-unit.Side)
 	if v9 == 0 {
-		unit.State &= 239 // has no contact with enemy
+		unit.State4 = false // &= 239
 	}
 
 	if s.options.IsPlayerControlled(unit.Side) {
 		s.update = unit.Side
 		// If not a local command and either objective is specified, or order is defend or move).
-		if unit.State&32 == 0 && (unit.Order == data.Defend || unit.Order == data.Move || unit.ObjectiveX != 0) { // ... maybe?
+		if !unit.HasLocalCommand && (unit.Order == data.Defend || unit.Order == data.Move || unit.ObjectiveX != 0) { // ... maybe?
 			goto l21
 		} else {
 			mode = unit.Order
-			unit.State |= 32 // Make order as local
+			unit.HasLocalCommand = true // |= 32
 			goto l24
 		}
 	} else {
@@ -240,7 +240,7 @@ nextUnit:
 		}
 		// If there are no enemy units in neaby "small" map and there is a supply line to unit and sth then look at the "tiny" map.
 		// in CiV the second term is s.scenarioData.UnitMask[unit.Type]&1 == 0
-		if temp == 0 && s.scenarioData.UnitScores[unit.Type]&248 == 0 && unit.State&8 == 0 {
+		if temp == 0 && s.scenarioData.UnitScores[unit.Type]&248 == 0 && unit.HasSupplyLine {
 			tx, ty := unit.X/32, unit.Y/16
 			//unit.X /= 4
 			//unit.Y /= 4
@@ -353,8 +353,7 @@ nextUnit:
 					}
 					if v48 > 0 {
 						v := v48 * s.map1[1-unit.Side][sx+dx][sy+dy]
-						// If unit was seen by enemy
-						if unit.State&64 > 0 {
+						if unit.SeenByEnemy {
 							v /= 2 /* logical shift not the arithmetic one, actually) */
 						}
 						if generalMask&4 > 0 {
@@ -435,8 +434,7 @@ nextUnit:
 					}
 				}
 				v := s.scenarioData.UnitScores[unit.Type] & 248
-				// If has contact with enemy
-				if unit.State&1 > 0 {
+				if unit.InContactWithEnemy {
 					v += (unit.Fatigue/16 + unit.Fatigue/32)
 				}
 				if v > 7 {
@@ -464,13 +462,12 @@ nextUnit:
 			unit = unitCopy // revert modified unit
 			unit.OrderBit4 = true
 			supplyUse := s.scenarioData.AvgDailySupplyUse
-			// there is no supply line to unit
-			if unit.State&8 > 0 {
+			if !unit.HasSupplyLine {
 				supplyUse *= 2
 			}
 			if unit.SupplyLevel < supplyUse {
 				unit2 := s.units[unit.Side][unit.SupplyUnit]
-				if unit2.State&128 == 0 {
+				if !unit2.IsInGame {
 					unit2 = s.units[unit.Side][unit2.SupplyUnit]
 				}
 				unit.ObjectiveX = unit2.X
@@ -518,6 +515,7 @@ nextUnit:
 	}
 l24:
 	unit.TargetFormation = s.function10(unit.Order, 1)
+	// Find the best objective for attack.
 	if mode == data.Attack {
 		arg1 = 16000
 		terrainType := s.terrainType(unit.Terrain)
@@ -545,7 +543,13 @@ l24:
 				if false /* CiV */ && s.scenarioData.UnitMask[unit.Type]&4 == 0 {
 					w *= 2
 				}
-				d := s.scenarioData.UnitScores[unit2.Type] + int((unit2.State&6)*2) + 14 - w
+				d := s.scenarioData.UnitScores[unit2.Type] + 14 - w
+				if unit2.IsUnderAttack {
+					d += 4
+				}
+				if unit2.State2 {
+					d += 8
+				}
 				n := t / Clamp(d, 1, 32)
 				arg2 = n * s.magicCoeff(s.hexes.Arr144[:], unit2.X, unit2.Y, unit2.Side) / 8 * (255 - unit2.Fatigue) / 256 * unit2.Morale / 128
 			} else {
@@ -562,10 +566,10 @@ l24:
 				}
 				if tt < 7 {
 					// temperarily hide the unit while we compute sth
-					s.units[unit.Side][unit.Index].State = unit.State & 127
+					s.units[unit.Side][unit.Index].IsInGame = false
 					arg2 = temp2 - s.magicCoeff(s.hexes.Arr48[:], nx, ny, unit.Side)*2 + v
 					// unhide the unit
-					s.units[unit.Side][unit.Index].State = unit.State
+					s.units[unit.Side][unit.Index].IsInGame = true
 				}
 			}
 			if i < 12 {
@@ -590,15 +594,18 @@ l24:
 	if mode == data.Reserve {
 		unit.ObjectiveX = 0
 	}
+	// Pick the best location to defend from among the neighbour locations.
 	if mode == data.Defend {
+		// Reset current objective.
 		if unit.ObjectiveX > 0 {
 			unit.ObjectiveX = unit.X
 			unit.ObjectiveY = unit.Y
 		}
 		// temperarily hide the unit while we compute sth
-		s.units[unit.Side][unit.Index].State &= 127
+		s.units[unit.Side][unit.Index].IsInGame = false
 		arg1 = -17536 // 48000
 		var bestI int
+		// Score for i==6 (zero offset - the unit's position).
 		var v_6 int
 		for i := 0; i <= 6; i++ {
 			ix := s.coordsToMapIndex(unit.X, unit.Y) + s.generic.MapOffsets[i]
@@ -625,7 +632,8 @@ l24:
 						v += city.VictoryPoints
 					}
 				}
-				if (s.scenarioData.UnitScores[unit.Type]&248)+Sign(unit.Fatigue-96+s.generals[unit.Side][unit.GeneralIndex].Data2High*4) > 0 {
+				if s.scenarioData.UnitScores[unit.Type]&248 > 0 ||
+					unit.Fatigue+s.generals[unit.Side][unit.GeneralIndex].Data2High*4 > 96 {
 					v = r + s.magicCoeff(s.hexes.Arr96[:], nx, ny, unit.Side)
 				}
 			}
@@ -638,12 +646,12 @@ l24:
 			}
 		}
 		// unhide unit
-		s.units[unit.Side][unit.Index].State |= 128
+		s.units[unit.Side][unit.Index].IsInGame = true
 		v := s.scenarioData.FormationMenDefence[unit.Formation] - 8
 		if s.options.IsPlayerControlled(unit.Side) {
 			v *= 2
 		}
-		if v > arg1-v_6 {
+		if v+v_6 > arg1 {
 			bestI = 6
 		}
 		if bestI < 6 {
@@ -661,8 +669,8 @@ l24:
 		if attackRange > 0 && (d32&8)+weather < 10 && unit.Fatigue/4 < 32 {
 			for i := 0; i <= 32-unit.Fatigue/4; i++ {
 				unit2 := s.units[1-unit.Side][Rand(64)]
-				// in CiV first term says unit2.State&64 > 0
-				if unit2.State&6 > 0 && Abs(unit.X-unit2.X)/2+Abs(unit.Y-unit2.Y) <= attackRange {
+				// in CiV instead of IsUnderAttack||State2 is SeenByEnemy.
+				if (unit2.IsUnderAttack || unit2.State2) && Abs(unit.X-unit2.X)/2+Abs(unit.Y-unit2.Y) <= attackRange {
 					unit.ObjectiveX = unit2.X
 					unit.ObjectiveY = unit2.Y
 					unit.Order = unit.Order | 2
@@ -704,9 +712,9 @@ l21:
 			}
 			unit.TargetFormation = s.function10(unit.Order, 0)
 			// If unit is player controlled or its command is local
-			if s.options.IsPlayerControlled(unit.Side) || unit.State&32 > 0 {
+			if s.options.IsPlayerControlled(unit.Side) || unit.HasLocalCommand {
 				// If it's next to its objective to defend and it's in contact with enemy
-				if distance == 1 && unit.Order == data.Defend && unit.State&1 > 0 {
+				if distance == 1 && unit.Order == data.Defend && unit.InContactWithEnemy {
 					unit.TargetFormation = s.function10(unit.Order, 1)
 				}
 			}
@@ -746,7 +754,7 @@ l21:
 				break
 			}
 			v := s.scenarioData.Data192[unit.Formation] * moveCost / 8
-			if unit.State&16 != 0 {
+			if unit.State4 {
 				v = v * s.scenarioData.Data200Low[unit.Type] / 8
 			}
 			v *= (512 - unit.Fatigue) / 32
@@ -782,9 +790,8 @@ l21:
 			}
 			v57 -= temp
 			s.hideUnit(unit)
-			// Unit is player controlled, intelligence is full, unit is visible to enem or has contact with enemy
 			if s.options.IsPlayerControlled(unit.Side) ||
-				s.options.Intelligence == Full || unit.State&65 > 0 {
+				s.options.Intelligence == Full || unit.InContactWithEnemy || unit.SeenByEnemy {
 				if !s.sync.SendUpdate(UnitMove{unit, unit.X / 2, unit.Y, sx / 2, sy}) {
 					quit = true
 					return
@@ -797,9 +804,8 @@ l21:
 			if Function15_distanceToObjective(unit) == 0 {
 				unit.ObjectiveX = 0
 				unit.TargetFormation = s.function10(unit.Order, 1)
-				// If order is defend or move and the command is not local
 				if (unit.Order == data.Defend || unit.Order == data.Move) &&
-					unit.State&32 == 0 {
+					!unit.HasLocalCommand {
 					message = WeHaveReachedOurObjective{unit}
 				}
 			}
@@ -810,11 +816,10 @@ l21:
 			}
 			if v57 > 0 {
 				if s.countNeighbourUnits(unit.X, unit.Y, 1-unit.Side) > 0 {
-					// has contact with enemy and ...
-					unit.State |= 17
+					unit.InContactWithEnemy = true
+					unit.State4 = true // |= 17
 				} else {
-					// has no contact with enemy
-					unit.State &= 254
+					unit.InContactWithEnemy = false // &= 254
 				}
 				s.function29_showUnit(unit)
 				continue
@@ -823,24 +828,28 @@ l21:
 		}
 		// l2:
 		unit.SupplyLevel = Clamp(unit.SupplyLevel-2, 0, 255)
-		wasInContactWithEnemy := unit.State&1 != 0
+		wasInContactWithEnemy := unit.InContactWithEnemy
 
 		if Rand(s.scenarioData.Data252[unit.Side]) > 0 {
-			// no contact with enemy, not under attack?, sth
-			unit.State &= 232
+			unit.InContactWithEnemy = false
+			unit.IsUnderAttack = false
+			unit.State2 = false
+			unit.State4 = false // &= 232
 		} else {
-			// no contact with enemy, not under attack?, sth, not seen by enemy
-			unit.State &= 168
+			unit.InContactWithEnemy = false
+			unit.IsUnderAttack = false
+			unit.State2 = false
+			unit.State4 = false
+			unit.SeenByEnemy = false // &= 168
 		}
 		if false /* CiV */ && Rand(s.scenarioData.Data175)/8 > 0 {
-			// seen by enemy
-			unit.State |= 64
+			unit.SeenByEnemy = true // |= 64
 		}
 		for i := 0; i < 6; i++ {
 			if unit2, ok := s.FindUnit(unit.X+s.generic.Dx[i], unit.Y+s.generic.Dy[i]); ok && unit2.Side == 1-unit.Side {
 				s.showUnit(unit2)
-				// seen by enemy and in contact with enemy
-				unit2.State = unit2.State | 65
+				unit2.InContactWithEnemy = true
+				unit2.SeenByEnemy = true // |= 65
 				s.units[unit2.Side][unit2.Index] = unit2
 				if s.scenarioData.UnitScores[unit2.Type] > 8 {
 					if s.options.IsPlayerControlled(unit.Side) {
@@ -855,11 +864,11 @@ l21:
 				// in DitD also minefield or artillery
 				// in CiV supply units or bombers (not fighters nor artillery)
 				if s.scenarioData.UnitMask[unit2.Type]&128 == 0 {
-					unit.State = unit.State | 16
+					unit.State4 = true // |= 16
 				}
 				if s.scenarioData.UnitCanMove[unit2.Type] {
-					// seen by enemy and in contact with enemy
-					unit.State = unit.State | 65
+					unit.InContactWithEnemy = true
+					unit.SeenByEnemy = true // |= 65
 					if unit.Side == 0 {
 					}
 					if !wasInContactWithEnemy {
@@ -890,8 +899,8 @@ l21:
 			}
 			s.showUnit(unit)
 			if false /* CiV */ {
-				// seen by enemy and in contact with enemy
-				unit.State |= 65
+				unit.InContactWithEnemy = true
+				unit.SeenByEnemy = true // |= 65
 			}
 			// * function14 - play sound??
 		} else {
@@ -903,8 +912,8 @@ l21:
 		}
 		// [53767] = 0 // silence?
 		if true /* !CiV */ {
-			// seen by enemy and in contact with enemy
-			unit.State |= 65
+			unit.InContactWithEnemy = true
+			unit.SeenByEnemy = true // |= 65
 		}
 		unit2, ok := s.FindUnitOfSide(sx, sy, 1-unit.Side)
 		if !ok {
@@ -935,7 +944,7 @@ l21:
 		{
 			tt2 := s.terrainType(unit2.Terrain)
 			if s.scenarioData.UnitScores[unit2.Type]&248 > 0 {
-				unit.State |= 4
+				unit.State2 = true // |= 4
 			}
 
 			menCoeff := s.scenarioData.TerrainMenDefence[tt2] * s.scenarioData.FormationMenDefence[unit2.Formation] * unit2.MenCount / 32
@@ -963,7 +972,7 @@ l21:
 			if arg1 < 24 {
 				unit.Morale = Clamp(unit.Morale+1, 0, 250)
 			}
-			unit2.State |= 2
+			unit2.IsUnderAttack = true //  |= 2
 			if arg1 > 32 {
 				unit.Order = data.Defend // ? ^48
 				message = WeHaveMetStrongResistance{unit}
@@ -991,11 +1000,11 @@ l21:
 			s.hideUnit(unit2)
 			if unit2.Fatigue > 128 {
 				unit2SupplyUnit := s.units[unit2.Side][unit2.SupplyUnit]
-				if unit2SupplyUnit.State&128 > 0 {
+				if unit2SupplyUnit.IsInGame {
 					unit2.Morale = Abs(unit2.Morale - s.countNeighbourUnits(unit2.X, unit2.Y, unit.Side)*4)
 					unit2.X = unit2SupplyUnit.X
 					unit2.Y = unit2SupplyUnit.Y
-					unit2.State = 0
+					unit2.ClearState()
 					unit2.HalfDaysUntilAppear = 6
 					unit2.InvAppearProbability = 6
 					if false /* DitD || CiV */ {
@@ -1036,7 +1045,8 @@ l21:
 					unit.ObjectiveX = unit2.X
 					unit.ObjectiveY = unit2.Y
 				} else /* CiV */ {
-					unit2.State &= 190 // retreating? unit no longer visible
+					unit2.InContactWithEnemy = false
+					unit2.SeenByEnemy = false // &= 190
 				}
 			}
 			if bestX != oldX || bestY != oldY {
@@ -1061,7 +1071,7 @@ l21:
 			}
 			unit2.Formation = s.scenarioData.Data176[1][0]
 			unit2.Order = data.OrderType(s.scenarioData.Data176[1][0] + 1)
-			unit2.State |= 32
+			unit2.HasSupplyLine = false // |= 32
 		}
 
 		a := arg1
@@ -1094,7 +1104,7 @@ end: // l3
 	}
 	{
 		recovery := s.scenarioData.RecoveryRate[unit.Type]
-		if unit.State&9 == 0 { // has supply line and is not in contact with enemy
+		if !unit.InContactWithEnemy && unit.HasSupplyLine { // &9 == 0
 			recovery *= 2
 		}
 		unit.Fatigue = Clamp(unit.Fatigue-recovery, 0, 255)
@@ -1151,7 +1161,8 @@ func (s *GameState) function6(offsetIx, add, x, y, unitType int) (int, int) {
 }
 
 func (s *GameState) function29_showUnit(unit data.Unit) {
-	if unit.State&65 != 0 || s.options.IsPlayerControlled(unit.Side) || s.options.Intelligence == Full {
+	if unit.InContactWithEnemy || unit.SeenByEnemy /* &65 != 0 */ ||
+		s.options.IsPlayerControlled(unit.Side) || s.options.Intelligence == Full {
 		s.showUnit(unit)
 	}
 }
@@ -1251,8 +1262,7 @@ func (s *GameState) reinitSmallMapsAndSuch(currentSide int) {
 	//	v16 := 0
 	for _, sideUnits := range s.units {
 		for _, unit := range sideUnits {
-			if unit.State&128 == 0 ||
-				s.scenarioData.UnitMask[unit.Type]&16 != 0 {
+			if !unit.IsInGame || s.scenarioData.UnitMask[unit.Type]&16 != 0 {
 				continue
 			}
 			sx, sy := unit.X/8, unit.Y/4
@@ -1267,7 +1277,7 @@ func (s *GameState) reinitSmallMapsAndSuch(currentSide int) {
 				// Possibly a bug in the original code and there should be /4 instead of /16
 				// Otherwise it's a way too complicated method to check for limited intelligence.
 				if s.options.Intelligence == Limited && //(unit.Side+1)&(s.options.Num()/16) > 0 &&
-					unit.State&64 == 0 {
+					!unit.SeenByEnemy {
 					continue
 				}
 			}
@@ -1297,8 +1307,7 @@ func (s *GameState) reinitSmallMapsAndSuch(currentSide int) {
 								continue
 							}
 							s.map1[unit.Side][x][y] += 2
-							// unit under attack?
-							if unit.State&2 != 0 {
+							if unit.IsUnderAttack {
 								s.map1[unit.Side][x][y] += 2
 							}
 						}
@@ -1351,7 +1360,7 @@ func (s *GameState) reinitSmallMapsAndSuch(currentSide int) {
 func (s *GameState) countNeighbourUnits(x, y, side int) int {
 	num := 0
 	for _, unit := range s.units[side] {
-		if unit.State&128 == 0 {
+		if !unit.IsInGame {
 			continue
 		}
 		if Abs(unit.X-x)+Abs(2*(unit.Y-y)) < 4 { // TODO: double check it
@@ -1373,7 +1382,7 @@ func (s *GameState) everyHour() bool {
 	if s.scenarioData.AvgDailySupplyUse > Rand(24) {
 		for _, sideUnits := range s.units {
 			for i, unit := range sideUnits {
-				if unit.State&128 == 0 ||
+				if !unit.IsInGame ||
 					!s.scenarioData.UnitUsesSupplies[unit.Type] ||
 					unit.SupplyLevel <= 0 {
 					continue
@@ -1397,7 +1406,7 @@ func (s *GameState) every12Hours() bool {
 	}
 	for _, sideUnits := range s.units {
 		for i, unit := range sideUnits {
-			if unit.State&128 != 0 {
+			if unit.IsInGame {
 				if s.isNight { // if it's midnight (in CiV - opposite)
 					unit = s.resupplyUnit(unit)
 				}
@@ -1413,7 +1422,7 @@ func (s *GameState) every12Hours() bool {
 						shouldSpawnUnit = false
 					}
 					if shouldSpawnUnit {
-						unit.State |= 128
+						unit.IsInGame = true
 						unit.Terrain = s.terrainAt(unit.X, unit.Y)
 						// Unit will be shown if needed inside showAllUnits at the end of the function.
 						reinforcements[unit.Side] = true
@@ -1429,7 +1438,7 @@ func (s *GameState) every12Hours() bool {
 
 	for _, sideUnits := range s.units {
 		for i, unit := range sideUnits {
-			if unit.State&8 == 0 { // (has supply line)
+			if unit.HasSupplyLine { // (has supply line)
 				if unit.MenCount <= s.scenarioData.MenCountLimit[unit.Type] {
 					unit.MenCount += Rand(s.scenarioData.MenReplacementRate[unit.Side]+32) / 32
 				}
@@ -1458,8 +1467,8 @@ func (s *GameState) resupplyUnit(unit data.Unit) data.Unit {
 		!s.scenarioData.UnitCanMove[unit.Type] {
 		return unit
 	}
-	// Make initially that there's no supply line.
-	unit.State |= 8
+	// Mark initially that there's no supply line.
+	unit.HasSupplyLine = false
 	minSupplyType := s.scenarioData.MinSupplyType & 15
 	if unit.Type >= minSupplyType {
 		// headquarters can only gain supply from supply depots,
@@ -1475,7 +1484,7 @@ outerLoop:
 	for j := 0; j < len(s.units[unit.Side]); j++ {
 		supplyUnit = s.units[unit.Side][j]
 		if supplyUnit.Type < minSupplyType ||
-			supplyUnit.State&128 == 0 || supplyUnit.SupplyLevel == 0 {
+			!supplyUnit.IsInGame || supplyUnit.SupplyLevel == 0 {
 			continue
 		}
 		supplyX, supplyY := supplyUnit.X, supplyUnit.Y
@@ -1499,8 +1508,7 @@ outerLoop:
 					unitResupply = Clamp(unitResupply, 0, maxResupply)
 					unit.SupplyLevel += unitResupply
 					s.supplyLevels[unit.Side] = supplyLevel - unitResupply
-					// There is supply line to the unit.
-					unit.State &= 247
+					unit.HasSupplyLine = true
 				} else {
 					// not sure if it's needed...
 					s.supplyLevels[unit.Side] = 0
@@ -1548,7 +1556,7 @@ func (s *GameState) ContainsUnit(x, y int) bool {
 }
 func (s *GameState) ContainsUnitOfSide(x, y, side int) bool {
 	for _, unit := range s.units[side] {
-		if (unit.State&128) != 0 && unit.X == x && unit.Y == y {
+		if unit.IsInGame && unit.X == x && unit.Y == y {
 			return true
 		}
 	}
@@ -1569,7 +1577,7 @@ func (s *GameState) FindUnit(x, y int) (data.Unit, bool) {
 func (s *GameState) FindUnitAtMapCoords(x, y int) (data.Unit, bool) {
 	for _, sideUnits := range s.units {
 		for _, unit := range sideUnits {
-			if unit.State&128 != 0 && unit.X/2 == x && unit.Y == y {
+			if unit.IsInGame && unit.X/2 == x && unit.Y == y {
 				return unit, true
 			}
 		}
@@ -1578,7 +1586,7 @@ func (s *GameState) FindUnitAtMapCoords(x, y int) (data.Unit, bool) {
 }
 func (s *GameState) FindUnitOfSide(x, y, side int) (data.Unit, bool) {
 	for _, unit := range s.units[side] {
-		if unit.State&128 != 0 && unit.X == x && unit.Y == y {
+		if unit.IsInGame && unit.X == x && unit.Y == y {
 			return unit, true
 		}
 	}
@@ -1638,7 +1646,7 @@ func (s *GameState) hideUnit(unit data.Unit) {
 func (s *GameState) hideAllUnits() {
 	for _, sideUnits := range s.units {
 		for _, unit := range sideUnits {
-			if unit.State&128 != 0 {
+			if unit.IsInGame {
 				s.hideUnit(unit)
 			}
 		}
@@ -1647,11 +1655,11 @@ func (s *GameState) hideAllUnits() {
 func (s *GameState) showAllVisibleUnits() {
 	for _, sideUnits := range s.units {
 		for i, unit := range sideUnits {
-			if unit.State&128 == 0 {
+			if !unit.IsInGame {
 				continue
 			}
 			sideUnits[i].Terrain = s.terrainAt(unit.X, unit.Y)
-			if unit.State&65 != 0 || s.options.IsPlayerControlled(unit.Side) || s.options.Intelligence == Full {
+			if unit.InContactWithEnemy || unit.SeenByEnemy || s.options.IsPlayerControlled(unit.Side) || s.options.Intelligence == Full {
 				s.showUnit(unit)
 			}
 		}
@@ -1683,10 +1691,10 @@ func (s *GameState) everyDay() bool {
 	numActiveUnits := 0
 	for _, sideUnits := range s.units {
 		for _, unit := range sideUnits {
-			if unit.State&136 != 0 { // active or no supply line
+			if unit.IsInGame || !unit.HasSupplyLine {
 				numActiveUnits++
 			}
-			if unit.State&128 != 0 {
+			if unit.IsInGame {
 				flashback = append(flashback, data.FlashbackUnit{
 					X: unit.X, Y: unit.Y, ColorPalette: unit.ColorPalette, Type: unit.Type,
 				})

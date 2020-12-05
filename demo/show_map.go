@@ -320,7 +320,7 @@ func (s *ShowMap) tryGiveOrderAtMapCoords(x, y int, order data.OrderType) {
 }
 func (s *ShowMap) giveOrder(unit data.Unit, order data.OrderType) {
 	unit.Order = order
-	unit.State &= 223
+	unit.HasLocalCommand = false
 	switch order {
 	case data.Reserve:
 		unit.ObjectiveX = 0
@@ -348,7 +348,7 @@ func (s *ShowMap) trySetObjective(x, y int) {
 }
 func (s *ShowMap) setObjective(unit data.Unit, x, y int) {
 	unit.ObjectiveX, unit.ObjectiveY = x, y
-	unit.State &= 223 // clean bit 5 (32)
+	unit.HasLocalCommand = false
 	s.messageBox.Clear()
 	s.messageBox.Print("WHO ", 2, 0, true)
 	s.messageBox.Print(fmt.Sprintf("%s %s", unit.Name, s.mainGame.scenarioData.UnitTypes[unit.Type]), 7, 0, false)
@@ -370,7 +370,7 @@ func (s *ShowMap) showUnitInfo() {
 		return
 	}
 	s.messageBox.Clear()
-	if unit.Side != s.playerSide && unit.State&1 == 0 {
+	if unit.Side != s.playerSide && !unit.InContactWithEnemy {
 		s.messageBox.Print(" NO INFORMATION ", 2, 0, true)
 		return
 	}
@@ -406,7 +406,7 @@ func (s *ShowMap) showUnitInfo() {
 		s.messageBox.Print("    ", 2, nextRow, true)
 		supplyDays := unit.SupplyLevel / (s.mainGame.scenarioData.AvgDailySupplyUse + s.mainGame.scenarioData.Data163)
 		supplyStr := fmt.Sprintf("%d DAYS SUPPLY.", supplyDays)
-		if unit.State&8 != 0 {
+		if !unit.HasSupplyLine {
 			supplyStr += " (NO SUPPLY LINE!)"
 		}
 		s.messageBox.Print(supplyStr, 7, nextRow, false)
@@ -428,7 +428,7 @@ func (s *ShowMap) showUnitInfo() {
 
 	s.messageBox.Print("ORDR", 2, nextRow, true)
 	orderStr := unit.Order.String()
-	if unit.State&32 != 0 {
+	if unit.HasLocalCommand {
 		orderStr += " (LOCAL COMMAND)"
 	}
 	s.messageBox.Print(orderStr, 7, nextRow, false)
