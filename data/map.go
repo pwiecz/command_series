@@ -51,7 +51,6 @@ func (m *Map) SetTile(x, y int, tile byte) {
 }
 func (m *Map) GetTileAtIndex(ix int) byte {
 	if ix < 0 || ix >= len(m.terrain) {
-		fmt.Println("invalid index", ix)
 		return 0
 	}
 	return m.terrain[ix]
@@ -64,27 +63,7 @@ func (m *Map) SetTileAtIndex(ix int, tile byte) {
 }
 
 // ParseMap parses CRUSADE.MAP files.
-func ParseMap(data io.Reader) (Map, error) {
-	reader := bufio.NewReader(data)
-	var header [2]byte
-	_, err := io.ReadFull(reader, header[:1])
-	if err != nil {
-		return Map{}, nil
-	}
-	if header[0] == 0xFF {
-		return parseMapConflict(reader)
-	}
-	_, err = io.ReadFull(reader, header[1:])
-	if err != nil {
-		return Map{}, nil
-	}
-	return parseMapCrusade(reader, int(header[0]), int(header[1]))
-}
-
-// parseMapCrusade parses CRUSADE.MAP file from CiE and DitD games.
-// Two first bytes are used for determining dimensions of the map,
-// although it's hardcoded (at least the width) to be 64 in other places in code.
-func parseMapCrusade(data io.Reader, width, height int) (Map, error) {
+func ParseMap(data io.Reader, width, height int) (Map, error) {
 	terrainMap := Map{
 		Width: width, Height: height,
 		terrain: make([]byte, 0, width*height),
@@ -105,46 +84,6 @@ func parseMapCrusade(data io.Reader, width, height int) (Map, error) {
 	return terrainMap, nil
 }
 
-// parseMapConflict parses CRUSADE.MAP file from the CiV game.
-// Two map dimensions are hardcoded to be 64x64.
-func parseMapConflict(data *bufio.Reader) (Map, error) {
-	var header1 [3]byte
-	_, err := io.ReadFull(data, header1[:])
-	if err != nil {
-		return Map{}, nil
-	}
-	var decodedData []byte
-	for {
-		b, err := data.ReadByte()
-		if err != nil {
-			if err != io.EOF {
-				return Map{}, err
-			}
-			break
-		}
-		if b != 0xff {
-			decodedData = append(decodedData, b)
-		} else {
-			var bCnt [2]byte
-			if _, err := io.ReadFull(data, bCnt[:]); err != nil {
-				return Map{}, err
-			}
-			count := int(bCnt[1])
-			if count == 0xff {
-				b, err := data.ReadByte()
-				if err != nil {
-					return Map{}, err
-				}
-				count += int(b)
-			}
-			for i := 0; i < count+4; i++ {
-				decodedData = append(decodedData, bCnt[0])
-			}
-		}
-	}
-	return parseMapCrusade(bytes.NewReader(decodedData), 64, 64)
-}
-
 func ReadMap(dirname string) (Map, error) {
 	mapFilename := path.Join(dirname, "CRUSADE.MAP")
 	mapFile, err := os.Open(mapFilename)
@@ -152,5 +91,22 @@ func ReadMap(dirname string) (Map, error) {
 		return Map{}, fmt.Errorf("Cannot open map file %s. %v", mapFilename, err)
 	}
 	defer mapFile.Close()
-	return ParseMap(mapFile)
+	reader := bufio.NewReader(mapFile)
+	header, err := reader.Peek(1)
+	if err != nil {
+		return Map{}, err
+	}
+	// First two bytes are 0x40 in Crusade and Decision
+	if header[0] != 0x40 {
+		decoded, err := UnpackFile(reader)
+		if err != nil {
+			return Map{}, err
+		}
+		return ParseMap(bytes.NewReader(decoded), 64, 64)
+	} else {
+		if _, err := reader.Discard(2); err != nil {
+			return Map{}, err
+		}
+		return ParseMap(reader, 64, 64)
+	}
 }

@@ -1,6 +1,5 @@
 package data
 
-import "bufio"
 import "bytes"
 import "fmt"
 import "io"
@@ -91,7 +90,22 @@ func ReadUnits(filename string, unitNames [2][]string, generals [2][]General) ([
 		return [2][]Unit{}, fmt.Errorf("Cannot open units file %s, %v", filename, err)
 	}
 	defer file.Close()
-	units, err := ParseUnits(file, unitNames, generals)
+	var reader io.Reader
+	if FileNameToGame(filename) == Conflict {
+		decoded, err := UnpackFile(file)
+		if err != nil {
+			return [2][]Unit{}, err
+		}
+		reader = bytes.NewReader(decoded)
+	} else {
+		// Skip first two bytes of the file (they are all zeroes).
+		var header [2]byte
+		if _, err := io.ReadFull(file, header[:]); err != nil {
+			return [2][]Unit{}, err
+		}
+		reader = file
+	}
+	units, err := ParseUnits(reader, unitNames, generals)
 	if err != nil {
 		return [2][]Unit{}, fmt.Errorf("Cannot parse units file %s, %v", filename, err)
 	}
@@ -156,24 +170,6 @@ func ParseUnit(data [16]byte, unitNames []string, generals []General) (Unit, err
 }
 
 func ParseUnits(data io.Reader, unitNames [2][]string, generals [2][]General) ([2][]Unit, error) {
-	reader := bufio.NewReader(data)
-	b, err := reader.Peek(1)
-	if err != nil {
-		return [2][]Unit{}, err
-	}
-	if b[0] == 0xfd {
-		return parseUnitsConflict(reader, unitNames, generals)
-	} else {
-		return parseUnitsCrusade(reader, unitNames, generals)
-	}
-}
-
-func parseUnitsCrusade(data io.Reader, unitNames [2][]string, generals [2][]General) ([2][]Unit, error) {
-	var header [2]byte
-	_, err := io.ReadFull(data, header[:])
-	if err != nil {
-		return [2][]Unit{}, err
-	}
 	var units [2][]Unit
 	for i := 0; i < 128; i++ {
 		var unitData [16]byte
@@ -197,41 +193,4 @@ func parseUnitsCrusade(data io.Reader, unitNames [2][]string, generals [2][]Gene
 		}
 	}
 	return units, nil
-}
-
-func parseUnitsConflict(data *bufio.Reader, unitNames [2][]string, generals [2][]General) ([2][]Unit, error) {
-	var header [3]byte
-	if _, err := io.ReadFull(data, header[:]); err != nil {
-		return [2][]Unit{}, err
-	}
-	var decodedData []byte
-	for {
-		b, err := data.ReadByte()
-		if err != nil {
-			if err != io.EOF {
-				return [2][]Unit{}, err
-			}
-			break
-		}
-		if b != 0xfd {
-			decodedData = append(decodedData, b)
-		} else {
-			var bCnt [2]byte
-			if _, err := io.ReadFull(data, bCnt[:]); err != nil {
-				return [2][]Unit{}, err
-			}
-			count := int(bCnt[1])
-			if count == 0xff {
-				b, err := data.ReadByte()
-				if err != nil {
-					return [2][]Unit{}, err
-				}
-				count += int(b)
-			}
-			for i := 0; i < count+4; i++ {
-				decodedData = append(decodedData, bCnt[0])
-			}
-		}
-	}
-	return parseUnitsCrusade(bytes.NewReader(decodedData), unitNames, generals)
 }

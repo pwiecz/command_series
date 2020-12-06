@@ -1,6 +1,5 @@
 package data
 
-import "bufio"
 import "bytes"
 import "fmt"
 import "io"
@@ -29,7 +28,22 @@ func ReadTerrain(filename string) (Terrain, error) {
 		return Terrain{}, fmt.Errorf("Cannot open terrain file %s, %v", filename, err)
 	}
 	defer file.Close()
-	terrain, err := ParseTerrain(file)
+	var reader io.Reader
+	if FileNameToGame(filename) == Conflict {
+		decoded, err := UnpackFile(file)
+		if err != nil {
+			return Terrain{}, err
+		}
+		reader = bytes.NewReader(decoded)
+	} else {
+		// Skip first two bytes of the file (they are all zeroes).
+		var header [2]byte
+		if _, err := io.ReadFull(file, header[:]); err != nil {
+			return Terrain{}, err
+		}
+		reader = file
+	}
+	terrain, err := ParseTerrain(reader)
 	if err != nil {
 		return Terrain{}, fmt.Errorf("Cannot parse terrain file %s, %v", filename, err)
 	}
@@ -60,19 +74,6 @@ func ParseCity(data io.Reader) (City, error) {
 }
 
 func ParseTerrain(data io.Reader) (Terrain, error) {
-	reader := bufio.NewReader(data)
-	b, err := reader.Peek(1)
-	if err != nil {
-		return Terrain{}, err
-	}
-	if b[0] == 0xff {
-		return parseTerrainConflict(reader)
-	} else {
-		return parseTerrainCrusade(reader)
-	}
-}
-
-func parseTerrainCrusade(data io.Reader) (Terrain, error) {
 	var terrain Terrain
 	for i := 0; i < 48; i++ {
 		city, err := ParseCity(data)
@@ -93,33 +94,4 @@ func parseTerrainCrusade(data io.Reader) (Terrain, error) {
 		terrain.Coeffs[i%16][i/16] = int(v)
 	}
 	return terrain, nil
-}
-
-func parseTerrainConflict(data *bufio.Reader) (Terrain, error) {
-	var prefix [5]byte
-	if _, err := io.ReadFull(data, prefix[:]); err != nil {
-		return Terrain{}, err
-	}
-	var decodedData []byte
-	for {
-		b, err := data.ReadByte()
-		if err != nil {
-			if err != io.EOF {
-				return Terrain{}, err
-			}
-			break
-		}
-		if b != 0xff {
-			decodedData = append(decodedData, b)
-		} else {
-			var bCnt [2]byte
-			if _, err := io.ReadFull(data, bCnt[:]); err != nil {
-				return Terrain{}, err
-			}
-			for i := 0; i < int(bCnt[1])+4; i++ {
-				decodedData = append(decodedData, bCnt[0])
-			}
-		}
-	}
-	return parseTerrainCrusade(bytes.NewReader(decodedData))
 }
