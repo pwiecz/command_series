@@ -1,5 +1,7 @@
 package data
 
+import "bufio"
+import "bytes"
 import "fmt"
 import "image"
 import "image/color"
@@ -63,19 +65,20 @@ func (m *Map) SetTileAtIndex(ix int, tile byte) {
 
 // ParseMap parses CRUSADE.MAP files.
 func ParseMap(data io.Reader) (Map, error) {
+	reader := bufio.NewReader(data)
 	var header [2]byte
-	_, err := io.ReadFull(data, header[:1])
+	_, err := io.ReadFull(reader, header[:1])
 	if err != nil {
 		return Map{}, nil
 	}
 	if header[0] == 0xFF {
-		return parseMapConflict(data)
+		return parseMapConflict(reader)
 	}
-	_, err = io.ReadFull(data, header[1:])
+	_, err = io.ReadFull(reader, header[1:])
 	if err != nil {
 		return Map{}, nil
 	}
-	return parseMapCrusade(data, int(header[0]), int(header[1]))
+	return parseMapCrusade(reader, int(header[0]), int(header[1]))
 }
 
 // parseMapCrusade parses CRUSADE.MAP file from CiE and DitD games.
@@ -92,7 +95,10 @@ func parseMapCrusade(data io.Reader, width, height int) (Map, error) {
 		row := make([]byte, rowLength)
 		_, err := io.ReadFull(data, row)
 		if err != nil {
-			return Map{}, err
+			for i := len(terrainMap.terrain); i < width*height; i++ {
+				terrainMap.terrain = append(terrainMap.terrain, 0)
+			}
+			return terrainMap, nil //Map{}, err
 		}
 		terrainMap.terrain = append(terrainMap.terrain, row...)
 	}
@@ -101,33 +107,42 @@ func parseMapCrusade(data io.Reader, width, height int) (Map, error) {
 
 // parseMapConflict parses CRUSADE.MAP file from the CiV game.
 // Two map dimensions are hardcoded to be 64x64.
-func parseMapConflict(data io.Reader) (Map, error) {
-	var header1 [2]byte
+func parseMapConflict(data *bufio.Reader) (Map, error) {
+	var header1 [3]byte
 	_, err := io.ReadFull(data, header1[:])
 	if err != nil {
 		return Map{}, nil
 	}
-	l1 := int(header1[0]) + 256*int(header1[1])
-	var header2 [2]byte
-	_, err = io.ReadFull(data, header2[:])
-	if err != nil {
-		return Map{}, nil
-	}
-	l2 := int(header2[0]) + 256*int(header2[1])
-	fmt.Println(l1, l2, l2-l1)
-	terrainMap := Map{Width: 64}
-	for y := 0; true; y++ {
-		rowLength := terrainMap.Width - y%2
-		row := make([]byte, rowLength)
-		n, err := io.ReadFull(data, row)
+	var decodedData []byte
+	for {
+		b, err := data.ReadByte()
 		if err != nil {
-			fmt.Printf("Read only %d bytes of map\n", n)
+			if err != io.EOF {
+				return Map{}, err
+			}
 			break
 		}
-		terrainMap.terrain = append(terrainMap.terrain, row...)
-		terrainMap.Height++
+		if b != 0xff {
+			decodedData = append(decodedData, b)
+		} else {
+			var bCnt [2]byte
+			if _, err := io.ReadFull(data, bCnt[:]); err != nil {
+				return Map{}, err
+			}
+			count := int(bCnt[1])
+			if count == 0xff {
+				b, err := data.ReadByte()
+				if err != nil {
+					return Map{}, err
+				}
+				count += int(b)
+			}
+			for i := 0; i < count+4; i++ {
+				decodedData = append(decodedData, bCnt[0])
+			}
+		}
 	}
-	return terrainMap, nil
+	return parseMapCrusade(bytes.NewReader(decodedData), 64, 64)
 }
 
 func ReadMap(dirname string) (Map, error) {

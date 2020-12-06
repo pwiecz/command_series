@@ -1074,7 +1074,7 @@ l21:
 				message = nil
 			}
 			unit2.Formation = s.scenarioData.Data176[1][0]
-			unit2.Order = data.OrderType(s.scenarioData.Data176[1][0] + 1)
+			unit2.Order = data.OrderType((s.scenarioData.Data176[1][0] + 1) % 4)
 			unit2.HasSupplyLine = false // |= 32
 		}
 

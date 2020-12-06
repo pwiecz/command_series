@@ -1,5 +1,7 @@
 package data
 
+import "bufio"
+import "bytes"
 import "fmt"
 import "io"
 import "os"
@@ -29,8 +31,8 @@ const (
 )
 
 type Unit struct {
-	Side int // 0 or 1
-	InContactWithEnemy  bool // &1 != 0
+	Side                 int  // 0 or 1
+	InContactWithEnemy   bool // &1 != 0
 	IsUnderAttack        bool // &2 != 0
 	State2               bool // &4 != 0
 	HasSupplyLine        bool // &8 == 0
@@ -76,6 +78,7 @@ func (u *Unit) ClearState() {
 	u.IsInGame = false
 
 }
+
 type FlashbackUnit struct {
 	X, Y         int
 	ColorPalette int
@@ -141,7 +144,7 @@ func ParseUnit(data [16]byte, unitNames []string, generals []General) (Unit, err
 	}
 	generalIndex := int(data[10])
 	if generalIndex >= len(generals) {
-		return Unit{}, fmt.Errorf("Too large general index. Expected <%d, got %d", len(generals), generalIndex)
+		return Unit{}, fmt.Errorf("Too large general index. Expected <%d, got %d, %d %v %v", len(generals), generalIndex, state, unit, data)
 	}
 	unit.GeneralIndex = generalIndex
 	unit.General = generals[generalIndex]
@@ -153,8 +156,21 @@ func ParseUnit(data [16]byte, unitNames []string, generals []General) (Unit, err
 }
 
 func ParseUnits(data io.Reader, unitNames [2][]string, generals [2][]General) ([2][]Unit, error) {
+	reader := bufio.NewReader(data)
+	b, err := reader.Peek(1)
+	if err != nil {
+		return [2][]Unit{}, err
+	}
+	if b[0] == 0xfd {
+		return parseUnitsConflict(reader, unitNames, generals)
+	} else {
+		return parseUnitsCrusade(reader, unitNames, generals)
+	}
+}
+
+func parseUnitsCrusade(data io.Reader, unitNames [2][]string, generals [2][]General) ([2][]Unit, error) {
 	var header [2]byte
-	_, err := io.ReadFull(data, header[:2])
+	_, err := io.ReadFull(data, header[:])
 	if err != nil {
 		return [2][]Unit{}, err
 	}
@@ -183,52 +199,39 @@ func ParseUnits(data io.Reader, unitNames [2][]string, generals [2][]General) ([
 	return units, nil
 }
 
-/*func ParseUnitsConflict(data []byte, variantNum int, alliedUnitNames, germanUnitNames []string, generals Generals) (GameUnits, error) {
-	var units GameUnits
-	if len(data) < 128*16+2-1 {
-		return units, fmt.Errorf("Too short units file, expected at least %d bytes, got %d",
-			128*16+2, len(data))
+func parseUnitsConflict(data *bufio.Reader, unitNames [2][]string, generals [2][]General) ([2][]Unit, error) {
+	var header [3]byte
+	if _, err := io.ReadFull(data, header[:]); err != nil {
+		return [2][]Unit{}, err
 	}
-	data = data[2:]
-	for i := 0; i < 128; i++ {
-		var unitData [16]byte
-		copy(unitData[:], data)
-		if len(data) > 16 {
-			data = data[16:]
-		}
-		if i == 127 {
-			unitData[15] = 100
-		}
-		if unitData[3] == 0 || unitData[4] == 0 {
-			continue
-		}
-		variantBitmap := unitData[6]
-		if variantBitmap&(1<<variantNum) != 0 {
-			continue
-		}
-		var unit InactiveUnit
-		var err error
-		if i < 64 {
-			unit, err = ParseUnit(unitData, alliedUnitNames, generals.AlliedGenerals)
-			if err != nil {
-				return units, fmt.Errorf("Error parsing unit %d, %v", i, err)
+	var decodedData []byte
+	for {
+		b, err := data.ReadByte()
+		if err != nil {
+			if err != io.EOF {
+				return [2][]Unit{}, err
 			}
-			unit.Side = Allied
+			break
+		}
+		if b != 0xfd {
+			decodedData = append(decodedData, b)
 		} else {
-			unit, err = ParseUnit(unitData, germanUnitNames, generals.GermanGenerals)
-			if err != nil {
-				return units, fmt.Errorf("Error parsing unit %d, %v", i, err)
+			var bCnt [2]byte
+			if _, err := io.ReadFull(data, bCnt[:]); err != nil {
+				return [2][]Unit{}, err
 			}
-			unit.Side = German
-		}
-		if unit.HalfDaysUntilAppear == 0 {
-			activeUnit := ActiveUnit{
-				unit: unit.unit,
+			count := int(bCnt[1])
+			if count == 0xff {
+				b, err := data.ReadByte()
+				if err != nil {
+					return [2][]Unit{}, err
+				}
+				count += int(b)
 			}
-			units.ActiveUnits = append(units.ActiveUnits, activeUnit)
-		} else {
-			units.InactiveUnits = append(units.InactiveUnits, unit)
+			for i := 0; i < count+4; i++ {
+				decodedData = append(decodedData, bCnt[0])
+			}
 		}
 	}
-	return units, nil
-}*/
+	return parseUnitsCrusade(bytes.NewReader(decodedData), unitNames, generals)
+}
