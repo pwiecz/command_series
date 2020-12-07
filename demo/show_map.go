@@ -42,8 +42,9 @@ func (o Options) Num() int {
 type ShowMap struct {
 	mainGame      *Game
 	mapView       *MapView
-	messageBox    *MessageBox
 	topRect       *Rectangle
+	messageBox    *MessageBox
+	statusBar     *MessageBox
 	separatorRect *Rectangle
 
 	animation *Animation
@@ -97,7 +98,10 @@ func NewShowMap(g *Game) *ShowMap {
 		&g.sprites.TerrainTiles, &g.sprites.UnitSymbolSprites, &g.sprites.UnitIconSprites,
 		&g.icons.Sprites, &g.scenarioData.DaytimePalette, &g.scenarioData.NightPalette,
 		image.Pt(160, 19*8))
-	s.messageBox = NewMessageBox(image.Pt(336, 48), g.sprites.GameFont)
+	s.messageBox = NewMessageBox(image.Pt(336, 40), g.sprites.GameFont)
+	s.statusBar = NewMessageBox(image.Pt(376, 8), g.sprites.GameFont)
+	s.statusBar.SetTextColor(16)
+	s.statusBar.SetRowBackground(0, 30)
 
 	s.topRect = NewRectangle(image.Pt(336, 22))
 	s.separatorRect = NewRectangle(image.Pt(336, 2))
@@ -162,11 +166,11 @@ func (s *ShowMap) Update() error {
 			case Freeze:
 				s.isFrozen = !s.isFrozen
 				s.idleTicksLeft = 0
-				s.messageBox.ClearRow(5)
+				s.statusBar.Clear()
 				if s.isFrozen {
-					s.messageBox.Print("FROZEN", 2, 5, false)
+					s.statusBar.Print("FROZEN", 2, 0, false)
 				} else {
-					s.messageBox.Print("UNFROZEN", 2, 5, false)
+					s.statusBar.Print("UNFROZEN", 2, 0, false)
 				}
 			case StatusReport:
 				s.showStatusReport()
@@ -252,8 +256,8 @@ loop:
 		switch message := update.(type) {
 		case Initialized:
 			s.idleTicksLeft = 60
-			s.messageBox.ClearRow(5)
-			s.messageBox.Print(s.dateTimeString(), 2, 5, false)
+			s.statusBar.Clear()
+			s.statusBar.Print(s.dateTimeString(), 2, 0, false)
 			break loop
 		case MessageFromUnit:
 			unit := message.Unit()
@@ -301,8 +305,8 @@ loop:
 			s.idleTicksLeft = 60 * s.currentSpeed
 			break loop
 		case TimeChanged:
-			s.messageBox.ClearRow(5)
-			s.messageBox.Print(s.dateTimeString(), 2, 5, false)
+			s.statusBar.Clear()
+			s.statusBar.Print(s.dateTimeString(), 2, 0, false)
 			if s.gameState.hour == 18 && s.gameState.minute == 0 {
 				s.showStatusReport()
 			}
@@ -611,22 +615,21 @@ func (s *ShowMap) Draw(screen *ebiten.Image) {
 		s.animation.Draw(screen, &opts)
 	}
 
-	opts.GeoM.Reset()
-	opts.GeoM.Translate(0, 22)
 	playerBaseColor := s.mainGame.scenarioData.SideColor[s.playerSide] * 16
+	opts.GeoM.Reset()
+	s.topRect.SetColor(playerBaseColor + 10)
+	s.topRect.Draw(screen, &opts)
+	opts.GeoM.Translate(0, 22)
 	s.messageBox.SetRowBackground(0, playerBaseColor+12)
 	s.messageBox.SetRowBackground(1, playerBaseColor+10)
 	s.messageBox.SetRowBackground(2, playerBaseColor+12)
 	s.messageBox.SetRowBackground(3, playerBaseColor+10)
 	s.messageBox.SetRowBackground(4, playerBaseColor+12)
-	s.messageBox.SetRowBackground(5, 30)
+	s.messageBox.SetTextColor(playerBaseColor)
 	s.messageBox.Draw(screen, &opts)
-
-	opts.GeoM.Reset()
-	s.topRect.SetColor(playerBaseColor + 10)
-	s.topRect.Draw(screen, &opts)
-
-	opts.GeoM.Translate(0, 70)
+	opts.GeoM.Translate(0, 40)
+	s.statusBar.Draw(screen, &opts)
+	opts.GeoM.Translate(0, 8)
 	s.separatorRect.Draw(screen, &opts)
 }
 func (s *ShowMap) Layout(outsideWidth, outsideHeight int) (int, int) {
