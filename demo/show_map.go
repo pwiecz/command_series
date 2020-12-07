@@ -258,19 +258,13 @@ loop:
 		case MessageFromUnit:
 			unit := message.Unit()
 			if unit.Side == s.playerSide {
-				for y := 0; y < 5; y++ {
-					s.messageBox.ClearRow(y)
-				}
-				s.messageBox.Print("MESSAGE FROM ...", 2, 0, true)
-				unitName := fmt.Sprintf("%s %s:", unit.Name, s.mainGame.scenarioData.UnitTypes[unit.Type])
-				s.messageBox.Print(unitName, 2, 1, false)
-				lines := strings.Split("\""+message.String()+"\"", "\n")
-				for i, line := range lines {
-					s.messageBox.Print(line, 2, 2+i, false)
-				}
-				s.mapView.ShowIcon(message.Icon(), unit.X/2, unit.Y)
-				s.idleTicksLeft = 60 * s.currentSpeed
+				s.showMessageFromUnit(message)
 				break loop
+			} else if s.mainGame.game == data.Conflict {
+				if msg, ok := message.(WeAreAttacking); ok {
+					s.showMessageFromUnit(WeAreUnderFire{unit: msg.enemy})
+					break loop
+				}
 			}
 		case Reinforcements:
 			if message.Sides[s.playerSide] {
@@ -319,6 +313,21 @@ loop:
 	return nil
 }
 
+func (s *ShowMap) showMessageFromUnit(message MessageFromUnit) {
+	for y := 0; y < 5; y++ {
+		s.messageBox.ClearRow(y)
+	}
+	s.messageBox.Print("MESSAGE FROM ...", 2, 0, true)
+	unit := message.Unit()
+	unitName := fmt.Sprintf("%s %s:", unit.Name, s.mainGame.scenarioData.UnitTypes[unit.Type])
+	s.messageBox.Print(unitName, 2, 1, false)
+	lines := strings.Split("\""+message.String()+"\"", "\n")
+	for i, line := range lines {
+		s.messageBox.Print(line, 2, 2+i, false)
+	}
+	s.mapView.ShowIcon(message.Icon(), unit.X/2, unit.Y)
+	s.idleTicksLeft = 60 * s.currentSpeed
+}
 func (s *ShowMap) areUnitCoordsVisible(x, y int) bool {
 	return s.mapView.AreMapCoordsVisible(x/2, y)
 }

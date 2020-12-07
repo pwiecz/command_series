@@ -105,6 +105,16 @@ func (o WeHaveBeenOverrun) String() string {
 	return "WE HAVE BEEN OVERRUN."
 }
 
+type WeAreUnderFire struct { // MSG = 11
+	unit data.Unit
+}
+
+func (u WeAreUnderFire) Unit() data.Unit     { return u.unit }
+func (u WeAreUnderFire) Icon() data.IconType { return data.ExclamationMark }
+func (u WeAreUnderFire) String() string {
+	return "WE ARE UNDER FIRE!"
+}
+
 type Initialized struct{}
 
 type Reinforcements struct{ Sides [2]bool }
@@ -125,8 +135,8 @@ type WeatherForecast struct{ Weather int }
 type SupplyDistributionStart struct{}
 type SupplyDistributionEnd struct{}
 
-type DailyUpdate struct{
+type DailyUpdate struct {
 	DaysRemaining int
-	SupplyLevel int
+	SupplyLevel   int
 }
 type TimeChanged struct{}
