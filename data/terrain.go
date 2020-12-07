@@ -22,14 +22,14 @@ type Terrain struct {
 	Coeffs [16][16]int // Bytes [768-1024]
 }
 
-func ReadTerrain(filename string) (Terrain, error) {
+func ReadTerrain(filename string, game Game) (Terrain, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return Terrain{}, fmt.Errorf("Cannot open terrain file %s, %v", filename, err)
 	}
 	defer file.Close()
 	var reader io.Reader
-	if FileNameToGame(filename) == Conflict {
+	if game == Conflict {
 		decoded, err := UnpackFile(file)
 		if err != nil {
 			return Terrain{}, err

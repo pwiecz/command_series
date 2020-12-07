@@ -91,7 +91,7 @@ func NewShowMap(g *Game) *ShowMap {
 	s.options.GermanCommander = 0
 	s.options.GameBalance = 2
 	rnd := rand.New(rand.NewSource(1))
-	s.gameState = NewGameState(rnd, &scenario, &g.scenarioData, &variant, g.selectedVariant, g.units, &g.terrain, &g.terrainMap, &g.generic, &g.hexes, g.generals, s.options, s.sync)
+	s.gameState = NewGameState(rnd, g.game, &scenario, &g.scenarioData, &variant, g.selectedVariant, g.units, &g.terrain, &g.terrainMap, &g.generic, &g.hexes, g.generals, s.options, s.sync)
 	s.mapView = NewMapView(
 		&g.terrainMap, scenario.MinX, scenario.MinY, scenario.MaxX, scenario.MaxY,
 		&g.sprites.TerrainTiles, &g.sprites.UnitSymbolSprites, &g.sprites.UnitIconSprites,

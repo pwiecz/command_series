@@ -11,6 +11,7 @@ import "github.com/pwiecz/command_series/data"
 type ScenarioSelection struct {
 	buttons          []*Button
 	scenarioSelected func(int)
+	intro            *Intro
 }
 
 func numToKey(n int) ebiten.Key {
@@ -50,7 +51,8 @@ func NewScenarioSelection(scenarios []data.Scenario, font *data.Font, scenarioSe
 	}
 	return &ScenarioSelection{
 		buttons:          buttons,
-		scenarioSelected: scenarioSelected}
+		scenarioSelected: scenarioSelected,
+		intro:            NewIntro(font)}
 }
 
 func (s *ScenarioSelection) Update() error {
@@ -64,6 +66,7 @@ func (s *ScenarioSelection) Update() error {
 }
 func (s *ScenarioSelection) Draw(screen *ebiten.Image) {
 	screen.Fill(color.Gray{255})
+	//	s.intro.Draw(screen)
 	for _, button := range s.buttons {
 		button.Draw(screen)
 	}
@@ -113,8 +116,9 @@ func (s *VariantSelection) Layout(outsideWidth, outsideHeight int) (int, int) {
 
 type GameLoading struct {
 	gameDirname  string
-	onGameLoaded func([]data.Scenario, data.Sprites, data.Icons, data.Map, data.Generic, data.Hexes)
+	onGameLoaded func(data.Game, []data.Scenario, data.Sprites, data.Icons, data.Map, data.Generic, data.Hexes)
 	loadingDone  chan error
+	game         data.Game
 	scenarios    []data.Scenario
 	sprites      data.Sprites
 	icons        data.Icons
@@ -126,7 +130,7 @@ type GameLoading struct {
 	loadingRect  *ebiten.Image
 }
 
-func NewGameLoading(gameDirname string, onGameLoaded func([]data.Scenario, data.Sprites, data.Icons, data.Map, data.Generic, data.Hexes)) *GameLoading {
+func NewGameLoading(gameDirname string, onGameLoaded func(data.Game, []data.Scenario, data.Sprites, data.Icons, data.Map, data.Generic, data.Hexes)) *GameLoading {
 	return &GameLoading{
 		gameDirname:  gameDirname,
 		onGameLoaded: onGameLoaded}
@@ -144,7 +148,7 @@ func (l *GameLoading) Update() error {
 			if err != nil {
 				return err
 			}
-			l.onGameLoaded(l.scenarios, l.sprites, l.icons, l.terrainMap, l.generic, l.hexes)
+			l.onGameLoaded(l.game, l.scenarios, l.sprites, l.icons, l.terrainMap, l.generic, l.hexes)
 		default:
 		}
 	}
@@ -171,6 +175,10 @@ func (s *GameLoading) Layout(outsideWidth, outsideHeight int) (int, int) {
 
 func (l *GameLoading) loadGameData() error {
 	var err error
+	l.game, err = data.DetectGame(l.gameDirname)
+	if err != nil {
+		return fmt.Errorf("Error detecting game, %v", err)
+	}
 	l.scenarios, err = data.ReadScenarios(l.gameDirname)
 	if err != nil {
 		return fmt.Errorf("Error loading scenarios, %v", err)
@@ -183,7 +191,7 @@ func (l *GameLoading) loadGameData() error {
 	if err != nil {
 		return fmt.Errorf("Error loading icons, %v", err)
 	}
-	l.terrainMap, err = data.ReadMap(l.gameDirname)
+	l.terrainMap, err = data.ReadMap(l.gameDirname, l.game)
 	if err != nil {
 		return fmt.Errorf("Error loading map, %v", err)
 	}
@@ -250,7 +258,7 @@ func (l *VariantsLoading) loadVariants() (err error) {
 	}
 
 	terrainFilename := path.Join(l.mainGame.gameDirname, l.scenario.FilePrefix+".TER")
-	l.mainGame.terrain, err = data.ReadTerrain(terrainFilename)
+	l.mainGame.terrain, err = data.ReadTerrain(terrainFilename, l.mainGame.game)
 	if err != nil {
 		return
 	}
@@ -303,6 +311,6 @@ func (l *VariantLoading) Layout(outsideWidth, outsideHeight int) (int, int) {
 func (l *VariantLoading) loadVariant() error {
 	unitsFilename := path.Join(l.mainGame.gameDirname, l.mainGame.scenarios[l.mainGame.selectedScenario].FilePrefix+".UNI")
 	var err error
-	l.mainGame.units, err = data.ReadUnits(unitsFilename, l.mainGame.scenarioData.UnitNames, l.mainGame.generals)
+	l.mainGame.units, err = data.ReadUnits(unitsFilename, l.mainGame.game, l.mainGame.scenarioData.UnitNames, l.mainGame.generals)
 	return err
 }

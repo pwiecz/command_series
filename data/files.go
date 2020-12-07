@@ -8,8 +8,11 @@ func UnpackFile(data io.Reader) ([]byte, error) {
 	if _, err := io.ReadFull(data, header[:]); err != nil {
 		return nil, err
 	}
+	// TODO: understand what's this number. It's some kind of an upper bound
+	// of the decoded size.
+	expectedSize := 256*int(header[4]) + int(header[3]) - 256*int(header[2]) + int(header[1])
 	reader := bufio.NewReader(data)
-	var decodedData []byte
+	decodedData := make([]byte, 0, expectedSize)
 	for {
 		b, err := reader.ReadByte()
 		if err != nil {

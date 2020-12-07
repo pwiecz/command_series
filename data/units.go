@@ -84,14 +84,14 @@ type FlashbackUnit struct {
 	Type         int
 }
 
-func ReadUnits(filename string, unitNames [2][]string, generals [2][]General) ([2][]Unit, error) {
+func ReadUnits(filename string, game Game, unitNames [2][]string, generals [2][]General) ([2][]Unit, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return [2][]Unit{}, fmt.Errorf("Cannot open units file %s, %v", filename, err)
 	}
 	defer file.Close()
 	var reader io.Reader
-	if FileNameToGame(filename) == Conflict {
+	if game == Conflict {
 		decoded, err := UnpackFile(file)
 		if err != nil {
 			return [2][]Unit{}, err

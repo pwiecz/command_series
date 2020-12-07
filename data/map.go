@@ -1,6 +1,5 @@
 package data
 
-import "bufio"
 import "bytes"
 import "fmt"
 import "image"
@@ -84,29 +83,31 @@ func ParseMap(data io.Reader, width, height int) (Map, error) {
 	return terrainMap, nil
 }
 
-func ReadMap(dirname string) (Map, error) {
-	mapFilename := path.Join(dirname, "CRUSADE.MAP")
-	mapFile, err := os.Open(mapFilename)
+func ReadMap(dirname string, game Game) (Map, error) {
+	filename := path.Join(dirname, "CRUSADE.MAP")
+	file, err := os.Open(filename)
 	if err != nil {
-		return Map{}, fmt.Errorf("Cannot open map file %s. %v", mapFilename, err)
+		return Map{}, fmt.Errorf("Cannot open map file %s. %v", filename, err)
 	}
-	defer mapFile.Close()
-	reader := bufio.NewReader(mapFile)
-	header, err := reader.Peek(1)
-	if err != nil {
-		return Map{}, err
-	}
-	// First two bytes are 0x40 in Crusade and Decision
-	if header[0] != 0x40 {
-		decoded, err := UnpackFile(reader)
+	defer file.Close()
+	var reader io.Reader
+	if game == Conflict {
+		decoded, err := UnpackFile(file)
 		if err != nil {
 			return Map{}, err
 		}
-		return ParseMap(bytes.NewReader(decoded), 64, 64)
+		reader = bytes.NewReader(decoded)
 	} else {
-		if _, err := reader.Discard(2); err != nil {
+		// Skip first two bytes of the file (they are all zeroes).
+		var header [2]byte
+		if _, err := io.ReadFull(file, header[:]); err != nil {
 			return Map{}, err
 		}
-		return ParseMap(reader, 64, 64)
+		reader = file
 	}
+	terrainMap, err := ParseMap(reader, 64, 64)
+	if err != nil {
+		return Map{}, fmt.Errorf("Cannot parse map file %s, %v", filename, err)
+	}
+	return terrainMap, nil
 }

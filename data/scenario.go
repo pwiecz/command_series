@@ -23,70 +23,69 @@ type Scenario struct {
 }
 
 func ReadScenarios(dirname string) ([]Scenario, error) {
-	var scenarios []Scenario
 	dir, err := os.Open(dirname)
 	if err != nil {
-		return scenarios, fmt.Errorf("Cannot open directory %s, %v\n", dirname, err)
+		return nil, fmt.Errorf("Cannot open directory %s, %v\n", dirname, err)
 	}
 	defer dir.Close()
 	dirInfo, err := dir.Stat()
 	if err != nil {
-		return scenarios, fmt.Errorf("Cannot get info about directory %s, %v\n", dirname, err)
+		return nil, fmt.Errorf("Cannot get info about directory %s, %v\n", dirname, err)
 	}
 	if !dirInfo.IsDir() {
-		return scenarios, fmt.Errorf("%s is not a directory\n", dirname)
+		return nil, fmt.Errorf("%s is not a directory\n", dirname)
 	}
 
 	filenames, err := dir.Readdirnames(0)
 	if err != nil {
-		return scenarios, fmt.Errorf("Cannot list directory %s, %v\n", dirname, err)
+		return nil, fmt.Errorf("Cannot list directory %s, %v\n", dirname, err)
 	}
 
+	var scenarios []Scenario
 	for _, filename := range filenames {
 		if strings.HasSuffix(filename, ".SCN") {
 			scenarioFilename := path.Join(dirname, filename)
 			scenario, err := ReadScenario(scenarioFilename)
 			if err != nil {
-				return scenarios, err
+				return nil, err
 			}
 			scenarios = append(scenarios, scenario)
 		}
 	}
 
 	if len(scenarios) == 0 {
-		return scenarios, fmt.Errorf("No scenarios found in directory %s\n", dirname)
+		return nil, fmt.Errorf("No scenarios found in directory %s\n", dirname)
 	}
 	return scenarios, nil
 }
 
 func ReadScenario(filename string) (Scenario, error) {
-	var scenario Scenario
 	file, err := os.Open(filename)
 	if err != nil {
-		return scenario, fmt.Errorf("Cannot open scenario file %s, %v\n", filename, err)
+		return Scenario{}, fmt.Errorf("Cannot open scenario file %s, %v\n", filename, err)
 	}
 	defer file.Close()
 	data, err := ioutil.ReadAll(file)
 	if err != nil {
-		return scenario, fmt.Errorf("Cannot read scenario file %s, %v\n", filename, err)
+		return Scenario{}, fmt.Errorf("Cannot read scenario file %s, %v\n", filename, err)
 	}
-	scenario, err = ParseScn(data)
+	scenario, err := ParseScn(data)
 	if err != nil {
-		return scenario, fmt.Errorf("Cannot parse scenario file %s, %v\n", filename, err)
+		return Scenario{}, fmt.Errorf("Cannot parse scenario file %s, %v\n", filename, err)
 	}
 	return scenario, err
 }
 
 func ParseScn(data []byte) (Scenario, error) {
-	var result Scenario
 	segments := bytes.SplitN(data, []byte{0x9b}, 11)
 	if len(segments) != 11 {
-		return result, fmt.Errorf("Expected 11 segments, got %d", len(segments))
+		return Scenario{}, fmt.Errorf("Expected 11 segments, got %d", len(segments))
 	}
+	var result Scenario
 	result.Name = string(segments[0])
 	result.FilePrefix = string(segments[1])
 	if !strings.HasPrefix(result.FilePrefix, "D:") {
-		return result, fmt.Errorf("Unexpected scenario file prefix: \"%s\"", result.FilePrefix)
+		return Scenario{}, fmt.Errorf("Unexpected scenario file prefix: \"%s\"", result.FilePrefix)
 	}
 	result.FilePrefix = result.FilePrefix[2:]
 	var err error
