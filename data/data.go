@@ -44,6 +44,7 @@ type ScenarioData struct {
 	MenMultiplier                  int        // Data[170] (one man store in unit data correspond to that many actual men)
 	TanksMultiplier                int        // Data[171] (same as above but for tanks)
 	Data173                        int        // Data[173] (a fatigue increase)
+	Data174                        int        // Data[174]
 	Data175                        int        // Data[175]
 	Data176                        [4][4]int  // Data[176:190] four bytes per order (numbers 0-5)
 	Data192                        [8]int     // Data[192:200] move cost per formation
@@ -162,6 +163,7 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 	scenario.MenMultiplier = int(scenario.Data[170])
 	scenario.TanksMultiplier = int(scenario.Data[171])
 	scenario.Data173 = int(scenario.Data[173])
+	scenario.Data174 = int(scenario.Data[174])
 	scenario.Data175 = int(scenario.Data[175])
 	for i, v := range scenario.Data[176:190] {
 		scenario.Data176[i/4][i%4] = int(v)
@@ -344,6 +346,8 @@ func (s *ScenarioData) UpdateData(offset, value byte) {
 		s.TanksMultiplier = int(value)
 	case offset == 173:
 		s.Data173 = int(value)
+	case offset == 174:
+		s.Data174 = int(value)
 	case offset == 175:
 		s.Data175 = int(value)
 	case inRange(offset, 176, 190):

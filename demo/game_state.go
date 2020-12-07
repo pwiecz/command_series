@@ -1762,8 +1762,15 @@ func monthLength(month, year int) int {
 	panic(fmt.Errorf("Unexpected month number %d", month))
 }
 func (s *GameState) winningSideAndAdvantage() (winningSide int, advantage int) {
-	side0Score := (1+s.menLost[1]+s.tanksLost[1])*s.variant.Data3/8 + s.citiesHeld[0]*3
-	side1Score := 1 + s.menLost[0] + s.tanksLost[0] + s.citiesHeld[1]*3
+	side0Score := (1 + s.menLost[1] + s.tanksLost[1]) * s.variant.Data3 / 8
+	side1Score := 1 + s.menLost[0] + s.tanksLost[0]
+	if s.game != data.Conflict {
+		side0Score += s.citiesHeld[0] * 3
+		side1Score += s.citiesHeld[1] * 3
+	} else {
+		side0Score += s.citiesHeld[0] * 6 / (s.scenarioData.Data174 + 1)
+		side1Score += s.citiesHeld[1] * 6 / (s.scenarioData.Data174 + 1)
+	}
 	var score int
 	if side0Score < side1Score {
 		score = side1Score * 3 / side0Score

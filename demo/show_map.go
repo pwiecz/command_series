@@ -418,6 +418,9 @@ func (s *ShowMap) showUnitInfo() {
 	if unit.Side == s.playerSide {
 		s.messageBox.Print("    ", 2, nextRow, true)
 		supplyDays := unit.SupplyLevel / (s.mainGame.scenarioData.AvgDailySupplyUse + s.mainGame.scenarioData.Data163)
+		if s.mainGame.game != data.Crusade {
+			supplyDays /= 2
+		}
 		supplyStr := fmt.Sprintf("%d DAYS SUPPLY.", supplyDays)
 		if !unit.HasSupplyLine {
 			supplyStr += " (NO SUPPLY LINE!)"
@@ -491,19 +494,43 @@ func (s *ShowMap) showCityInfo() {
 }
 func (s *ShowMap) showStatusReport() {
 	s.messageBox.Clear()
-	s.messageBox.Print("STATUS REPORT", 2, 0, true)
-	s.messageBox.Print(s.mainGame.scenarioData.Sides[0], 16, 0, false)
-	s.messageBox.Print(s.mainGame.scenarioData.Sides[1], 26, 0, false)
-	s.messageBox.Print(" TROOPS LOST ", 2, 1, true)
+	if s.mainGame.game != data.Conflict {
+		s.messageBox.Print("STATUS REPORT", 2, 0, true)
+		s.messageBox.Print(s.mainGame.scenarioData.Sides[0], 16, 0, false)
+		s.messageBox.Print(s.mainGame.scenarioData.Sides[1], 26, 0, false)
+	} else {
+		s.messageBox.Print(" STATUS REPORT ", 2, 0, true)
+		s.messageBox.Print(s.mainGame.scenarioData.Sides[0], 19, 0, false)
+		s.messageBox.Print(s.mainGame.scenarioData.Sides[1], 29, 0, false)
+	}
 	menMultiplier, tanksMultiplier := s.mainGame.scenarioData.MenMultiplier, s.mainGame.scenarioData.TanksMultiplier
-	s.messageBox.Print(fmt.Sprintf("%d", s.gameState.menLost[0]*menMultiplier), 16, 1, false)
-	s.messageBox.Print(fmt.Sprintf("%d", s.gameState.menLost[1]*menMultiplier), 26, 1, false)
-	s.messageBox.Print(" TANKS  LOST ", 2, 2, true)
-	s.messageBox.Print(fmt.Sprintf("%d", s.gameState.tanksLost[0]*tanksMultiplier), 16, 2, false)
-	s.messageBox.Print(fmt.Sprintf("%d", s.gameState.tanksLost[1]*tanksMultiplier), 26, 2, false)
-	s.messageBox.Print(" CITIES HELD ", 2, 3, true)
-	s.messageBox.Print(fmt.Sprintf("%d", s.gameState.citiesHeld[0]), 16, 3, false)
-	s.messageBox.Print(fmt.Sprintf("%d", s.gameState.citiesHeld[1]), 26, 3, false)
+	if s.mainGame.game != data.Conflict {
+		s.messageBox.Print(" TROOPS LOST ", 2, 1, true)
+		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.menLost[0]*menMultiplier), 16, 1, false)
+		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.menLost[1]*menMultiplier), 26, 1, false)
+	} else {
+		s.messageBox.Print(" CASUALTIES    ", 2, 1, true)
+		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.menLost[0]*menMultiplier), 19, 1, false)
+		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.menLost[1]*menMultiplier), 29, 1, false)
+	}
+	if s.mainGame.game != data.Conflict {
+		s.messageBox.Print(" TANKS  LOST ", 2, 2, true)
+		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.tanksLost[0]*tanksMultiplier), 16, 2, false)
+		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.tanksLost[1]*tanksMultiplier), 26, 2, false)
+	} else {
+		s.messageBox.Print(" MATERIEL      ", 2, 2, true)
+		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.tanksLost[0]*tanksMultiplier), 19, 2, false)
+		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.tanksLost[1]*tanksMultiplier), 29, 2, false)
+	}
+	if s.mainGame.game != data.Conflict {
+		s.messageBox.Print(" CITIES HELD ", 2, 3, true)
+		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.citiesHeld[0]), 16, 3, false)
+		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.citiesHeld[1]), 26, 3, false)
+	} else {
+		s.messageBox.Print(" TERRITORY     ", 2, 3, true)
+		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.citiesHeld[0]), 19, 3, false)
+		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.citiesHeld[1]), 29, 3, false)
+	}
 	winningSide, advantage := s.gameState.winningSideAndAdvantage()
 	advantageStrs := []string{"SLIGHT", "MARGINAL", "TACTICAL", "DECISIVE", "TOTAL"}
 	winningSideStr := s.mainGame.scenarioData.Sides[winningSide]
