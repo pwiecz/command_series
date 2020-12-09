@@ -1,11 +1,12 @@
 package data
 
+import "bytes"
 import "fmt"
 import "image"
 import "image/color"
 import "io"
-import "os"
-import "path"
+
+import "github.com/pwiecz/command_series/atr"
 
 type IconType int
 
@@ -29,14 +30,12 @@ type Icons struct {
 	Sprites [24]*image.Paletted
 }
 
-func ReadIcons(dirname string) (Icons, error) {
-	iconsFilename := path.Join(dirname, "WAR.PIC")
-	iconsFile, err := os.Open(iconsFilename)
+func ReadIcons(diskimage atr.SectorReader) (Icons, error) {
+	iconsData, err := atr.ReadFile(diskimage, "WAR.PIC")
 	if err != nil {
-		return Icons{}, fmt.Errorf("Cannot open icon file %s. %v", iconsFilename, err)
+		return Icons{}, fmt.Errorf("Cannot read WAR.PIC file. %v", err)
 	}
-	defer iconsFile.Close()
-	return ParseIcons(iconsFile)
+	return ParseIcons(bytes.NewReader(iconsData))
 }
 
 func ParseIcons(iconsData io.Reader) (Icons, error) {

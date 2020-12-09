@@ -1,11 +1,13 @@
 package main
 
+import "fmt"
 import "github.com/hajimehoshi/ebiten"
+import "github.com/pwiecz/command_series/atr"
 import "github.com/pwiecz/command_series/data"
 
 type Game struct {
 	subGame          ebiten.Game
-	gameDirname      string
+	diskimage        atr.SectorReader
 	game             data.Game
 	sprites          data.Sprites
 	icons            data.Icons
@@ -22,13 +24,17 @@ type Game struct {
 	units            [2][]data.Unit
 }
 
-func NewGame(gameDirname string) *Game {
+func NewGame(filename string) *Game {
+	diskimage, err := atr.NewAtrSectorReader(filename)
+	if err != nil {
+		panic(fmt.Errorf("Cannot open atr image file %s, %v", filename, err))
+	}
 	game := &Game{
-		gameDirname:      gameDirname,
+		diskimage:        diskimage,
 		selectedScenario: -1,
 		selectedVariant:  -1,
 	}
-	game.subGame = NewGameLoading(gameDirname, game.onGameLoaded)
+	game.subGame = NewGameLoading(diskimage, game.onGameLoaded)
 	return game
 }
 

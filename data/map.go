@@ -5,8 +5,8 @@ import "fmt"
 import "image"
 import "image/color"
 import "io"
-import "os"
-import "path"
+
+import "github.com/pwiecz/command_series/atr"
 
 // A representation of a hex map parsed from CRUSADE.MAP file.
 type Map struct {
@@ -83,31 +83,25 @@ func ParseMap(data io.Reader, width, height int) (Map, error) {
 	return terrainMap, nil
 }
 
-func ReadMap(dirname string, game Game) (Map, error) {
-	filename := path.Join(dirname, "CRUSADE.MAP")
-	file, err := os.Open(filename)
+func ReadMap(diskimage atr.SectorReader, game Game) (Map, error) {
+	fileData, err := atr.ReadFile(diskimage, "CRUSADE.MAP")
 	if err != nil {
-		return Map{}, fmt.Errorf("Cannot open map file %s. %v", filename, err)
+		return Map{}, fmt.Errorf("Cannot read CRUSADE.MAP file. %v", err)
 	}
-	defer file.Close()
 	var reader io.Reader
 	if game == Conflict {
-		decoded, err := UnpackFile(file)
+		decoded, err := UnpackFile(bytes.NewReader(fileData))
 		if err != nil {
 			return Map{}, err
 		}
 		reader = bytes.NewReader(decoded)
 	} else {
 		// Skip first two bytes of the file (they are all zeroes).
-		var header [2]byte
-		if _, err := io.ReadFull(file, header[:]); err != nil {
-			return Map{}, err
-		}
-		reader = file
+		reader = bytes.NewReader(fileData[2:])
 	}
 	terrainMap, err := ParseMap(reader, 64, 64)
 	if err != nil {
-		return Map{}, fmt.Errorf("Cannot parse map file %s, %v", filename, err)
+		return Map{}, fmt.Errorf("Cannot parse CRUSADE.MAP file, %v", err)
 	}
 	return terrainMap, nil
 }

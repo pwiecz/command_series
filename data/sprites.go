@@ -1,11 +1,12 @@
 package data
 
+import "bytes"
 import "fmt"
 import "image"
 import "image/color"
 import "io"
-import "os"
-import "path"
+
+import "github.com/pwiecz/command_series/atr"
 
 type Font struct {
 	fallback   *image.Paletted
@@ -32,26 +33,22 @@ type Sprites struct {
 	UnitIconSprites   [16]*image.Paletted
 }
 
-func ReadSprites(dirname string) (Sprites, error) {
-	iconSpritesFilename := path.Join(dirname, "CRUSADEI.FNT")
-	iconSpritesFile, err := os.Open(iconSpritesFilename)
+func ReadSprites(diskimage atr.SectorReader) (Sprites, error) {
+	iconSpritesData, err := atr.ReadFile(diskimage, "CRUSADEI.FNT")
 	if err != nil {
-		return Sprites{}, fmt.Errorf("Cannot open icon font file %s. %v", iconSpritesFilename, err)
+		return Sprites{}, fmt.Errorf("Cannot read CRUSADEI.FNT file. %v", err)
 	}
-	defer iconSpritesFile.Close()
-	symbolSpritesFilename := path.Join(dirname, "CRUSADES.FNT")
-	symbolSpritesFile, err := os.Open(symbolSpritesFilename)
+	symbolSpritesData, err := atr.ReadFile(diskimage, "CRUSADES.FNT")
 	if err != nil {
-		return Sprites{}, fmt.Errorf("Cannot open symbol font file %s, %v", symbolSpritesFilename, err)
+		return Sprites{}, fmt.Errorf("Cannot read CRUSADES.FNT file, %v", err)
 	}
-	defer symbolSpritesFile.Close()
-	introSpritesFilename := path.Join(dirname, "FLAG.FNT")
-	introSpritesFile, err := os.Open(introSpritesFilename)
+	introSpritesData, err := atr.ReadFile(diskimage, "FLAG.FNT")
 	if err != nil {
-		return Sprites{}, fmt.Errorf("Cannot open intro font file %s, %v", introSpritesFilename, err)
+		return Sprites{}, fmt.Errorf("Cannot read FLAG.FNT file, %v", err)
 	}
-	defer introSpritesFile.Close()
-	return ParseSprites(iconSpritesFile, symbolSpritesFile, introSpritesFile)
+	return ParseSprites(bytes.NewReader(iconSpritesData),
+		bytes.NewReader(symbolSpritesData),
+		bytes.NewReader(introSpritesData))
 }
 
 func ParseSpriteData(data io.Reader, width, height, scaleX, scaleY, bits int) ([]*image.Paletted, error) {
@@ -122,12 +119,14 @@ func ParseSprites(iconData, symbolData, introData io.Reader) (Sprites, error) {
 	}
 	sprites.IntroSprites = introSprites
 	chars := []rune{
-		' ', '!', '"', '#', 0, 0, 0, '\'', '(', ')', 0, 0, ',', '-', '.', '/',
-		'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', ';', 0, 0, 0, '?', 0,
+		' ', '!', '"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '-', '.', '/',
+		'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', ';', '<', '=', '>', '?', '@',
 		'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
 		'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009,
+		1010, 1011, 1012, 1013, 1014, 1015, 1016, 1017, 1018, 1019,
+		1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1028, 1029,
+		1030, 1031, 1032, 1033, 1034, 1035, 1036,
 		'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
 		'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
 	}

@@ -2,8 +2,9 @@ package data
 
 import "fmt"
 import "path/filepath"
-import "os"
 import "strings"
+
+import "github.com/pwiecz/command_series/atr"
 
 type Game int
 
@@ -39,30 +40,17 @@ func FilenameToGame(filename string) Game {
 	panic(fmt.Errorf("Cannot infer game from the filename: %s", filename))
 }
 
-func DetectGame(dirname string) (Game, error) {
-	dir, err := os.Open(dirname)
+func DetectGame(diskimage atr.SectorReader) (Game, error) {
+	files, err := atr.GetDirectory(diskimage)
 	if err != nil {
-		return Game(0), fmt.Errorf("Cannot open directory %s, %v\n", dirname, err)
-	}
-	defer dir.Close()
-	dirInfo, err := dir.Stat()
-	if err != nil {
-		return Game(0), fmt.Errorf("Cannot get info about directory %s, %v\n", dirname, err)
-	}
-	if !dirInfo.IsDir() {
-		return Game(0), fmt.Errorf("%s is not a directory\n", dirname)
-	}
-
-	filenames, err := dir.Readdirnames(0)
-	if err != nil {
-		return Game(0), fmt.Errorf("Cannot list directory %s, %v\n", dirname, err)
+		return Game(0), fmt.Errorf("Cannot list contents of the disk image, %v", err)
 	}
 
 	var game Game
 	var foundScenarioFiles bool
-	for _, filename := range filenames {
-		if strings.HasSuffix(filename, ".SCN") {
-			scenarioGame := FilenameToGame(filename)
+	for _, file := range files {
+		if strings.HasSuffix(file.Name, ".SCN") {
+			scenarioGame := FilenameToGame(file.Name)
 			if foundScenarioFiles && scenarioGame != game {
 				return Game(0), fmt.Errorf("Mismatched game files found %v and %v", game, scenarioGame)
 			}

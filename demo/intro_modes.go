@@ -2,10 +2,10 @@ package main
 
 import "fmt"
 import "image/color"
-import "path"
 
 import "github.com/hajimehoshi/ebiten"
 import "github.com/hajimehoshi/ebiten/inpututil"
+import "github.com/pwiecz/command_series/atr"
 import "github.com/pwiecz/command_series/data"
 
 type ScenarioSelection struct {
@@ -115,7 +115,7 @@ func (s *VariantSelection) Layout(outsideWidth, outsideHeight int) (int, int) {
 }
 
 type GameLoading struct {
-	gameDirname  string
+	diskimage    atr.SectorReader
 	onGameLoaded func(data.Game, []data.Scenario, data.Sprites, data.Icons, data.Map, data.Generic, data.Hexes)
 	loadingDone  chan error
 	game         data.Game
@@ -130,9 +130,9 @@ type GameLoading struct {
 	loadingRect  *ebiten.Image
 }
 
-func NewGameLoading(gameDirname string, onGameLoaded func(data.Game, []data.Scenario, data.Sprites, data.Icons, data.Map, data.Generic, data.Hexes)) *GameLoading {
+func NewGameLoading(diskimage atr.SectorReader, onGameLoaded func(data.Game, []data.Scenario, data.Sprites, data.Icons, data.Map, data.Generic, data.Hexes)) *GameLoading {
 	return &GameLoading{
-		gameDirname:  gameDirname,
+		diskimage:    diskimage,
 		onGameLoaded: onGameLoaded}
 }
 
@@ -175,31 +175,31 @@ func (s *GameLoading) Layout(outsideWidth, outsideHeight int) (int, int) {
 
 func (l *GameLoading) loadGameData() error {
 	var err error
-	l.game, err = data.DetectGame(l.gameDirname)
+	l.game, err = data.DetectGame(l.diskimage)
 	if err != nil {
 		return fmt.Errorf("Error detecting game, %v", err)
 	}
-	l.scenarios, err = data.ReadScenarios(l.gameDirname)
+	l.scenarios, err = data.ReadScenarios(l.diskimage)
 	if err != nil {
 		return fmt.Errorf("Error loading scenarios, %v", err)
 	}
-	l.sprites, err = data.ReadSprites(l.gameDirname)
+	l.sprites, err = data.ReadSprites(l.diskimage)
 	if err != nil {
 		return fmt.Errorf("Error loading sprites, %v", err)
 	}
-	l.icons, err = data.ReadIcons(l.gameDirname)
+	l.icons, err = data.ReadIcons(l.diskimage)
 	if err != nil {
 		return fmt.Errorf("Error loading icons, %v", err)
 	}
-	l.terrainMap, err = data.ReadMap(l.gameDirname, l.game)
+	l.terrainMap, err = data.ReadMap(l.diskimage, l.game)
 	if err != nil {
 		return fmt.Errorf("Error loading map, %v", err)
 	}
-	l.generic, err = data.ReadGeneric(l.gameDirname)
+	l.generic, err = data.ReadGeneric(l.diskimage)
 	if err != nil {
 		return fmt.Errorf("Error loading generic, %v", err)
 	}
-	l.hexes, err = data.ReadHexes(l.gameDirname)
+	l.hexes, err = data.ReadHexes(l.diskimage)
 	if err != nil {
 		return fmt.Errorf("Error loading hexes, %v", err)
 	}
@@ -245,26 +245,26 @@ func (l *VariantsLoading) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return 336, 240
 }
 func (l *VariantsLoading) loadVariants() (err error) {
-	variantsFilename := path.Join(l.mainGame.gameDirname, l.scenario.FilePrefix+".VAR")
-	l.mainGame.variants, err = data.ReadVariants(variantsFilename)
+	variantsFilename := l.scenario.FilePrefix + ".VAR"
+	l.mainGame.variants, err = data.ReadVariants(l.mainGame.diskimage, variantsFilename)
 	if err != nil {
 		return
 	}
 
-	generalsFilename := path.Join(l.mainGame.gameDirname, l.scenario.FilePrefix+".GEN")
-	l.mainGame.generals, err = data.ReadGenerals(generalsFilename)
+	generalsFilename := l.scenario.FilePrefix + ".GEN"
+	l.mainGame.generals, err = data.ReadGenerals(l.mainGame.diskimage, generalsFilename)
 	if err != nil {
 		return
 	}
 
-	terrainFilename := path.Join(l.mainGame.gameDirname, l.scenario.FilePrefix+".TER")
-	l.mainGame.terrain, err = data.ReadTerrain(terrainFilename, l.mainGame.game)
+	terrainFilename := l.scenario.FilePrefix + ".TER"
+	l.mainGame.terrain, err = data.ReadTerrain(l.mainGame.diskimage, terrainFilename, l.mainGame.game)
 	if err != nil {
 		return
 	}
 
-	scenarioDataFilename := path.Join(l.mainGame.gameDirname, l.scenario.FilePrefix+".DTA")
-	l.mainGame.scenarioData, err = data.ReadScenarioData(scenarioDataFilename)
+	scenarioDataFilename := l.scenario.FilePrefix + ".DTA"
+	l.mainGame.scenarioData, err = data.ReadScenarioData(l.mainGame.diskimage, scenarioDataFilename)
 	if err != nil {
 		return
 	}
@@ -309,8 +309,8 @@ func (l *VariantLoading) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return 336, 240
 }
 func (l *VariantLoading) loadVariant() error {
-	unitsFilename := path.Join(l.mainGame.gameDirname, l.mainGame.scenarios[l.mainGame.selectedScenario].FilePrefix+".UNI")
+	unitsFilename := l.mainGame.scenarios[l.mainGame.selectedScenario].FilePrefix + ".UNI"
 	var err error
-	l.mainGame.units, err = data.ReadUnits(unitsFilename, l.mainGame.game, l.mainGame.scenarioData.UnitNames, l.mainGame.generals)
+	l.mainGame.units, err = data.ReadUnits(l.mainGame.diskimage, unitsFilename, l.mainGame.game, l.mainGame.scenarioData.UnitNames, l.mainGame.generals)
 	return err
 }

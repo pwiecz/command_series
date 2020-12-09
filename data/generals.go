@@ -1,8 +1,10 @@
 package data
 
+import "bytes"
 import "fmt"
 import "io"
-import "os"
+
+import "github.com/pwiecz/command_series/atr"
 
 // Represenation of data parsed from {scenario}.GEN files.
 type General struct {
@@ -15,13 +17,12 @@ type General struct {
 	Name      string
 }
 
-func ReadGenerals(filename string) ([2][]General, error) {
-	file, err := os.Open(filename)
+func ReadGenerals(diskimage atr.SectorReader, filename string) ([2][]General, error) {
+	fileData, err := atr.ReadFile(diskimage, filename)
 	if err != nil {
-		return [2][]General{}, fmt.Errorf("Cannot open generals file %s, %v", filename, err)
+		return [2][]General{}, fmt.Errorf("Cannot read generals file %s, %v", filename, err)
 	}
-	defer file.Close()
-	generals, err := ParseGenerals(file)
+	generals, err := ParseGenerals(bytes.NewReader(fileData))
 	if err != nil {
 		return [2][]General{}, fmt.Errorf("Cannot parse generals file %s, %v", filename, err)
 	}

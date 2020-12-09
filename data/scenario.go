@@ -2,11 +2,10 @@ package data
 
 import "bytes"
 import "fmt"
-import "io/ioutil"
-import "os"
-import "path"
 import "strconv"
 import "strings"
+
+import "github.com/pwiecz/command_series/atr"
 
 // Representation of the data parsed from a {scenario}.SCN file.
 type Scenario struct {
@@ -22,30 +21,16 @@ type Scenario struct {
 	MinX, MaxX, MinY, MaxY int
 }
 
-func ReadScenarios(dirname string) ([]Scenario, error) {
-	dir, err := os.Open(dirname)
+func ReadScenarios(diskimage atr.SectorReader) ([]Scenario, error) {
+	files, err := atr.GetDirectory(diskimage)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot open directory %s, %v\n", dirname, err)
-	}
-	defer dir.Close()
-	dirInfo, err := dir.Stat()
-	if err != nil {
-		return nil, fmt.Errorf("Cannot get info about directory %s, %v\n", dirname, err)
-	}
-	if !dirInfo.IsDir() {
-		return nil, fmt.Errorf("%s is not a directory\n", dirname)
-	}
-
-	filenames, err := dir.Readdirnames(0)
-	if err != nil {
-		return nil, fmt.Errorf("Cannot list directory %s, %v\n", dirname, err)
+		return nil, fmt.Errorf("Cannot list contents of the disk image, %v", err)
 	}
 
 	var scenarios []Scenario
-	for _, filename := range filenames {
-		if strings.HasSuffix(filename, ".SCN") {
-			scenarioFilename := path.Join(dirname, filename)
-			scenario, err := ReadScenario(scenarioFilename)
+	for _, file := range files {
+		if strings.HasSuffix(file.Name, ".SCN") {
+			scenario, err := ReadScenario(diskimage, file.Name)
 			if err != nil {
 				return nil, err
 			}
@@ -54,20 +39,15 @@ func ReadScenarios(dirname string) ([]Scenario, error) {
 	}
 
 	if len(scenarios) == 0 {
-		return nil, fmt.Errorf("No scenarios found in directory %s\n", dirname)
+		return nil, fmt.Errorf("No scenarios found in the disk image")
 	}
 	return scenarios, nil
 }
 
-func ReadScenario(filename string) (Scenario, error) {
-	file, err := os.Open(filename)
+func ReadScenario(diskimage atr.SectorReader, filename string) (Scenario, error) {
+	data, err := atr.ReadFile(diskimage, filename)
 	if err != nil {
-		return Scenario{}, fmt.Errorf("Cannot open scenario file %s, %v\n", filename, err)
-	}
-	defer file.Close()
-	data, err := ioutil.ReadAll(file)
-	if err != nil {
-		return Scenario{}, fmt.Errorf("Cannot read scenario file %s, %v\n", filename, err)
+		return Scenario{}, fmt.Errorf("Cannot read scenario file %s, %v", filename, err)
 	}
 	scenario, err := ParseScn(data)
 	if err != nil {

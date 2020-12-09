@@ -3,7 +3,8 @@ package data
 import "bytes"
 import "fmt"
 import "io"
-import "os"
+
+import "github.com/pwiecz/command_series/atr"
 
 // Representation of data parsed from a {scenario}.TER file.
 type City struct {
@@ -22,26 +23,21 @@ type Terrain struct {
 	Coeffs [16][16]int // Bytes [768-1024]
 }
 
-func ReadTerrain(filename string, game Game) (Terrain, error) {
-	file, err := os.Open(filename)
+func ReadTerrain(diskimage atr.SectorReader, filename string, game Game) (Terrain, error) {
+	fileData, err := atr.ReadFile(diskimage, filename)
 	if err != nil {
 		return Terrain{}, fmt.Errorf("Cannot open terrain file %s, %v", filename, err)
 	}
-	defer file.Close()
 	var reader io.Reader
 	if game == Conflict {
-		decoded, err := UnpackFile(file)
+		decoded, err := UnpackFile(bytes.NewReader(fileData))
 		if err != nil {
 			return Terrain{}, err
 		}
 		reader = bytes.NewReader(decoded)
 	} else {
 		// Skip first two bytes of the file (they are all zeroes).
-		var header [2]byte
-		if _, err := io.ReadFull(file, header[:]); err != nil {
-			return Terrain{}, err
-		}
-		reader = file
+		reader = bytes.NewReader(fileData[2:])
 	}
 	terrain, err := ParseTerrain(reader)
 	if err != nil {

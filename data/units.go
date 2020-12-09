@@ -3,7 +3,8 @@ package data
 import "bytes"
 import "fmt"
 import "io"
-import "os"
+
+import "github.com/pwiecz/command_series/atr"
 
 type OrderType int
 
@@ -84,26 +85,21 @@ type FlashbackUnit struct {
 	Type         int
 }
 
-func ReadUnits(filename string, game Game, unitNames [2][]string, generals [2][]General) ([2][]Unit, error) {
-	file, err := os.Open(filename)
+func ReadUnits(diskimage atr.SectorReader, filename string, game Game, unitNames [2][]string, generals [2][]General) ([2][]Unit, error) {
+	fileData, err := atr.ReadFile(diskimage, filename)
 	if err != nil {
-		return [2][]Unit{}, fmt.Errorf("Cannot open units file %s, %v", filename, err)
+		return [2][]Unit{}, fmt.Errorf("Cannot read units file %s, %v", filename, err)
 	}
-	defer file.Close()
 	var reader io.Reader
 	if game == Conflict {
-		decoded, err := UnpackFile(file)
+		decoded, err := UnpackFile(bytes.NewReader(fileData))
 		if err != nil {
 			return [2][]Unit{}, err
 		}
 		reader = bytes.NewReader(decoded)
 	} else {
 		// Skip first two bytes of the file (they are all zeroes).
-		var header [2]byte
-		if _, err := io.ReadFull(file, header[:]); err != nil {
-			return [2][]Unit{}, err
-		}
-		reader = file
+		reader = bytes.NewReader(fileData[2:])
 	}
 	units, err := ParseUnits(reader, unitNames, generals)
 	if err != nil {

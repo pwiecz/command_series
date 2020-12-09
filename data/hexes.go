@@ -1,9 +1,10 @@
 package data
 
+import "bytes"
 import "fmt"
 import "io"
-import "os"
-import "path"
+
+import "github.com/pwiecz/command_series/atr"
 
 // Representation of data parsed from HEXES.DTA file.
 type Hexes struct {
@@ -13,14 +14,12 @@ type Hexes struct {
 	Arr144 [48]int // Data[144:192]
 }
 
-func ReadHexes(dirname string) (Hexes, error) {
-	filename := path.Join(dirname, "HEXES.DTA")
-	file, err := os.Open(filename)
+func ReadHexes(diskimage atr.SectorReader) (Hexes, error) {
+	fileData, err := atr.ReadFile(diskimage, "HEXES.DTA")
 	if err != nil {
-		return Hexes{}, fmt.Errorf("Cannot open hexes file %s, %v", filename, err)
+		return Hexes{}, fmt.Errorf("Cannot read HEXES.DTA file, %v", err)
 	}
-	defer file.Close()
-	return ParseHexes(file)
+	return ParseHexes(bytes.NewReader(fileData))
 }
 
 func ParseHexes(reader io.Reader) (Hexes, error) {

@@ -1,8 +1,10 @@
 package data
 
+import "bytes"
 import "fmt"
 import "io"
-import "os"
+
+import "github.com/pwiecz/command_series/atr"
 
 // Representation of data parsed from {scenario}.DTA files.
 type ScenarioData struct {
@@ -87,14 +89,13 @@ type DataUpdate struct {
 }
 
 // ReadScenarioData reads and parses given {scenario}.DTA.
-func ReadScenarioData(filename string) (ScenarioData, error) {
+func ReadScenarioData(diskimage atr.SectorReader, filename string) (ScenarioData, error) {
 	var scenarioData ScenarioData
-	file, err := os.Open(filename)
+	fileData, err := atr.ReadFile(diskimage, filename)
 	if err != nil {
-		return scenarioData, fmt.Errorf("Cannot open data file %s, %v", filename, err)
+		return scenarioData, fmt.Errorf("Cannot read data file %s, %v", filename, err)
 	}
-	defer file.Close()
-	return ParseScenarioData(file)
+	return ParseScenarioData(bytes.NewReader(fileData))
 }
 
 // ReadScenarioData parses data from a {scenario.DTA file.

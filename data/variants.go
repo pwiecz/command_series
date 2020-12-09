@@ -3,8 +3,8 @@ package data
 import "bytes"
 import "errors"
 import "fmt"
-import "io/ioutil"
-import "os"
+
+import "github.com/pwiecz/command_series/atr"
 
 // Representation of data parsed from {scenario}.VAR file.
 type Variant struct {
@@ -15,18 +15,12 @@ type Variant struct {
 	CitiesHeld        [2]int
 }
 
-func ReadVariants(filename string) ([]Variant, error) {
-	var variants []Variant
-	variantsFile, err := os.Open(filename)
+func ReadVariants(diskimage atr.SectorReader, filename string) ([]Variant, error) {
+	variantsData, err := atr.ReadFile(diskimage, filename)
 	if err != nil {
-		return variants, fmt.Errorf("Cannot open variants file %s, %v\n", filename, err)
+		return nil, fmt.Errorf("Cannot read variants file %s, %v", filename, err)
 	}
-	defer variantsFile.Close()
-	variantsData, err := ioutil.ReadAll(variantsFile)
-	if err != nil {
-		return variants, fmt.Errorf("Cannot read variants file %s, %v\n", filename, err)
-	}
-	variants, err = ParseVariants(variantsData)
+	variants, err := ParseVariants(variantsData)
 	if err != nil {
 		return variants, err
 	}

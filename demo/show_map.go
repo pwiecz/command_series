@@ -295,6 +295,7 @@ loop:
 			s.messageBox.Clear()
 			s.messageBox.Print(fmt.Sprintf("WEATHER FORECAST: %s", s.mainGame.scenarioData.Weather[message.Weather]), 2, 0, false)
 		case SupplyDistributionStart:
+			s.mapView.HideIcon()
 			s.messageBox.Print(" SUPPLY DISTRIBUTION ", 2, 1, true)
 		case SupplyDistributionEnd:
 		case DailyUpdate:

@@ -1,9 +1,10 @@
 package data
 
+import "bytes"
 import "fmt"
 import "io"
-import "os"
-import "path"
+
+import "github.com/pwiecz/command_series/atr"
 
 // Representation of data parsed from GENERIC.DTA file.
 type Generic struct {
@@ -81,14 +82,12 @@ func (g Generic) TinyMapOffsets(i int) (dx int, dy int) {
 	return
 }
 
-func ReadGeneric(dirname string) (Generic, error) {
-	filename := path.Join(dirname, "GENERIC.DTA")
-	file, err := os.Open(filename)
+func ReadGeneric(diskimage atr.SectorReader) (Generic, error) {
+	fileData, err := atr.ReadFile(diskimage, "GENERIC.DTA")
 	if err != nil {
-		return Generic{}, fmt.Errorf("Cannot open generic file %s, %v", filename, err)
+		return Generic{}, fmt.Errorf("Cannot read GENERIC.DTA file, %v", err)
 	}
-	defer file.Close()
-	return ParseGeneric(file)
+	return ParseGeneric(bytes.NewReader(fileData))
 }
 
 func ParseGeneric(reader io.Reader) (Generic, error) {
