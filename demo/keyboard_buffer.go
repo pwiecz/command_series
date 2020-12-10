@@ -16,6 +16,7 @@ const (
 	DecreaseSpeed
 	IncreaseSpeed
 	SwitchUnitDisplay
+	SwitchSides
 	Quit
 	ScrollDown
 	ScrollUp
@@ -67,7 +68,7 @@ func (b *CommandBuffer) triggeredCommand() (Command, bool) {
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyU) {
 		return SwitchUnitDisplay, true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyQ) {
-		return Quit, true
+		return SwitchSides, true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyR) {
 		return Reserve, true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyD) {

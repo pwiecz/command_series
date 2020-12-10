@@ -197,6 +197,12 @@ func (s *ShowMap) Update() error {
 			case SwitchUnitDisplay:
 				s.idleTicksLeft = 60 * s.currentSpeed
 				s.unitIconView = !s.unitIconView
+			case SwitchSides:
+				s.playerSide = 1- s.playerSide
+				s.messageBox.Clear()
+				s.messageBox.Print(s.mainGame.scenarioData.Sides[s.playerSide] + " PLAYER:", 2, 0, false)
+				s.messageBox.Print("PRESS \"T\" TO CONTINUE", 2, 1, false)
+				s.hideUnits()
 			case Quit:
 				s.sync.Stop()
 				return fmt.Errorf("QUIT")
