@@ -13,6 +13,7 @@ const (
 	CityInfo
 	HideUnits
 	ShowOverviewMap
+	Who
 	DecreaseSpeed
 	IncreaseSpeed
 	SwitchUnitDisplay
@@ -47,7 +48,9 @@ func (b *CommandBuffer) Update() {
 }
 
 func (b *CommandBuffer) triggeredCommand() (Command, bool) {
-	if inpututil.IsKeyJustPressed(ebiten.KeyF) {
+	if ebiten.IsKeyPressed(ebiten.KeyControl) && inpututil.IsKeyJustPressed(ebiten.KeyQ) {
+		return Quit, true
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyF) {
 		return Freeze, true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeySlash) && ebiten.IsKeyPressed(ebiten.KeyShift) {
 		return StatusReport, true
@@ -61,6 +64,8 @@ func (b *CommandBuffer) triggeredCommand() (Command, bool) {
 		return HideUnits, true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyO) {
 		return ShowOverviewMap, true
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyW) {
+		return Who, true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyComma) && ebiten.IsKeyPressed(ebiten.KeyShift) {
 		return DecreaseSpeed, true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyPeriod) && ebiten.IsKeyPressed(ebiten.KeyShift) {

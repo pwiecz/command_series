@@ -70,6 +70,8 @@ type ShowMap struct {
 
 	otoContext *oto.Context
 	player     *AudioPlayer
+
+	lastMessageFromUnit MessageFromUnit
 }
 
 func NewShowMap(g *Game) *ShowMap {
@@ -188,6 +190,8 @@ func (s *ShowMap) Update() error {
 				s.hideUnits()
 			case ShowOverviewMap:
 				s.showOverviewMap()
+			case Who:
+				s.showLastMessageUnit()
 			case DecreaseSpeed:
 				s.idleTicksLeft = 60 * s.currentSpeed
 				s.decreaseGameSpeed()
@@ -198,9 +202,9 @@ func (s *ShowMap) Update() error {
 				s.idleTicksLeft = 60 * s.currentSpeed
 				s.unitIconView = !s.unitIconView
 			case SwitchSides:
-				s.playerSide = 1- s.playerSide
+				s.playerSide = 1 - s.playerSide
 				s.messageBox.Clear()
-				s.messageBox.Print(s.mainGame.scenarioData.Sides[s.playerSide] + " PLAYER:", 2, 0, false)
+				s.messageBox.Print(s.mainGame.scenarioData.Sides[s.playerSide]+" PLAYER:", 2, 0, false)
 				s.messageBox.Print("PRESS \"T\" TO CONTINUE", 2, 1, false)
 				s.hideUnits()
 			case Quit:
@@ -338,6 +342,7 @@ func (s *ShowMap) showMessageFromUnit(message MessageFromUnit) {
 	}
 	s.mapView.ShowIcon(message.Icon(), unit.X/2, unit.Y)
 	s.idleTicksLeft = 60 * s.currentSpeed
+	s.lastMessageFromUnit = message
 }
 func (s *ShowMap) areUnitCoordsVisible(x, y int) bool {
 	return s.mapView.AreMapCoordsVisible(x/2, y)
@@ -567,6 +572,14 @@ func (s *ShowMap) hideUnits() {
 func (s *ShowMap) showOverviewMap() {
 	s.gameState.hideAllUnits()
 	s.overviewMap = NewOverviewMap(&s.mainGame.terrainMap, &s.mainGame.units, &s.mainGame.generic, &s.mainGame.scenarioData, &s.options)
+}
+func (s *ShowMap) showLastMessageUnit() {
+	if s.lastMessageFromUnit == nil {
+		return
+	}
+	messageUnit := s.lastMessageFromUnit.Unit()
+	s.mapView.SetCursorPosition(messageUnit.X/2, messageUnit.Y)
+	s.mapView.ShowIcon(s.lastMessageFromUnit.Icon(), messageUnit.X/2, messageUnit.Y)
 }
 func (s *ShowMap) increaseGameSpeed() {
 	s.changeGameSpeed(-1)
