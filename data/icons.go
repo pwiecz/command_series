@@ -33,7 +33,7 @@ type Icons struct {
 func ReadIcons(diskimage atr.SectorReader) (Icons, error) {
 	iconsData, err := atr.ReadFile(diskimage, "WAR.PIC")
 	if err != nil {
-		return Icons{}, fmt.Errorf("Cannot read WAR.PIC file. %v", err)
+		return Icons{}, fmt.Errorf("Cannot read WAR.PIC file (%v)", err)
 	}
 	return ParseIcons(bytes.NewReader(iconsData))
 }

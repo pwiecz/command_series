@@ -18,7 +18,7 @@ type Variant struct {
 func ReadVariants(diskimage atr.SectorReader, filename string) ([]Variant, error) {
 	variantsData, err := atr.ReadFile(diskimage, filename)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot read variants file %s, %v", filename, err)
+		return nil, fmt.Errorf("Cannot read variants file %s (%v)", filename, err)
 	}
 	variants, err := ParseVariants(variantsData)
 	if err != nil {

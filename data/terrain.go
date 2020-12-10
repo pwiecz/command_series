@@ -26,7 +26,7 @@ type Terrain struct {
 func ReadTerrain(diskimage atr.SectorReader, filename string, game Game) (Terrain, error) {
 	fileData, err := atr.ReadFile(diskimage, filename)
 	if err != nil {
-		return Terrain{}, fmt.Errorf("Cannot open terrain file %s, %v", filename, err)
+		return Terrain{}, fmt.Errorf("Cannot open terrain file %s (%v)", filename, err)
 	}
 	var reader io.Reader
 	if game == Conflict {
@@ -41,7 +41,7 @@ func ReadTerrain(diskimage atr.SectorReader, filename string, game Game) (Terrai
 	}
 	terrain, err := ParseTerrain(reader)
 	if err != nil {
-		return Terrain{}, fmt.Errorf("Cannot parse terrain file %s, %v", filename, err)
+		return Terrain{}, fmt.Errorf("Cannot parse terrain file %s (%v)", filename, err)
 	}
 	return terrain, nil
 }

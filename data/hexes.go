@@ -17,7 +17,7 @@ type Hexes struct {
 func ReadHexes(diskimage atr.SectorReader) (Hexes, error) {
 	fileData, err := atr.ReadFile(diskimage, "HEXES.DTA")
 	if err != nil {
-		return Hexes{}, fmt.Errorf("Cannot read HEXES.DTA file, %v", err)
+		return Hexes{}, fmt.Errorf("Cannot read HEXES.DTA file (%v)", err)
 	}
 	return ParseHexes(bytes.NewReader(fileData))
 }

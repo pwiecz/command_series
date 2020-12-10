@@ -36,15 +36,15 @@ type Sprites struct {
 func ReadSprites(diskimage atr.SectorReader) (Sprites, error) {
 	iconSpritesData, err := atr.ReadFile(diskimage, "CRUSADEI.FNT")
 	if err != nil {
-		return Sprites{}, fmt.Errorf("Cannot read CRUSADEI.FNT file. %v", err)
+		return Sprites{}, fmt.Errorf("Cannot read CRUSADEI.FNT file (%v)", err)
 	}
 	symbolSpritesData, err := atr.ReadFile(diskimage, "CRUSADES.FNT")
 	if err != nil {
-		return Sprites{}, fmt.Errorf("Cannot read CRUSADES.FNT file, %v", err)
+		return Sprites{}, fmt.Errorf("Cannot read CRUSADES.FNT file (%v)", err)
 	}
 	introSpritesData, err := atr.ReadFile(diskimage, "FLAG.FNT")
 	if err != nil {
-		return Sprites{}, fmt.Errorf("Cannot read FLAG.FNT file, %v", err)
+		return Sprites{}, fmt.Errorf("Cannot read FLAG.FNT file (%v)", err)
 	}
 	return ParseSprites(bytes.NewReader(iconSpritesData),
 		bytes.NewReader(symbolSpritesData),
@@ -138,12 +138,12 @@ func ParseSprites(iconData, symbolData, introData io.Reader) (Sprites, error) {
 		}
 		if i < 59 {
 			if err != nil {
-				return sprites, fmt.Errorf("Cannot convert sprite for char %c, %v", char, err)
+				return sprites, fmt.Errorf("Cannot convert sprite for char %c (%v)", char, err)
 			}
 			characters[char] = iconSprites[i]
 		}
 		if err != nil {
-			return sprites, fmt.Errorf("Cannot convert sprite for intro char %c, %v", char, err)
+			return sprites, fmt.Errorf("Cannot convert sprite for intro char %c (%v)", char, err)
 		}
 		introCharacters[char] = introSprites[i]
 	}

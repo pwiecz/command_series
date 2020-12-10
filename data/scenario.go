@@ -24,7 +24,7 @@ type Scenario struct {
 func ReadScenarios(diskimage atr.SectorReader) ([]Scenario, error) {
 	files, err := atr.GetDirectory(diskimage)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot list contents of the disk image, %v", err)
+		return nil, fmt.Errorf("Cannot list contents of the disk image (%v)", err)
 	}
 
 	var scenarios []Scenario
@@ -47,11 +47,11 @@ func ReadScenarios(diskimage atr.SectorReader) ([]Scenario, error) {
 func ReadScenario(diskimage atr.SectorReader, filename string) (Scenario, error) {
 	data, err := atr.ReadFile(diskimage, filename)
 	if err != nil {
-		return Scenario{}, fmt.Errorf("Cannot read scenario file %s, %v", filename, err)
+		return Scenario{}, fmt.Errorf("Cannot read scenario file %s (%v)", filename, err)
 	}
 	scenario, err := ParseScn(data)
 	if err != nil {
-		return Scenario{}, fmt.Errorf("Cannot parse scenario file %s, %v\n", filename, err)
+		return Scenario{}, fmt.Errorf("Cannot parse scenario file %s (%v)\n", filename, err)
 	}
 	return scenario, err
 }

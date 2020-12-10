@@ -24,10 +24,10 @@ type Game struct {
 	units            [2][]data.Unit
 }
 
-func NewGame(filename string) *Game {
+func NewGame(filename string) (*Game, error) {
 	diskimage, err := atr.NewAtrSectorReader(filename)
 	if err != nil {
-		panic(fmt.Errorf("Cannot open atr image file %s, %v", filename, err))
+		return nil, fmt.Errorf("Cannot open atr image file %s (%v)", filename, err)
 	}
 	game := &Game{
 		diskimage:        diskimage,
@@ -35,7 +35,7 @@ func NewGame(filename string) *Game {
 		selectedVariant:  -1,
 	}
 	game.subGame = NewGameLoading(diskimage, game.onGameLoaded)
-	return game
+	return game, nil
 }
 
 func (g *Game) onGameLoaded(game data.Game, scenarios []data.Scenario, sprites data.Sprites, icons data.Icons, terrainMap data.Map, generic data.Generic, hexes data.Hexes) {

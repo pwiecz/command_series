@@ -20,11 +20,11 @@ type General struct {
 func ReadGenerals(diskimage atr.SectorReader, filename string) ([2][]General, error) {
 	fileData, err := atr.ReadFile(diskimage, filename)
 	if err != nil {
-		return [2][]General{}, fmt.Errorf("Cannot read generals file %s, %v", filename, err)
+		return [2][]General{}, fmt.Errorf("Cannot read generals file %s (%v)", filename, err)
 	}
 	generals, err := ParseGenerals(bytes.NewReader(fileData))
 	if err != nil {
-		return [2][]General{}, fmt.Errorf("Cannot parse generals file %s, %v", filename, err)
+		return [2][]General{}, fmt.Errorf("Cannot parse generals file %s (%v)", filename, err)
 	}
 	return generals, nil
 }

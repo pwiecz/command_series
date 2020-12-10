@@ -93,7 +93,7 @@ func ReadScenarioData(diskimage atr.SectorReader, filename string) (ScenarioData
 	var scenarioData ScenarioData
 	fileData, err := atr.ReadFile(diskimage, filename)
 	if err != nil {
-		return scenarioData, fmt.Errorf("Cannot read data file %s, %v", filename, err)
+		return scenarioData, fmt.Errorf("Cannot read data file %s (%v)", filename, err)
 	}
 	return ParseScenarioData(bytes.NewReader(fileData))
 }

@@ -85,7 +85,7 @@ func (g Generic) TinyMapOffsets(i int) (dx int, dy int) {
 func ReadGeneric(diskimage atr.SectorReader) (Generic, error) {
 	fileData, err := atr.ReadFile(diskimage, "GENERIC.DTA")
 	if err != nil {
-		return Generic{}, fmt.Errorf("Cannot read GENERIC.DTA file, %v", err)
+		return Generic{}, fmt.Errorf("Cannot read GENERIC.DTA file (%v)", err)
 	}
 	return ParseGeneric(bytes.NewReader(fileData))
 }

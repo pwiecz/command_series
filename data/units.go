@@ -88,7 +88,7 @@ type FlashbackUnit struct {
 func ReadUnits(diskimage atr.SectorReader, filename string, game Game, unitNames [2][]string, generals [2][]General) ([2][]Unit, error) {
 	fileData, err := atr.ReadFile(diskimage, filename)
 	if err != nil {
-		return [2][]Unit{}, fmt.Errorf("Cannot read units file %s, %v", filename, err)
+		return [2][]Unit{}, fmt.Errorf("Cannot read units file %s (%v)", filename, err)
 	}
 	var reader io.Reader
 	if game == Conflict {
@@ -103,7 +103,7 @@ func ReadUnits(diskimage atr.SectorReader, filename string, game Game, unitNames
 	}
 	units, err := ParseUnits(reader, unitNames, generals)
 	if err != nil {
-		return [2][]Unit{}, fmt.Errorf("Cannot parse units file %s, %v", filename, err)
+		return [2][]Unit{}, fmt.Errorf("Cannot parse units file %s (%v)", filename, err)
 	}
 	return units, nil
 }
@@ -154,7 +154,7 @@ func ParseUnit(data [16]byte, unitNames []string, generals []General) (Unit, err
 	}
 	generalIndex := int(data[10])
 	if generalIndex >= len(generals) {
-		return Unit{}, fmt.Errorf("Too large general index. Expected <%d, got %d, %d %v %v", len(generals), generalIndex, state, unit, data)
+		return Unit{}, fmt.Errorf("Too large general index. Expected <%d, got %d", len(generals), generalIndex)
 	}
 	unit.GeneralIndex = generalIndex
 	unit.General = generals[generalIndex]
@@ -172,14 +172,14 @@ func ParseUnits(data io.Reader, unitNames [2][]string, generals [2][]General) ([
 		numRead, err := io.ReadFull(data, unitData[:])
 		if numRead < 16 {
 			if i != 127 || numRead != 15 {
-				return [2][]Unit{}, fmt.Errorf("Too short unit %d, %d", i, numRead)
+				return [2][]Unit{}, fmt.Errorf("Too short unit %d data, %d bytes", i, numRead)
 			}
 			unitData[15] = 100
 		}
 		side := i / 64
 		unit, err := ParseUnit(unitData, unitNames[side], generals[side])
 		if err != nil {
-			return [2][]Unit{}, fmt.Errorf("Error parsing unit %d, %v", i, err)
+			return [2][]Unit{}, fmt.Errorf("Error parsing unit %d (%v)", i, err)
 		}
 		unit.Side = side
 		unit.Index = len(units[i/64])

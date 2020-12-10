@@ -27,7 +27,12 @@ func main() {
 
 	ebiten.SetWindowSize(1008, 720)
 	ebiten.SetWindowTitle("Command Series Engine")
-	if err := ebiten.RunGame(NewGame(flag.Arg(0))); err != nil {
+	game, err := NewGame(flag.Arg(0))
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	if err := ebiten.RunGame(game); err != nil {
 		fmt.Println(err.Error())
 	}
 }

@@ -43,7 +43,7 @@ func FilenameToGame(filename string) Game {
 func DetectGame(diskimage atr.SectorReader) (Game, error) {
 	files, err := atr.GetDirectory(diskimage)
 	if err != nil {
-		return Game(0), fmt.Errorf("Cannot list contents of the disk image, %v", err)
+		return Game(0), fmt.Errorf("Cannot list contents of the disk image (%v)", err)
 	}
 
 	var game Game

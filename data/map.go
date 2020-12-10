@@ -86,7 +86,7 @@ func ParseMap(data io.Reader, width, height int) (Map, error) {
 func ReadMap(diskimage atr.SectorReader, game Game) (Map, error) {
 	fileData, err := atr.ReadFile(diskimage, "CRUSADE.MAP")
 	if err != nil {
-		return Map{}, fmt.Errorf("Cannot read CRUSADE.MAP file. %v", err)
+		return Map{}, fmt.Errorf("Cannot read CRUSADE.MAP file (%v)", err)
 	}
 	var reader io.Reader
 	if game == Conflict {
@@ -101,7 +101,7 @@ func ReadMap(diskimage atr.SectorReader, game Game) (Map, error) {
 	}
 	terrainMap, err := ParseMap(reader, 64, 64)
 	if err != nil {
-		return Map{}, fmt.Errorf("Cannot parse CRUSADE.MAP file, %v", err)
+		return Map{}, fmt.Errorf("Cannot parse CRUSADE.MAP file (%v)", err)
 	}
 	return terrainMap, nil
 }
