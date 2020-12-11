@@ -125,7 +125,9 @@ func (s *ShowMap) Update() error {
 			}
 			if inpututil.IsKeyJustPressed(k) {
 				s.overviewMap = nil
-				s.gameState.showAllVisibleUnits()
+				if s.areUnitsHidden {
+					s.hideUnits()
+				}
 				break
 			}
 		}
@@ -138,7 +140,9 @@ func (s *ShowMap) Update() error {
 		if s.flashback.Update() != nil {
 			s.flashback = nil
 			s.messageBox.Clear()
-			s.gameState.showAllVisibleUnits()
+			if s.areUnitsHidden {
+				s.hideUnits()
+			}
 		}
 		return nil
 	}
@@ -216,7 +220,9 @@ func (s *ShowMap) Update() error {
 				s.messageBox.Clear()
 				s.messageBox.Print(s.mainGame.scenarioData.Sides[s.playerSide]+" PLAYER:", 2, 0, false)
 				s.messageBox.Print("PRESS \"T\" TO CONTINUE", 2, 1, false)
-				s.hideUnits()
+				if !s.areUnitsHidden {
+					s.hideUnits()
+				}
 			case Quit:
 				s.sync.Stop()
 				return fmt.Errorf("QUIT")
@@ -580,11 +586,15 @@ func (s *ShowMap) hideUnits() {
 	s.areUnitsHidden = !s.areUnitsHidden
 }
 func (s *ShowMap) showOverviewMap() {
-	s.gameState.hideAllUnits()
+	if !s.areUnitsHidden {
+		s.hideUnits()
+	}
 	s.overviewMap = NewOverviewMap(&s.mainGame.terrainMap, &s.mainGame.units, &s.mainGame.generic, &s.mainGame.scenarioData, &s.options)
 }
 func (s *ShowMap) showFlashback() {
-	s.gameState.hideAllUnits()
+	if !s.areUnitsHidden {
+		s.hideUnits()
+	}
 	s.flashback = NewFlashback(s.mapView, s.messageBox, &s.mainGame.terrainMap, s.gameState.flashback)
 }
 func (s *ShowMap) showLastMessageUnit() {

@@ -73,10 +73,7 @@ func ParseMap(data io.Reader, width, height int) (Map, error) {
 		row := make([]byte, rowLength)
 		_, err := io.ReadFull(data, row)
 		if err != nil {
-			for i := len(terrainMap.terrain); i < width*height; i++ {
-				terrainMap.terrain = append(terrainMap.terrain, 0)
-			}
-			return terrainMap, nil //Map{}, err
+			return Map{}, err
 		}
 		terrainMap.terrain = append(terrainMap.terrain, row...)
 	}

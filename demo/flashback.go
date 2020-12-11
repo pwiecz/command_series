@@ -70,6 +70,9 @@ func (f *Flashback) hideUnitsFromDay(day int) {
 		return
 	}
 	for _, unit := range f.flashback[day] {
+		if unit.Terrain%64>=48 {
+			panic(fmt.Errorf("%v", unit))
+		}
 		f.terrainMap.SetTile(unit.X/2, unit.Y, byte(unit.Terrain))
 	}
 }

@@ -193,6 +193,9 @@ nextUnit:
 	if !unit.IsInGame {
 		goto nextUnit
 	}
+	if unit.Terrain%64 >= 48 {
+		panic(fmt.Errorf("%v", unit))
+	}
 	var v9 int
 	var arg1 int
 	if unit.MenCount+unit.EquipCount < 7 ||
@@ -301,12 +304,12 @@ nextUnit:
 		}
 		{
 			generalMask := s.generals[unit.Side][unit.GeneralIndex].Data0
-			arg1 = -17536 // 0xBB80
+			arg1 = -17536 // 48000
 			//var bestI int
 			var bestDx, bestDy int
 			var v63 int
 			temp2 := (unit.MenCount + unit.EquipCount + 4) / 8
-			v61 := temp2 * Clamp(s.scenarioData.FormationMenDefence[unit.Formation], 8, 99) / 8 * s.scenarioData.TerrainMenDefence[s.terrainTypeAt(unit.X, unit.Y)] / 8
+			v61 := temp2 * Clamp(s.scenarioData.FormationMenDefence[unit.Formation], 8, 99) / 8 * s.scenarioData.TerrainMenDefence[s.terrainType(unit.Terrain)] / 8
 			if s.scenarioData.UnitScores[unit.Type] > 7 {
 				// special units - air wings or supply units
 				temp2 = 1
@@ -1307,7 +1310,7 @@ func (s *GameState) reinitSmallMapsAndSuch(currentSide int) {
 			}
 			v30 := unit.MenCount + unit.EquipCount
 			tmp := v30 * Clamp(s.scenarioData.FormationMenDefence[unit.Formation], 8, 99) / 8
-			v29 := tmp * s.scenarioData.TerrainMenDefence[s.terrainTypeAt(unit.X, unit.Y)] / 8
+			v29 := tmp * s.scenarioData.TerrainMenDefence[s.terrainType(unit.Terrain)] / 8
 			if s.scenarioData.UnitScores[unit.Type] > 7 {
 				// special units - supply, air wings
 				v29 = 4
