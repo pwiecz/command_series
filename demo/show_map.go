@@ -47,8 +47,8 @@ type ShowMap struct {
 	statusBar     *MessageBox
 	separatorRect *Rectangle
 
+	flashback *Flashback
 	animation *Animation
-	mapImage  *ebiten.Image
 	options   Options
 
 	currentSpeed   int
@@ -134,6 +134,14 @@ func (s *ShowMap) Update() error {
 		}
 		return nil
 	}
+	if s.flashback != nil {
+		if s.flashback.Update() != nil {
+			s.flashback = nil
+			s.messageBox.Clear()
+			s.gameState.showAllVisibleUnits()
+		}
+		return nil
+	}
 	if !s.started && !s.areUnitsHidden {
 		go func() {
 			if !s.sync.Wait() {
@@ -190,6 +198,8 @@ func (s *ShowMap) Update() error {
 				s.hideUnits()
 			case ShowOverviewMap:
 				s.showOverviewMap()
+			case ShowFlashback:
+				s.showFlashback()
 			case Who:
 				s.showLastMessageUnit()
 			case DecreaseSpeed:
@@ -573,6 +583,10 @@ func (s *ShowMap) showOverviewMap() {
 	s.gameState.hideAllUnits()
 	s.overviewMap = NewOverviewMap(&s.mainGame.terrainMap, &s.mainGame.units, &s.mainGame.generic, &s.mainGame.scenarioData, &s.options)
 }
+func (s *ShowMap) showFlashback() {
+	s.gameState.hideAllUnits()
+	s.flashback = NewFlashback(s.mapView, s.messageBox, &s.mainGame.terrainMap, s.gameState.flashback)
+}
 func (s *ShowMap) showLastMessageUnit() {
 	if s.lastMessageFromUnit == nil {
 		return
@@ -630,9 +644,13 @@ func (s *ShowMap) Draw(screen *ebiten.Image) {
 	opts.GeoM.Scale(2, 1)
 	opts.GeoM.Translate(8, 72)
 
-	s.mapView.Draw(screen, &opts)
-	if s.animation != nil {
-		s.animation.Draw(screen, &opts)
+	if s.flashback != nil {
+		s.flashback.Draw(screen, &opts)
+	} else {
+		s.mapView.Draw(screen, &opts)
+		if s.animation != nil {
+			s.animation.Draw(screen, &opts)
+		}
 	}
 
 	playerBaseColor := s.mainGame.scenarioData.SideColor[s.playerSide] * 16

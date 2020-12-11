@@ -13,6 +13,7 @@ const (
 	CityInfo
 	HideUnits
 	ShowOverviewMap
+	ShowFlashback
 	Who
 	DecreaseSpeed
 	IncreaseSpeed
@@ -64,6 +65,8 @@ func (b *CommandBuffer) triggeredCommand() (Command, bool) {
 		return HideUnits, true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyO) {
 		return ShowOverviewMap, true
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyB) {
+		return ShowFlashback, true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyW) {
 		return Who, true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyComma) && ebiten.IsKeyPressed(ebiten.KeyShift) {

@@ -83,6 +83,7 @@ type FlashbackUnit struct {
 	X, Y         int
 	ColorPalette int
 	Type         int
+	Terrain      byte
 }
 
 func ReadUnits(diskimage atr.SectorReader, filename string, game Game, unitNames [2][]string, generals [2][]General) ([2][]Unit, error) {

@@ -811,6 +811,9 @@ l21:
 			unit.X = sx
 			unit.Y = sy
 			unit.Terrain = s.terrainAt(unit.X, unit.Y)
+			if unit.Terrain%64 >= 48 {
+				panic(fmt.Errorf("%v", unit))
+			}
 			s.function29_showUnit(unit)
 			if Function15_distanceToObjective(unit) == 0 {
 				unit.ObjectiveX = 0
@@ -1051,6 +1054,9 @@ l21:
 			}
 			unit2.X, unit2.Y = bestX, bestY // moved this up comparing to the original code
 			unit2.Terrain = s.terrainAt(unit2.X, unit2.Y)
+			if unit2.Terrain%64 >= 48 {
+				panic(fmt.Errorf("%v", unit2))
+			}
 			if _, ok := message.(WeHaveBeenOverrun); !ok {
 				if s.game != data.Conflict {
 					s.showUnit(unit2)
@@ -1076,6 +1082,9 @@ l21:
 					unit.X = oldX
 					unit.Y = oldY
 					unit.Terrain = s.terrainAt(unit.X, unit.Y)
+					if unit.Terrain%64 >= 48 {
+						panic(fmt.Errorf("%v", unit.Terrain))
+					}
 					s.showUnit(unit)
 					if city, captured := s.function16(unit); captured {
 						message = WeHaveCaptured{unit, city}
@@ -1441,6 +1450,9 @@ func (s *GameState) every12Hours() bool {
 					if shouldSpawnUnit {
 						unit.IsInGame = true
 						unit.Terrain = s.terrainAt(unit.X, unit.Y)
+						if unit.Terrain%64 >= 48 {
+							panic(fmt.Errorf("%v", unit))
+						}
 						// Unit will be shown if needed inside showAllUnits at the end of the function.
 						reinforcements[unit.Side] = true
 					} else {
@@ -1653,11 +1665,19 @@ func (s *GameState) terrainAt(x, y int) byte {
 }
 
 func (s *GameState) showUnit(unit data.Unit) {
+	if !(unit.InContactWithEnemy || unit.SeenByEnemy /* &65 != 0 */ ||
+		s.options.IsPlayerControlled(unit.Side) || s.options.Intelligence == Full) {
+		panic(fmt.Errorf("%v ", unit))
+	}
+
 	ix := s.coordsToMapIndex(unit.X, unit.Y)
 	s.terrainMap.SetTileAtIndex(ix, byte(unit.Type+unit.ColorPalette*16))
 }
 func (s *GameState) hideUnit(unit data.Unit) {
 	ix := s.coordsToMapIndex(unit.X, unit.Y)
+	if unit.Terrain%64 >= 48 {
+		panic(fmt.Errorf("%v", unit))
+	}
 	s.terrainMap.SetTileAtIndex(ix, unit.Terrain)
 }
 func (s *GameState) hideAllUnits() {
@@ -1676,6 +1696,9 @@ func (s *GameState) showAllVisibleUnits() {
 				continue
 			}
 			sideUnits[i].Terrain = s.terrainAt(unit.X, unit.Y)
+			if sideUnits[i].Terrain%64 >= 48 {
+				panic(fmt.Errorf("%v", sideUnits[i]))
+			}
 			if unit.InContactWithEnemy || unit.SeenByEnemy || s.options.IsPlayerControlled(unit.Side) || s.options.Intelligence == Full {
 				s.showUnit(unit)
 			}
@@ -1713,8 +1736,7 @@ func (s *GameState) everyDay() bool {
 			}
 			if unit.IsInGame {
 				flashback = append(flashback, data.FlashbackUnit{
-					X: unit.X, Y: unit.Y, ColorPalette: unit.ColorPalette, Type: unit.Type,
-				})
+					X: unit.X, Y: unit.Y, ColorPalette: unit.ColorPalette, Type: unit.Type, Terrain: unit.Terrain})
 			}
 		}
 	}
