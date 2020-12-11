@@ -11,34 +11,6 @@ import "github.com/hajimehoshi/oto"
 
 import "github.com/pwiecz/command_series/data"
 
-type IntelligenceType int
-
-const (
-	Full    IntelligenceType = 0
-	Limited IntelligenceType = 1
-)
-
-type Options struct {
-	AlliedCommander int
-	GermanCommander int
-	Intelligence    IntelligenceType
-	GameBalance     int // [0..4]
-}
-
-func (o Options) IsPlayerControlled(side int) bool {
-	if side == 0 {
-		return o.AlliedCommander > 0
-	}
-	return o.GermanCommander > 0
-}
-func (o Options) Num() int {
-	n := o.AlliedCommander + 2*o.GermanCommander
-	if o.Intelligence == Limited {
-		n += 56 - 4*(o.AlliedCommander*o.GermanCommander+o.AlliedCommander)
-	}
-	return n
-}
-
 type ShowMap struct {
 	mainGame      *Game
 	mapView       *MapView
@@ -51,11 +23,9 @@ type ShowMap struct {
 	animation *Animation
 	options   Options
 
-	currentSpeed   int
 	idleTicksLeft  int
 	isFrozen       bool
 	areUnitsHidden bool
-	unitIconView   bool
 	playerSide     int
 
 	orderedUnit *data.Unit
@@ -74,7 +44,7 @@ type ShowMap struct {
 	lastMessageFromUnit MessageFromUnit
 }
 
-func NewShowMap(g *Game) *ShowMap {
+func NewShowMap(g *Game, options Options) *ShowMap {
 	scenario := g.scenarios[g.selectedScenario]
 	variant := g.variants[g.selectedVariant]
 	for x := scenario.MinX - 1; x <= scenario.MaxX+1; x++ {
@@ -87,12 +57,9 @@ func NewShowMap(g *Game) *ShowMap {
 	}
 	s := &ShowMap{
 		mainGame:      g,
-		currentSpeed:  2,
+		options:       options,
 		commandBuffer: NewCommandBuffer(20),
 		sync:          NewMessageSync()}
-	s.options.AlliedCommander = 1
-	s.options.GermanCommander = 0
-	s.options.GameBalance = 2
 	rnd := rand.New(rand.NewSource(1))
 	s.gameState = NewGameState(rnd, g.game, &scenario, &g.scenarioData, &variant, g.selectedVariant, g.units, &g.terrain, &g.terrainMap, &g.generic, &g.hexes, g.generals, s.options, s.sync)
 	s.mapView = NewMapView(
@@ -107,7 +74,6 @@ func NewShowMap(g *Game) *ShowMap {
 
 	s.topRect = NewRectangle(image.Pt(336, 22))
 	s.separatorRect = NewRectangle(image.Pt(336, 2))
-	s.unitIconView = true
 	otoContext, err := oto.NewContext(44100, 4 /* num channels */, 1 /* num bytes per sample */, 4096 /* buffer size */)
 	if err != nil {
 		panic(err)
@@ -188,33 +154,37 @@ func (s *ShowMap) Update() error {
 				}
 			case StatusReport:
 				s.showStatusReport()
-				s.idleTicksLeft = 60 * s.currentSpeed
+				s.idleTicksLeft = 60 * s.options.Speed
 			case UnitInfo:
 				s.showUnitInfo()
-				s.idleTicksLeft = 60 * s.currentSpeed
+				s.idleTicksLeft = 60 * s.options.Speed
 			case GeneralInfo:
 				s.showGeneralInfo()
-				s.idleTicksLeft = 60 * s.currentSpeed
+				s.idleTicksLeft = 60 * s.options.Speed
 			case CityInfo:
 				s.showCityInfo()
-				s.idleTicksLeft = 60 * s.currentSpeed
+				s.idleTicksLeft = 60 * s.options.Speed
 			case HideUnits:
 				s.hideUnits()
+				s.idleTicksLeft = 60 * s.options.Speed
 			case ShowOverviewMap:
 				s.showOverviewMap()
+				s.idleTicksLeft = 60 * s.options.Speed
 			case ShowFlashback:
 				s.showFlashback()
+				s.idleTicksLeft = 60 * s.options.Speed
 			case Who:
 				s.showLastMessageUnit()
+				s.idleTicksLeft = 60 * s.options.Speed
 			case DecreaseSpeed:
-				s.idleTicksLeft = 60 * s.currentSpeed
+				s.idleTicksLeft = 60 * s.options.Speed
 				s.decreaseGameSpeed()
 			case IncreaseSpeed:
-				s.idleTicksLeft = 60 * s.currentSpeed
+				s.idleTicksLeft = 60 * s.options.Speed
 				s.increaseGameSpeed()
 			case SwitchUnitDisplay:
-				s.idleTicksLeft = 60 * s.currentSpeed
-				s.unitIconView = !s.unitIconView
+				s.idleTicksLeft = 60 * s.options.Speed
+				s.options.UnitDisplay = 1 - s.options.UnitDisplay
 			case SwitchSides:
 				s.playerSide = 1 - s.playerSide
 				s.messageBox.Clear()
@@ -223,40 +193,57 @@ func (s *ShowMap) Update() error {
 				if !s.areUnitsHidden {
 					s.hideUnits()
 				}
+				s.idleTicksLeft = 60 * s.options.Speed
 			case Quit:
 				s.sync.Stop()
 				return fmt.Errorf("QUIT")
 			case Reserve:
 				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, data.Reserve)
-				s.idleTicksLeft = 60 * s.currentSpeed
+				s.idleTicksLeft = 60 * s.options.Speed
 			case Defend:
 				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, data.Defend)
-				s.idleTicksLeft = 60 * s.currentSpeed
+				s.idleTicksLeft = 60 * s.options.Speed
 			case Attack:
 				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, data.Attack)
-				s.idleTicksLeft = 60 * s.currentSpeed
+				s.idleTicksLeft = 60 * s.options.Speed
 			case Move:
 				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, data.Move)
-				s.idleTicksLeft = 60 * s.currentSpeed
+				s.idleTicksLeft = 60 * s.options.Speed
 			case SetObjective:
 				s.trySetObjective(s.mapView.cursorX, s.mapView.cursorY)
-				s.idleTicksLeft = 60 * s.currentSpeed
+				s.idleTicksLeft = 60 * s.options.Speed
 			case ScrollDown:
-				s.idleTicksLeft = 60 * s.currentSpeed
+				s.idleTicksLeft = 60 * s.options.Speed
 				curX, curY := s.mapView.GetCursorPosition()
 				s.mapView.SetCursorPosition(curX, curY+1)
+			case ScrollDownFast:
+				s.idleTicksLeft = 60 * s.options.Speed
+				curX, curY := s.mapView.GetCursorPosition()
+				s.mapView.SetCursorPosition(curX, curY+2)
 			case ScrollUp:
-				s.idleTicksLeft = 60 * s.currentSpeed
+				s.idleTicksLeft = 60 * s.options.Speed
 				curX, curY := s.mapView.GetCursorPosition()
 				s.mapView.SetCursorPosition(curX, curY-1)
+			case ScrollUpFast:
+				s.idleTicksLeft = 60 * s.options.Speed
+				curX, curY := s.mapView.GetCursorPosition()
+				s.mapView.SetCursorPosition(curX, curY-2)
 			case ScrollRight:
-				s.idleTicksLeft = 60 * s.currentSpeed
+				s.idleTicksLeft = 60 * s.options.Speed
 				curX, curY := s.mapView.GetCursorPosition()
 				s.mapView.SetCursorPosition(curX+1, curY)
+			case ScrollRightFast:
+				s.idleTicksLeft = 60 * s.options.Speed
+				curX, curY := s.mapView.GetCursorPosition()
+				s.mapView.SetCursorPosition(curX+2, curY)
 			case ScrollLeft:
-				s.idleTicksLeft = 60 * s.currentSpeed
+				s.idleTicksLeft = 60 * s.options.Speed
 				curX, curY := s.mapView.GetCursorPosition()
 				s.mapView.SetCursorPosition(curX-1, curY)
+			case ScrollLeftFast:
+				s.idleTicksLeft = 60 * s.options.Speed
+				curX, curY := s.mapView.GetCursorPosition()
+				s.mapView.SetCursorPosition(curX-2, curY)
 			}
 		default:
 		}
@@ -329,7 +316,7 @@ loop:
 			s.messageBox.Print("SUPPLY LEVEL:", 2, 3, true)
 			supplyLevels := []string{"CRITICAL", "SUFFICIENT", "AMPLE"}
 			s.messageBox.Print(supplyLevels[message.SupplyLevel], 16, 3, false)
-			s.idleTicksLeft = 60 * s.currentSpeed
+			s.idleTicksLeft = 60 * s.options.Speed
 			break loop
 		case TimeChanged:
 			s.statusBar.Clear()
@@ -357,7 +344,7 @@ func (s *ShowMap) showMessageFromUnit(message MessageFromUnit) {
 		s.messageBox.Print(line, 2, 2+i, false)
 	}
 	s.mapView.ShowIcon(message.Icon(), unit.X/2, unit.Y)
-	s.idleTicksLeft = 60 * s.currentSpeed
+	s.idleTicksLeft = 60 * s.options.Speed
 	s.lastMessageFromUnit = message
 }
 func (s *ShowMap) areUnitCoordsVisible(x, y int) bool {
@@ -612,10 +599,10 @@ func (s *ShowMap) decreaseGameSpeed() {
 	s.changeGameSpeed(1)
 }
 func (s *ShowMap) changeGameSpeed(delta int) {
-	s.currentSpeed = Clamp(s.currentSpeed+delta, 1, 3)
+	s.options.Speed = Clamp(s.options.Speed+delta, 1, 3)
 	s.messageBox.Clear()
 	speedNames := []string{"FAST", "MEDIUM", "SLOW"}
-	s.messageBox.Print(fmt.Sprintf("SPEED: %s", speedNames[s.currentSpeed-1]), 2, 0, false)
+	s.messageBox.Print(fmt.Sprintf("SPEED: %s", speedNames[s.options.Speed-1]), 2, 0, false)
 }
 
 func (s *ShowMap) dateTimeString() string {
@@ -648,7 +635,7 @@ func (s *ShowMap) Draw(screen *ebiten.Image) {
 		s.separatorRect.SetColor(int(s.mainGame.scenarioData.NightPalette[0]))
 	}
 	s.mapView.SetIsNight(s.gameState.isNight)
-	s.mapView.SetUseIcons(s.unitIconView)
+	s.mapView.SetUseIcons(s.options.UnitDisplay == 1)
 
 	opts := ebiten.DrawImageOptions{}
 	opts.GeoM.Scale(2, 1)

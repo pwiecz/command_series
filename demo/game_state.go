@@ -130,16 +130,10 @@ func (s *GameState) Update() bool {
 	if s.minute >= 60 {
 		s.minute = 0
 		s.hour++
-		if !s.everyHour() {
-			return false
-		}
 	}
 	if s.hour >= 24 {
 		s.hour = 0
 		s.day++
-		if !s.everyDay() {
-			return false
-		}
 	}
 	// game treats all months to have 30 days.
 	if s.day >= 30 { // monthLength(s.month+1, s.year+1900) {
@@ -150,14 +144,24 @@ func (s *GameState) Update() bool {
 		s.month = 0
 		s.year++
 	}
-	if s.hour == 18 && s.minute == 0 {
-		s.sync.SendUpdate(TimeChanged{})
-		if s.isGameOver() {
-			s.sync.SendUpdate(GameOver{s.finalResults()})
+	s.sync.SendUpdate(TimeChanged{})
+	if s.minute == 0 {
+		if !s.everyHour() {
 			return false
 		}
+		if s.hour == 0 {
+			if !s.everyDay() {
+				return false
+			}
+		}
+		if s.hour == 18 {
+			if s.isGameOver() {
+				s.sync.SendUpdate(TimeChanged{})
+				s.sync.SendUpdate(GameOver{s.finalResults()})
+				return false
+			}
+		}
 	}
-	s.sync.SendUpdate(TimeChanged{})
 	return true
 }
 
@@ -864,9 +868,9 @@ l21:
 		}
 		for i := 0; i < 6; i++ {
 			if unit2, ok := s.FindUnit(unit.X+s.generic.Dx[i], unit.Y+s.generic.Dy[i]); ok && unit2.Side == 1-unit.Side {
-				s.showUnit(unit2)
 				unit2.InContactWithEnemy = true
 				unit2.SeenByEnemy = true // |= 65
+				s.showUnit(unit2)
 				s.units[unit2.Side][unit2.Index] = unit2
 				if s.scenarioData.UnitScores[unit2.Type] > 8 {
 					if s.options.IsPlayerControlled(unit.Side) {

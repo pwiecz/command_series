@@ -21,9 +21,13 @@ const (
 	SwitchSides
 	Quit
 	ScrollDown
+	ScrollDownFast
 	ScrollUp
+	ScrollUpFast
 	ScrollLeft
+	ScrollLeftFast
 	ScrollRight
+	ScrollRightFast
 	Reserve
 	Defend
 	Attack
@@ -87,14 +91,22 @@ func (b *CommandBuffer) triggeredCommand() (Command, bool) {
 		return Move, true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyH) {
 		return SetObjective, true
-	} else if inpututil.KeyPressDuration(ebiten.KeyDown)%12 == 1 {
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyDown) {
 		return ScrollDown, true
-	} else if inpututil.KeyPressDuration(ebiten.KeyUp)%12 == 1 {
+	} else if inpututil.KeyPressDuration(ebiten.KeyDown)%12 == 1 {
+		return ScrollDownFast, true
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyUp) {
 		return ScrollUp, true
-	} else if inpututil.KeyPressDuration(ebiten.KeyRight)%12 == 1 {
+	} else if inpututil.KeyPressDuration(ebiten.KeyUp)%12 == 1 {
+		return ScrollUpFast, true
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyRight) {
 		return ScrollRight, true
-	} else if inpututil.KeyPressDuration(ebiten.KeyLeft)%12 == 1 {
+	} else if inpututil.KeyPressDuration(ebiten.KeyRight)%12 == 1 {
+		return ScrollRightFast, true
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyLeft) {
 		return ScrollLeft, true
+	} else if inpututil.KeyPressDuration(ebiten.KeyLeft)%12 == 1 {
+		return ScrollLeftFast, true
 	}
 	return 0, false
 }

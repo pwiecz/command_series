@@ -64,7 +64,7 @@ func ParseSpriteData(data io.Reader, width, height, scaleX, scaleY, bits int) ([
 	}
 	palette := make([]color.Color, 1<<bits)
 	for i := 0; i < len(palette); i++ {
-		palette[len(palette)-1-i] = color.Gray{uint8(i * 255 / (len(palette) - 1))}
+		palette[len(palette)-1-i] = RGBPalette[i*15/(len(palette)-1)]
 	}
 	bytesPerSprite := (width*height*bits + 7) / 8
 	spriteData := make([]byte, bytesPerSprite)
@@ -126,7 +126,7 @@ func ParseSprites(iconData, symbolData, introData io.Reader) (Sprites, error) {
 		1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009,
 		1010, 1011, 1012, 1013, 1014, 1015, 1016, 1017, 1018, 1019,
 		1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1028, 1029,
-		1030, 1031, 1032, 1033, 1034, 1035, 1036,
+		1030, 1031, 1032, 1033, 1034, 1035, 1036, 1037,
 		'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
 		'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
 	}

@@ -1,6 +1,7 @@
 package main
 
 import "fmt"
+import "image"
 import "image/color"
 
 import "github.com/hajimehoshi/ebiten"
@@ -45,7 +46,7 @@ func NewScenarioSelection(scenarios []data.Scenario, font *data.Font, scenarioSe
 	x, y := 16.0, 16.0
 	fontSize := font.Size()
 	for i, scenario := range scenarios {
-		button := NewButton(fmt.Sprintf("%d: %s", i+1, scenario.Name), x, y, font)
+		button := NewButton(fmt.Sprintf("%d: %s", i+1, scenario.Name), x, y, image.Pt(300, 8), font)
 		buttons[i] = button
 		y += float64(fontSize.Y)
 	}
@@ -65,7 +66,7 @@ func (s *ScenarioSelection) Update() error {
 	return nil
 }
 func (s *ScenarioSelection) Draw(screen *ebiten.Image) {
-	screen.Fill(color.Gray{255})
+	screen.Fill(data.RGBPalette[15])
 	//	s.intro.Draw(screen)
 	for _, button := range s.buttons {
 		button.Draw(screen)
@@ -85,7 +86,7 @@ func NewVariantSelection(mainGame *Game) *VariantSelection {
 	x, y := 16.0, 16.0
 	fontSize := mainGame.sprites.IntroFont.Size()
 	for i, variant := range mainGame.variants {
-		button := NewButton(fmt.Sprintf("%d: %s", i+1, variant.Name), x, y, mainGame.sprites.IntroFont)
+		button := NewButton(fmt.Sprintf("%d: %s", i+1, variant.Name), x, y, image.Pt(300, 8), mainGame.sprites.IntroFont)
 		buttons[i] = button
 		y += float64(fontSize.Y)
 	}
@@ -105,7 +106,7 @@ func (s *VariantSelection) Update() error {
 	return nil
 }
 func (s *VariantSelection) Draw(screen *ebiten.Image) {
-	screen.Fill(color.Gray{255})
+	screen.Fill(data.RGBPalette[15])
 	for _, button := range s.buttons {
 		button.Draw(screen)
 	}
@@ -213,11 +214,11 @@ type VariantsLoading struct {
 	loadingText *Button
 }
 
-func NewVariantsLoading(scenario data.Scenario, mainGame *Game, font *data.Font) *VariantsLoading {
+func NewVariantsLoading(scenario data.Scenario, mainGame *Game) *VariantsLoading {
 	return &VariantsLoading{
 		mainGame:    mainGame,
 		scenario:    scenario,
-		loadingText: NewButton("... LOADING ...", 0, 0, font)}
+		loadingText: NewButton("... LOADING ...", 0, 0, image.Pt(120, 8), mainGame.sprites.IntroFont)}
 }
 func (l *VariantsLoading) Update() error {
 	if l.loadingDone == nil {
@@ -294,7 +295,7 @@ func (l *VariantLoading) Update() error {
 			if err != nil {
 				return err
 			}
-			l.mainGame.subGame = NewShowMap(l.mainGame)
+			l.mainGame.subGame = NewOptionSelection(l.mainGame)
 			l.mainGame.subGame.Update()
 		default:
 		}
