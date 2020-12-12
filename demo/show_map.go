@@ -328,6 +328,7 @@ loop:
 			s.statusBar.Print(s.dateTimeString(), 2, 0, false)
 			if s.gameState.hour == 18 && s.gameState.minute == 0 {
 				s.showStatusReport()
+				s.idleTicksLeft = 60 * s.options.Speed
 			}
 		default:
 			return fmt.Errorf("Unknown message: %v", message)
