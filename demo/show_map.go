@@ -76,7 +76,7 @@ func NewShowMap(g *Game, options Options) *ShowMap {
 
 	s.topRect = NewRectangle(image.Pt(336, 22))
 	s.separatorRect = NewRectangle(image.Pt(336, 2))
-	otoContext, err := oto.NewContext(44100, 4 /* num channels */, 1 /* num bytes per sample */, 4096 /* buffer size */)
+	otoContext, err := oto.NewContext(44100, 2 /* num channels */, 1 /* num bytes per sample */, 4096 /* buffer size */)
 	if err != nil {
 		panic(err)
 	}

@@ -52,12 +52,12 @@ func (a *Animation) Update() {
 	a.elapsed++
 	if a.player != nil {
 		if a.elapsed < a.frames {
-			a.player.SetFrequency(2, 70)
+			a.player.SetFrequency(0, 70)
 			freq := byte(54 + 9*a.elapsed/a.frames)
-			a.player.SetFrequency(3, freq)
+			a.player.SetFrequency(1, freq)
 		} else {
-			a.player.SetFrequency(2, 0)
-			a.player.SetFrequency(3, 0)
+			a.player.SetFrequency(0, 0)
+			a.player.SetFrequency(1, 0)
 		}
 	}
 }
