@@ -13,7 +13,7 @@ var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 func main() {
 	flag.Parse()
 	if len(flag.Args()) != 1 {
-		log.Fatalf("Usage: %s <game_dir>\n", os.Args[0])
+		log.Fatalf("Usage: %s <game_disk_image>\n", os.Args[0])
 	}
 
 	if *cpuprofile != "" {

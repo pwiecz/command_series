@@ -155,7 +155,10 @@ func ParseUnit(data [16]byte, unitNames []string, generals []General) (Unit, err
 	}
 	generalIndex := int(data[10])
 	if generalIndex >= len(generals) {
-		return Unit{}, fmt.Errorf("Too large general index. Expected <%d, got %d", len(generals), generalIndex)
+		// One of El-Alamein units have invalid general index set in available
+		// disk images.
+		fmt.Println("Too large general index. Expected <%d, got %d", len(generals), generalIndex)
+		generalIndex = 0
 	}
 	unit.GeneralIndex = generalIndex
 	unit.General = generals[generalIndex]

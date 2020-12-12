@@ -10,47 +10,26 @@ import "github.com/pwiecz/command_series/atr"
 import "github.com/pwiecz/command_series/data"
 
 type ScenarioSelection struct {
+	labels           []*Button
 	buttons          []*Button
 	scenarioSelected func(int)
 	intro            *Intro
 }
 
-func numToKey(n int) ebiten.Key {
-	switch n {
-	case 0:
-		return ebiten.Key0
-	case 1:
-		return ebiten.Key1
-	case 2:
-		return ebiten.Key2
-	case 3:
-		return ebiten.Key3
-	case 4:
-		return ebiten.Key4
-	case 5:
-		return ebiten.Key5
-	case 6:
-		return ebiten.Key6
-	case 7:
-		return ebiten.Key7
-	case 8:
-		return ebiten.Key8
-	case 9:
-		return ebiten.Key9
-	}
-	panic(fmt.Errorf("No key for num %d", n))
-}
-
 func NewScenarioSelection(scenarios []data.Scenario, font *data.Font, scenarioSelected func(int)) *ScenarioSelection {
+	labels := []*Button{
+		NewButton("SCENARIO SELECTION", 16, 32, image.Pt(300, 8), font),
+		NewButton(fmt.Sprintf("TYPE (1-%d)", len(scenarios)), 16, float64(56+len(scenarios)*8), image.Pt(300, 8), font)}
 	buttons := make([]*Button, len(scenarios))
-	x, y := 16.0, 16.0
+	x, y := 16.0, 48.0
 	fontSize := font.Size()
 	for i, scenario := range scenarios {
-		button := NewButton(fmt.Sprintf("%d: %s", i+1, scenario.Name), x, y, image.Pt(300, 8), font)
+		button := NewButton(fmt.Sprintf("%d. %s", i+1, scenario.Name), x, y, image.Pt(300, 8), font)
 		buttons[i] = button
 		y += float64(fontSize.Y)
 	}
 	return &ScenarioSelection{
+		labels:           labels,
 		buttons:          buttons,
 		scenarioSelected: scenarioSelected,
 		intro:            NewIntro(font)}
@@ -67,7 +46,9 @@ func (s *ScenarioSelection) Update() error {
 }
 func (s *ScenarioSelection) Draw(screen *ebiten.Image) {
 	screen.Fill(data.RGBPalette[15])
-	//	s.intro.Draw(screen)
+	for _, label := range s.labels {
+		label.Draw(screen)
+	}
 	for _, button := range s.buttons {
 		button.Draw(screen)
 	}
@@ -77,20 +58,26 @@ func (s *ScenarioSelection) Layout(outsideWidth, outsideHeight int) (int, int) {
 }
 
 type VariantSelection struct {
+	labels   []*Button
 	buttons  []*Button
 	mainGame *Game
 }
 
 func NewVariantSelection(mainGame *Game) *VariantSelection {
+	font := mainGame.sprites.IntroFont
+	labels := []*Button{
+		NewButton("VARIANT SELECTION", 16, 32, image.Pt(300, 8), font),
+		NewButton(fmt.Sprintf("TYPE (1-%d)", len(mainGame.variants)), 16, float64(56+len(mainGame.variants)*8), image.Pt(300, 8), font)}
 	buttons := make([]*Button, len(mainGame.variants))
-	x, y := 16.0, 16.0
-	fontSize := mainGame.sprites.IntroFont.Size()
+	x, y := 16.0, 48.0
+	fontSize := font.Size()
 	for i, variant := range mainGame.variants {
-		button := NewButton(fmt.Sprintf("%d: %s", i+1, variant.Name), x, y, image.Pt(300, 8), mainGame.sprites.IntroFont)
+		button := NewButton(fmt.Sprintf("%d. %s", i+1, variant.Name), x, y, image.Pt(300, 8), font)
 		buttons[i] = button
 		y += float64(fontSize.Y)
 	}
 	return &VariantSelection{
+		labels:   labels,
 		buttons:  buttons,
 		mainGame: mainGame}
 }
@@ -107,6 +94,9 @@ func (s *VariantSelection) Update() error {
 }
 func (s *VariantSelection) Draw(screen *ebiten.Image) {
 	screen.Fill(data.RGBPalette[15])
+	for _, label := range s.labels {
+		label.Draw(screen)
+	}
 	for _, button := range s.buttons {
 		button.Draw(screen)
 	}
@@ -314,4 +304,30 @@ func (l *VariantLoading) loadVariant() error {
 	var err error
 	l.mainGame.units, err = data.ReadUnits(l.mainGame.diskimage, unitsFilename, l.mainGame.game, l.mainGame.scenarioData.UnitNames, l.mainGame.generals)
 	return err
+}
+
+func numToKey(n int) ebiten.Key {
+	switch n {
+	case 0:
+		return ebiten.Key0
+	case 1:
+		return ebiten.Key1
+	case 2:
+		return ebiten.Key2
+	case 3:
+		return ebiten.Key3
+	case 4:
+		return ebiten.Key4
+	case 5:
+		return ebiten.Key5
+	case 6:
+		return ebiten.Key6
+	case 7:
+		return ebiten.Key7
+	case 8:
+		return ebiten.Key8
+	case 9:
+		return ebiten.Key9
+	}
+	panic(fmt.Errorf("No key for num %d", n))
 }

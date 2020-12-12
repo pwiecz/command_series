@@ -58,6 +58,7 @@ func NewShowMap(g *Game, options Options) *ShowMap {
 	s := &ShowMap{
 		mainGame:      g,
 		options:       options,
+		playerSide:    options.AlliedCommander,
 		commandBuffer: NewCommandBuffer(20),
 		sync:          NewMessageSync()}
 	rnd := rand.New(rand.NewSource(1))
@@ -187,6 +188,7 @@ func (s *ShowMap) Update() error {
 				s.options.UnitDisplay = 1 - s.options.UnitDisplay
 			case SwitchSides:
 				s.playerSide = 1 - s.playerSide
+				s.mapView.HideIcon()
 				s.messageBox.Clear()
 				s.messageBox.Print(s.mainGame.scenarioData.Sides[s.playerSide]+" PLAYER:", 2, 0, false)
 				s.messageBox.Print("PRESS \"T\" TO CONTINUE", 2, 1, false)
