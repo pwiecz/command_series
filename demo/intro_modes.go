@@ -13,7 +13,6 @@ type ScenarioSelection struct {
 	labels           []*Button
 	buttons          []*Button
 	scenarioSelected func(int)
-	intro            *Intro
 }
 
 func NewScenarioSelection(scenarios []data.Scenario, font *data.Font, scenarioSelected func(int)) *ScenarioSelection {
@@ -31,8 +30,7 @@ func NewScenarioSelection(scenarios []data.Scenario, font *data.Font, scenarioSe
 	return &ScenarioSelection{
 		labels:           labels,
 		buttons:          buttons,
-		scenarioSelected: scenarioSelected,
-		intro:            NewIntro(font)}
+		scenarioSelected: scenarioSelected}
 }
 
 func (s *ScenarioSelection) Update() error {
