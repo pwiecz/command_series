@@ -17,12 +17,12 @@ const (
 )
 
 type Options struct {
-	AlliedCommander int
-	GermanCommander int
+	AlliedCommander int // [0..1]
+	GermanCommander int // [0..1]
 	Intelligence    IntelligenceType
-	UnitDisplay     int
+	UnitDisplay     int // [0..1]
 	GameBalance     int // [0..4]
-	Speed           int
+	Speed           int // [1..3]
 }
 
 func (o Options) IsPlayerControlled(side int) bool {
@@ -60,7 +60,7 @@ type OptionSelection struct {
 var commanderStrings = [2]string{"PLAYER", "COMPUTER"}
 var intelligenceStrings = [2]string{"FULL", "LIMITED"}
 var unitDisplayStrings = [2]string{"SYMBOLS", "ICONS"}
-var speedStrings = [3]string{"SLOW", "MEDIUM", "FAST"}
+var speedStrings = [3]string{"FAST", "MEDIUM", "SLOW"}
 var crusadeSidesStrings = [2]string{"Allied", "German"}
 var decisionSidesStrings = [2]string{"British", "Axis"}
 var conflictSidesStrings = [2]string{"Free World", "Communist"}
@@ -72,7 +72,7 @@ func NewOptionSelection(mainGame *Game) *OptionSelection {
 	s.options.GermanCommander = 1
 	s.options.Intelligence = Limited
 	s.options.GameBalance = 2
-	s.options.Speed = 1
+	s.options.Speed = 2
 
 	var side0Command, side1Command string
 	switch mainGame.game {
@@ -117,7 +117,7 @@ func NewOptionSelection(mainGame *Game) *OptionSelection {
 	s.intelligenceButton = NewButton(intelligenceStrings[s.options.Intelligence], buttonPosition, 64, image.Pt(300, 8), font)
 	s.unitDisplayButton = NewButton(unitDisplayStrings[s.options.UnitDisplay], buttonPosition, 72, image.Pt(300, 8), font)
 	s.balanceButton = NewButton(s.balanceStrings[s.options.GameBalance], buttonPosition, 80, image.Pt(300, 8), font)
-	s.speedButton = NewButton(speedStrings[s.options.Speed], buttonPosition, 88, image.Pt(300, 8), font)
+	s.speedButton = NewButton(speedStrings[s.options.Speed-1], buttonPosition, 88, image.Pt(300, 8), font)
 
 	return s
 }
@@ -148,11 +148,17 @@ func (s *OptionSelection) changeGameBalance(forward bool) {
 }
 func (s *OptionSelection) changeGameSpeed(forward bool) {
 	if forward {
-		s.options.Speed = (s.options.Speed + 1) % 3
+		s.options.Speed++
+		if s.options.Speed > 3 {
+			s.options.Speed = 1
+		}
 	} else {
-		s.options.Speed = (s.options.Speed + 2) % 3
+		s.options.Speed--
+		if s.options.Speed < 1 {
+			s.options.Speed = 3
+		}
 	}
-	s.speedButton.Text = speedStrings[s.options.Speed]
+	s.speedButton.Text = speedStrings[s.options.Speed-1]
 }
 func (s *OptionSelection) Update() error {
 	if s.side0Button.Update() {
