@@ -69,6 +69,7 @@ func NewShowMap(g *Game, options Options) *ShowMap {
 		&g.icons.Sprites, &g.scenarioData.DaytimePalette, &g.scenarioData.NightPalette,
 		image.Pt(160, 19*8))
 	s.messageBox = NewMessageBox(image.Pt(336, 40), g.sprites.GameFont)
+	s.messageBox.Print("PREPARE FOR BATTLE!", 12, 1, false)
 	s.statusBar = NewMessageBox(image.Pt(376, 8), g.sprites.GameFont)
 	s.statusBar.SetTextColor(16)
 	s.statusBar.SetRowBackground(0, 30)
@@ -114,6 +115,7 @@ func (s *ShowMap) Update() error {
 		return nil
 	}
 	if !s.started && !s.areUnitsHidden {
+		s.idleTicksLeft = 100
 		go func() {
 			if !s.sync.Wait() {
 				return
@@ -287,7 +289,8 @@ loop:
 			}
 		case Reinforcements:
 			if message.Sides[s.playerSide] {
-				fmt.Println("\nREINFORCEMENTS!")
+				s.messageBox.Clear()
+				s.messageBox.Print("REINFORCEMENTS!", 2, 1, false)
 				s.idleTicksLeft = 100
 			}
 			break loop
@@ -303,7 +306,7 @@ loop:
 		case SupplyTruckMove:
 			if s.mapView.AreMapCoordsVisible(message.X0, message.Y0) || s.mapView.AreMapCoordsVisible(message.X1, message.Y1) {
 				s.animation = NewIconAnimation(s.mapView, data.SupplyTruck,
-					message.X0, message.Y0, message.X1, message.Y1, 4)
+					message.X0, message.Y0, message.X1, message.Y1, 3)
 				break loop
 			}
 		case WeatherForecast:
