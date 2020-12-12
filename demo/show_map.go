@@ -616,7 +616,10 @@ func (s *ShowMap) dateTimeString() string {
 	if s.gameState.hour >= 12 {
 		meridianString = "PM"
 	}
-	hour := Abs(s.gameState.hour - 12*((s.gameState.hour+11)/12-1))
+	hour := s.gameState.hour % 12
+	if hour == 0 {
+		hour = 12
+	}
 	return fmt.Sprintf("%d:%02d %s %s, %d %d  %s", hour, s.gameState.minute, meridianString, s.mainGame.scenarioData.Months[s.gameState.month], s.gameState.day+1, s.gameState.year, s.mainGame.scenarioData.Weather[s.gameState.weather])
 }
 
