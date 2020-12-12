@@ -65,7 +65,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		if gameWithDraw, ok := g.subGame.(interface{ Draw(*ebiten.Image) }); ok {
 			gameWithDraw.Draw(screen)
 		}
-	}
+	} else {
+		screen.Fill(data.RGBPalette[15])
+        }
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {

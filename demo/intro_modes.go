@@ -145,6 +145,7 @@ func (l *GameLoading) Update() error {
 	return nil
 }
 func (l *GameLoading) Draw(screen *ebiten.Image) {
+     	screen.Fill(data.RGBPalette[15])
 	if l.loadingRect == nil {
 		l.loadingRect = ebiten.NewImage(100, 1)
 	}
@@ -228,6 +229,7 @@ func (l *VariantsLoading) Update() error {
 
 }
 func (l *VariantsLoading) Draw(screen *ebiten.Image) {
+	screen.Fill(data.RGBPalette[15])
 	l.loadingText.Draw(screen)
 }
 func (l *VariantsLoading) Layout(outsideWidth, outsideHeight int) (int, int) {
@@ -263,13 +265,12 @@ func (l *VariantsLoading) loadVariants() (err error) {
 
 type VariantLoading struct {
 	mainGame    *Game
+	loadingText *Button
 	loadingDone chan error
 }
 
 func NewVariantLoading(mainGame *Game) *VariantLoading {
-	return &VariantLoading{
-		mainGame: mainGame,
-	}
+	return &VariantLoading{mainGame: mainGame}
 }
 func (l *VariantLoading) Update() error {
 	if l.loadingDone == nil {
@@ -292,8 +293,13 @@ func (l *VariantLoading) Update() error {
 
 }
 func (l *VariantLoading) Draw(screen *ebiten.Image) {
-	//	ebitenutil.DebugPrint(screen, "... LOADING ...")
+	screen.Fill(data.RGBPalette[15])
+	if (l.loadingText == nil) {
+		l.loadingText = NewButton("... LOADING ...", 0, 0, image.Pt(120, 8), l.mainGame.sprites.IntroFont)
+        }
+        l.loadingText.Draw(screen)
 }
+
 func (l *VariantLoading) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return 336, 240
 }
