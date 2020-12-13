@@ -940,29 +940,31 @@ l21:
 		if !ok {
 			panic("")
 		}
-		tt := s.terrainType(unit.Terrain)
-		message = WeAreAttacking{unit, unit2, tt /* placeholder value */, s.scenarioData.Formations}
-		var attackingSideScore int
+		message = WeAreAttacking{unit, unit2, 0 /* placeholder value */, s.scenarioData.Formations}
+		var attackerScore int
 		{
+			tt := s.terrainType(unit.Terrain)
+			var menCoeff int
 			if !unit.FormationTopBit {
-				attackingSideScore = s.scenarioData.TerrainMenAttack[tt] * s.scenarioData.FormationMenAttack[unit.Formation] * unit.MenCount / 32
+				menCoeff = s.scenarioData.TerrainMenAttack[tt] * s.scenarioData.FormationMenAttack[unit.Formation] * unit.MenCount / 32
 			}
-			v2 := s.scenarioData.TerrainTankAttack[tt] * s.scenarioData.FormationTankAttack[unit.Formation] * s.scenarioData.Data16High[unit.Type] / 2 * unit.EquipCount / 64
+			tankCoeff := s.scenarioData.TerrainTankAttack[tt] * s.scenarioData.FormationTankAttack[unit.Formation] * s.scenarioData.Data16High[unit.Type] / 2 * unit.EquipCount / 64
 			if unit.FormationTopBit &&
 				((s.game != data.Conflict && s.scenarioData.Data32[unit.Type]&8 > 0) ||
 					(s.game == data.Conflict && s.scenarioData.Data32[unit.Type]&32 > 0)) {
+				// long range unit
 				if weather > 3 {
 					goto end
 				}
-				v2 = v2 * (4 - weather) / 4
+				tankCoeff = tankCoeff * (4 - weather) / 4
 			}
-			attackingSideScore = (attackingSideScore + v2) * unit.Morale / 256 * (255 - unit.Fatigue) / 128
-			attackingSideScore = attackingSideScore * s.generals[unit.Side][unit.GeneralIndex].Attack / 16
-			attackingSideScore = attackingSideScore * s.magicCoeff(s.hexes.Arr144[:], unit.X, unit.Y, unit.Side) / 8
-			attackingSideScore++
+			attackerScore = (menCoeff + tankCoeff) * unit.Morale / 256 * (255 - unit.Fatigue) / 128
+			attackerScore = attackerScore * s.generals[unit.Side][unit.GeneralIndex].Attack / 16
+			attackerScore = attackerScore * s.magicCoeff(s.hexes.Arr144[:], unit.X, unit.Y, unit.Side) / 8
+			attackerScore++
 		}
 
-		var defendingSideScore int
+		var defenderScore int
 		{
 			tt2 := s.terrainType(unit2.Terrain)
 			if s.scenarioData.UnitScores[unit2.Type]&248 > 0 {
@@ -971,15 +973,16 @@ l21:
 
 			menCoeff := s.scenarioData.TerrainMenDefence[tt2] * s.scenarioData.FormationMenDefence[unit2.Formation] * unit2.MenCount / 32
 			equipCoeff := s.scenarioData.TerrainTankAttack[tt2] * s.scenarioData.FormationTankDefence[unit2.Formation] * s.scenarioData.Data16Low[unit2.Type] / 2 * unit2.EquipCount / 64
-			defendingSideScore = (menCoeff + equipCoeff) * unit2.Morale / 256 * (240 - unit2.Fatigue/2) / 128 * s.generals[1-unit.Side][unit2.GeneralIndex].Defence / 16
+			defenderScore = (menCoeff + equipCoeff) * unit2.Morale / 256 * (240 - unit2.Fatigue/2) / 128
+			defenderScore = defenderScore * s.generals[1-unit.Side][unit2.GeneralIndex].Defence / 16
 			if unit2.SupplyLevel == 0 {
-				defendingSideScore = defendingSideScore * s.scenarioData.Data167 / 8
+				defenderScore = defenderScore * s.scenarioData.Data167 / 8
 			}
-			defendingSideScore = defendingSideScore * s.magicCoeff(s.hexes.Arr144[:], unit2.X, unit2.Y, 1-unit.Side) / 8
-			defendingSideScore++
+			defenderScore = defenderScore * s.magicCoeff(s.hexes.Arr144[:], unit2.X, unit2.Y, 1-unit.Side) / 8
+			defenderScore++
 		}
 
-		arg1 = defendingSideScore * 16 / attackingSideScore
+		arg1 = defenderScore * 16 / attackerScore
 		if s.scenarioData.UnitMask[unit.Type]&4 == 0 {
 			arg1 += weather
 		}
@@ -1003,9 +1006,12 @@ l21:
 		}
 		unit.Fatigue = Clamp(unit.Fatigue+arg1, 0, 255)
 		unit.SupplyLevel = Clamp(unit.SupplyLevel-s.scenarioData.Data162, 0, 255)
-		arg1 = Clamp(attackingSideScore*16/defendingSideScore-weather, 0, 63)
-		if s.game != data.Crusade {
-			arg1 = Clamp(attackingSideScore*16/defendingSideScore-weather, 0, 128)
+
+		arg1 = attackerScore*16/defenderScore - weather
+		if s.game == data.Crusade {
+			arg1 = Clamp(arg1, 0, 63)
+		} else {
+			arg1 = Clamp(arg1, 0, 128)
 		}
 		// function13(sx, sy)
 		// function4(arg1) - some delay?
@@ -1123,8 +1129,8 @@ l21:
 end: // l3
 	for unit.Formation != unit.TargetFormation {
 		// changing to target formation???
-		dif := Sign((unit.Formation & 7) - unit.TargetFormation)
-		temp := s.scenarioData.Data216[4+dif*4+unit.Formation]
+		dif := Sign(unit.Formation - unit.TargetFormation)
+		temp := s.scenarioData.Data216[(dif+1)*4+unit.Formation]
 		if temp > Rand(15, s.rand) {
 			unit.FormationTopBit = false
 			unit.Formation -= dif
