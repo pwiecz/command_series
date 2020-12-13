@@ -62,9 +62,7 @@ func (g *Game) Update() error {
 
 func (g *Game) Draw(screen *ebiten.Image) {
 	if g.subGame != nil {
-		if gameWithDraw, ok := g.subGame.(interface{ Draw(*ebiten.Image) }); ok {
-			gameWithDraw.Draw(screen)
-		}
+		g.subGame.Draw(screen)
 	} else {
 		screen.Fill(data.RGBPalette[15])
         }
