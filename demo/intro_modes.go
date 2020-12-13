@@ -51,9 +51,6 @@ func (s *ScenarioSelection) Draw(screen *ebiten.Image) {
 		button.Draw(screen)
 	}
 }
-func (s *ScenarioSelection) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return 336, 240
-}
 
 type VariantSelection struct {
 	labels   []*Button
@@ -99,9 +96,6 @@ func (s *VariantSelection) Draw(screen *ebiten.Image) {
 		button.Draw(screen)
 	}
 }
-func (s *VariantSelection) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return 336, 240
-}
 
 type GameLoading struct {
 	diskimage    atr.SectorReader
@@ -145,7 +139,7 @@ func (l *GameLoading) Update() error {
 	return nil
 }
 func (l *GameLoading) Draw(screen *ebiten.Image) {
-     	screen.Fill(data.RGBPalette[15])
+	screen.Fill(data.RGBPalette[15])
 	if l.loadingRect == nil {
 		l.loadingRect = ebiten.NewImage(100, 1)
 	}
@@ -157,10 +151,6 @@ func (l *GameLoading) Draw(screen *ebiten.Image) {
 	var opts ebiten.DrawImageOptions
 	opts.GeoM.Translate(100, 50)
 	l.loadingRect.DrawImage(screen, &opts)
-}
-
-func (s *GameLoading) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return 336, 240
 }
 
 func (l *GameLoading) loadGameData() error {
@@ -232,9 +222,6 @@ func (l *VariantsLoading) Draw(screen *ebiten.Image) {
 	screen.Fill(data.RGBPalette[15])
 	l.loadingText.Draw(screen)
 }
-func (l *VariantsLoading) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return 336, 240
-}
 func (l *VariantsLoading) loadVariants() (err error) {
 	variantsFilename := l.scenario.FilePrefix + ".VAR"
 	l.mainGame.variants, err = data.ReadVariants(l.mainGame.diskimage, variantsFilename)
@@ -294,15 +281,12 @@ func (l *VariantLoading) Update() error {
 }
 func (l *VariantLoading) Draw(screen *ebiten.Image) {
 	screen.Fill(data.RGBPalette[15])
-	if (l.loadingText == nil) {
+	if l.loadingText == nil {
 		l.loadingText = NewButton("... LOADING ...", 0, 0, image.Pt(120, 8), l.mainGame.sprites.IntroFont)
-        }
-        l.loadingText.Draw(screen)
+	}
+	l.loadingText.Draw(screen)
 }
 
-func (l *VariantLoading) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return 336, 240
-}
 func (l *VariantLoading) loadVariant() error {
 	unitsFilename := l.mainGame.scenarios[l.mainGame.selectedScenario].FilePrefix + ".UNI"
 	var err error

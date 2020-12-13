@@ -2,11 +2,17 @@ package main
 
 import "fmt"
 import "github.com/hajimehoshi/ebiten"
+import "github.com/hajimehoshi/oto"
+
 import "github.com/pwiecz/command_series/atr"
 import "github.com/pwiecz/command_series/data"
 
+type SubGame interface {
+	Update() error
+	Draw(screen *ebiten.Image)
+}
 type Game struct {
-	subGame          ebiten.Game
+	subGame          SubGame
 	diskimage        atr.SectorReader
 	game             data.Game
 	sprites          data.Sprites
@@ -22,6 +28,9 @@ type Game struct {
 	scenarioData     data.ScenarioData
 	selectedVariant  int
 	units            [2][]data.Unit
+
+	otoContext  *oto.Context
+	audioPlayer *AudioPlayer
 }
 
 func NewGame(filename string) (*Game, error) {
@@ -29,11 +38,16 @@ func NewGame(filename string) (*Game, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Cannot open atr image file %s (%v)", filename, err)
 	}
+	otoContext, err := oto.NewContext(44100, 2 /* num channels */, 1 /* num bytes per sample */, 4096 /* buffer size */)
+	if err != nil {
+		return nil, fmt.Errorf("Cannot create Oto context (%v)", err)
+	}
 	game := &Game{
 		diskimage:        diskimage,
 		selectedScenario: -1,
 		selectedVariant:  -1,
-	}
+		otoContext:       otoContext,
+		audioPlayer:      NewAudioPlayer(otoContext)}
 	game.subGame = NewGameLoading(diskimage, game.onGameLoaded)
 	return game, nil
 }
@@ -65,12 +79,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		g.subGame.Draw(screen)
 	} else {
 		screen.Fill(data.RGBPalette[15])
-        }
+	}
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	if g.subGame != nil {
-		return g.subGame.Layout(outsideWidth, outsideHeight)
-	}
 	return 336, 240
 }

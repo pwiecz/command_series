@@ -7,7 +7,6 @@ import "math/rand"
 
 import "github.com/hajimehoshi/ebiten"
 import "github.com/hajimehoshi/ebiten/inpututil"
-import "github.com/hajimehoshi/oto"
 
 import "github.com/pwiecz/command_series/data"
 
@@ -38,10 +37,9 @@ type ShowMap struct {
 
 	overviewMap *OverviewMap
 
-	otoContext *oto.Context
-	player     *AudioPlayer
-
 	lastMessageFromUnit MessageFromUnit
+
+	gameOver bool
 }
 
 func NewShowMap(g *Game, options Options) *ShowMap {
@@ -76,12 +74,6 @@ func NewShowMap(g *Game, options Options) *ShowMap {
 
 	s.topRect = NewRectangle(image.Pt(336, 22))
 	s.separatorRect = NewRectangle(image.Pt(336, 2))
-	otoContext, err := oto.NewContext(44100, 2 /* num channels */, 1 /* num bytes per sample */, 4096 /* buffer size */)
-	if err != nil {
-		panic(err)
-	}
-	s.otoContext = otoContext
-	s.player = NewAudioPlayer(s.otoContext)
 	return s
 }
 
@@ -131,7 +123,14 @@ func (s *ShowMap) Update() error {
 		}()
 		s.started = true
 	}
-
+	if s.gameOver {
+		if ebiten.IsKeyPressed(ebiten.KeyShift) && inpututil.IsKeyJustPressed(ebiten.KeySlash) {
+			result, balance, rank := s.gameState.FinalResults()
+			s.mainGame.subGame = NewFinalResult(s.mainGame, result, balance, rank)
+		}
+		s.statusBar.Print("GAME OVER, PRESS '?' FOR RESULTS.", 2, 0, false)
+		return nil
+	}
 	s.commandBuffer.Update()
 	if s.animation != nil {
 		s.animation.Update()
@@ -295,12 +294,15 @@ loop:
 			}
 			break loop
 		case GameOver:
-			fmt.Printf("\n%s\n", message.Results)
-			return fmt.Errorf("GAME OVER!")
+			s.gameOver = true
+			s.showStatusReport()
+			//fmt.Printf("\n%s\n", message.Results)
+			//return fmt.Errorf("GAME OVER!")
+			break loop
 		case UnitMove:
 			if s.mapView.AreMapCoordsVisible(message.X0, message.Y0) || s.mapView.AreMapCoordsVisible(message.X1, message.Y1) {
-				s.animation = NewUnitAnimation(s.mapView, s.player, message.Unit,
-					message.X0, message.Y0, message.X1, message.Y1, 30)
+				s.animation = NewUnitAnimation(s.mapView, s.mainGame.audioPlayer,
+					message.Unit, message.X0, message.Y0, message.X1, message.Y1, 30)
 				break loop
 			}
 		case SupplyTruckMove:
@@ -675,7 +677,4 @@ func (s *ShowMap) Draw(screen *ebiten.Image) {
 	s.statusBar.Draw(screen, &opts)
 	opts.GeoM.Translate(0, 8)
 	s.separatorRect.Draw(screen, &opts)
-}
-func (s *ShowMap) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return 336, 240
 }

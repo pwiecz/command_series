@@ -157,7 +157,7 @@ func (s *GameState) Update() bool {
 		if s.hour == 18 {
 			if s.isGameOver() {
 				s.sync.SendUpdate(TimeChanged{})
-				s.sync.SendUpdate(GameOver{s.finalResults()})
+				s.sync.SendUpdate(GameOver{})
 				return false
 			}
 		}
@@ -1765,14 +1765,14 @@ func (s *GameState) everyDay() bool {
 	if !s.every12Hours() {
 		return false
 	}
-	s.sync.SendUpdate(DailyUpdate{
-		DaysRemaining: s.variant.LengthInDays - s.daysElapsed + 1,
-		SupplyLevel:   Clamp(s.supplyLevels[s.playerSide]/256, 0, 2)})
 	for _, update := range s.scenarioData.DataUpdates {
 		if update.Day == s.daysElapsed {
 			s.scenarioData.UpdateData(update.Offset, update.Value)
 		}
 	}
+	s.sync.SendUpdate(DailyUpdate{
+		DaysRemaining: s.variant.LengthInDays - s.daysElapsed + 1,
+		SupplyLevel:   Clamp(s.supplyLevels[s.playerSide]/256, 0, 2)})
 	return true
 }
 
@@ -1834,7 +1834,7 @@ func (s *GameState) statusReport() string {
 	return strings.Join(strs, "\n")
 }
 
-func (s *GameState) finalResults() string {
+func (s *GameState) FinalResults() (int, int, int) {
 	winningSide, advantage := s.winningSideAndAdvantage()
 	absoluteAdvantage := 6
 	if winningSide == 0 {
@@ -1843,14 +1843,20 @@ func (s *GameState) finalResults() string {
 		absoluteAdvantage += advantage
 	}
 	v73 := s.playerSide
-	if s.options.Num()%4 == 0 { // if a demonstration game
+	if s.options.Num()%4 == 0 { // if a two-player game?
 		if absoluteAdvantage < 6 {
 			v73 = 1
 		} else {
 			v73 = 0
 		}
 	}
-	v74 := absoluteAdvantage + v73*(11-absoluteAdvantage*2)
+	var v74 int
+	if v73 == 0 {
+		v74 = absoluteAdvantage
+	} else {
+		v74 = 11 - absoluteAdvantage
+	}
+
 	criticalLocationBalance := s.criticalLocationsCaptured[0] - s.criticalLocationsCaptured[1]
 	if criticalLocationBalance >= s.variant.CriticalLocations[0] {
 		v74 = 1 + 9*(1-v73)
@@ -1858,16 +1864,9 @@ func (s *GameState) finalResults() string {
 	if -criticalLocationBalance >= s.variant.CriticalLocations[1] {
 		v74 = 1 + 9*v73
 	}
-	var strs []string
-	finalResults := []string{"TOTAL DEFEAT", "DECISIVE DEFEAT", "TACTICAL DEFEAT", "MARGINAL DEFEAT", "DEFEAT", "DISADVANTAGE", "ADVANTAGE", "MARGINAL VICTORY", "TACTICAL VICTORY", "DECISIVE VICTORY", "TOTAL VICTORY"}
-	strs = append(strs, fmt.Sprintf("FINAL RESULT: %s", finalResults[v74-1]))
 	balance := s.options.GameBalance + v73*(4-2*s.options.GameBalance)
-	balances := []string{"VERY DIFFICULT", "DIFFICULT", "FAIR", "EASY", "VERY EASY"}
-	strs = append(strs, fmt.Sprintf("PLAY BALANCE: %s", balances[balance-1]))
 	rank := Min(v74-2*balance+4, 12)
-	ranks := []string{"PRIVATE", "SERGEANT", "LIEUTENANT", "CAPTAIN", "MAJOR", "LIEUTENANT-COLONEL", "COLONEL", "BRIGADIER-GENERAL", "MAJOR-GENERAL", "LIEUTENANT-GENERAL", "FIELD MARSHAL", "SUPREME COMMANDER"}
-	strs = append(strs, fmt.Sprintf("YOUR RANK: %s", ranks[rank-1]))
-	return strings.Join(strs, "\n")
+	return v74 - 1, balance - 1, rank - 1
 }
 func (s *GameState) isGameOver() bool {
 	if s.daysElapsed >= s.variant.LengthInDays {

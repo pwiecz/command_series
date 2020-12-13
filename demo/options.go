@@ -247,7 +247,3 @@ func (s *OptionSelection) Draw(screen *ebiten.Image) {
 	opts.GeoM.Translate(32, float64(s.cursorRow*8+48))
 	screen.DrawImage(s.cursorImage, &opts)
 }
-
-func (s *OptionSelection) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return 336, 240
-}
