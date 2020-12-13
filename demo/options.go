@@ -9,41 +9,11 @@ import "github.com/hajimehoshi/ebiten/inpututil"
 
 import "github.com/pwiecz/command_series/data"
 
-type IntelligenceType int
-
-const (
-	Full    IntelligenceType = 0
-	Limited IntelligenceType = 1
-)
-
-type Options struct {
-	AlliedCommander int // [0..1]
-	GermanCommander int // [0..1]
-	Intelligence    IntelligenceType
-	UnitDisplay     int // [0..1]
-	GameBalance     int // [0..4]
-	Speed           int // [1..3]
-}
-
-func (o Options) IsPlayerControlled(side int) bool {
-	if side == 0 {
-		return o.AlliedCommander == 0
-	}
-	return o.GermanCommander == 0
-}
-func (o Options) Num() int {
-	n := o.AlliedCommander + 2*o.GermanCommander
-	if o.Intelligence == Limited {
-		n += 56 - 4*(o.AlliedCommander*o.GermanCommander+o.AlliedCommander)
-	}
-	return n
-}
-
 type OptionSelection struct {
 	mainGame       *Game
 	balanceStrings []string
 
-	options Options
+	options data.Options
 
 	labels             []*Button
 	side0Button        *Button
@@ -70,7 +40,7 @@ var conflictBalanceStrings = [5]string{"++COMMUNIST", "+COMMUNIST", "EVEN", "+FR
 func NewOptionSelection(mainGame *Game) *OptionSelection {
 	s := &OptionSelection{mainGame: mainGame}
 	s.options.GermanCommander = 1
-	s.options.Intelligence = Limited
+	s.options.Intelligence = data.Limited
 	s.options.GameBalance = 2
 	s.options.Speed = 2
 

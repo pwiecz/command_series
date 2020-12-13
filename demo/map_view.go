@@ -114,8 +114,8 @@ func (v *MapView) GetCursorPosition() (int, int) {
 	return v.cursorX, v.cursorY
 }
 func (v *MapView) SetCursorPosition(x, y int) {
-	v.cursorX = Clamp(x, v.minX, v.maxX)
-	v.cursorY = Clamp(y, v.minY, v.maxY)
+	v.cursorX = data.Clamp(x, v.minX, v.maxX)
+	v.cursorY = data.Clamp(y, v.minY, v.maxY)
 	v.makeCursorVisible()
 }
 func (v *MapView) makeCursorVisible() {

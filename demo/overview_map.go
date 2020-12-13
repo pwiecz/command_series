@@ -8,12 +8,12 @@ type OverviewMap struct {
 	terrainMap   *data.Map
 	generic      *data.Generic
 	scenarioData *data.ScenarioData
-	options      *Options
+	options      *data.Options
 	units        *[2][]data.Unit
 	cycle        int
 }
 
-func NewOverviewMap(terrainMap *data.Map, units *[2][]data.Unit, generic *data.Generic, scenarioData *data.ScenarioData, options *Options) *OverviewMap {
+func NewOverviewMap(terrainMap *data.Map, units *[2][]data.Unit, generic *data.Generic, scenarioData *data.ScenarioData, options *data.Options) *OverviewMap {
 	return &OverviewMap{
 		terrainMap:   terrainMap,
 		units:        units,
@@ -58,7 +58,7 @@ func (m *OverviewMap) Draw(screen *ebiten.Image, opts *ebiten.DrawImageOptions) 
 	for side, sideUnits := range m.units {
 		color := m.scenarioData.SideColor[side]*16 + colors[side]
 		for _, unit := range sideUnits {
-			if unit.IsInGame && (unit.InContactWithEnemy || unit.SeenByEnemy || m.options.IsPlayerControlled(side) || m.options.Intelligence == Full) {
+			if unit.IsInGame && (unit.InContactWithEnemy || unit.SeenByEnemy || m.options.IsPlayerControlled(side) || m.options.Intelligence == data.Full) {
 				m.image.Set(unit.X/2, unit.Y, data.RGBPalette[color])
 			}
 		}
