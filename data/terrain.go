@@ -36,8 +36,7 @@ func ReadTerrain(diskimage atr.SectorReader, filename string, game Game) (Terrai
 		}
 		reader = bytes.NewReader(decoded)
 	} else {
-		// Skip first two bytes of the file (they are all zeroes).
-		reader = bytes.NewReader(fileData[2:])
+		reader = bytes.NewReader(fileData)
 	}
 	terrain, err := ParseTerrain(reader)
 	if err != nil {
