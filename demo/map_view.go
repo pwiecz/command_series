@@ -302,7 +302,7 @@ func (v *MapView) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
 	}
 	cursorX, cursorY := v.MapCoordsToScreenCoords(v.cursorX, v.cursorY)
 	v.drawSpriteAtCoords(v.cursorImage, float64(cursorX-6), float64(cursorY-2), screen, options)
-	if v.shownIcon != nil {
+	if v.shownIcon != nil && v.AreMapCoordsVisible(v.iconX, v.iconY) {
 		iconX, iconY := v.MapCoordsToScreenCoords(v.iconX, v.iconY)
 		v.drawSpriteAtCoords(v.shownIcon, float64(iconX), float64(iconY-5), screen, options)
 	}
