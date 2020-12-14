@@ -131,12 +131,7 @@ func (s *ShowMap) Update() error {
 		s.started = true
 	}
 	if s.gameOver {
-		if ebiten.IsKeyPressed(ebiten.KeyShift) && inpututil.IsKeyJustPressed(ebiten.KeySlash) {
-			result, balance, rank := s.gameState.FinalResults()
-			s.onGameOver(result, balance, rank)
-		}
 		s.statusBar.Print("GAME OVER, PRESS '?' FOR RESULTS.", 2, 0, false)
-		return nil
 	}
 	s.commandBuffer.Update()
 	if s.animation != nil {
@@ -153,6 +148,9 @@ func (s *ShowMap) Update() error {
 		case cmd := <-s.commandBuffer.Commands:
 			switch cmd {
 			case Freeze:
+				if s.gameOver {
+					break
+				}
 				s.isFrozen = !s.isFrozen
 				s.idleTicksLeft = 0
 				s.statusBar.Clear()
@@ -162,8 +160,13 @@ func (s *ShowMap) Update() error {
 					s.statusBar.Print("UNFROZEN", 2, 0, false)
 				}
 			case StatusReport:
-				s.showStatusReport()
-				s.idleTicksLeft = 60 * s.options.Speed
+				if !s.gameOver {
+					s.showStatusReport()
+					s.idleTicksLeft = 60 * s.options.Speed
+				} else {
+					result, balance, rank := s.gameState.FinalResults()
+					s.onGameOver(result, balance, rank)
+				}
 			case UnitInfo:
 				s.showUnitInfo()
 				s.idleTicksLeft = 60 * s.options.Speed
@@ -263,7 +266,7 @@ func (s *ShowMap) Update() error {
 			s.mapView.SetCursorPosition(x/2, y)
 		}
 	}
-	if s.isFrozen || s.areUnitsHidden {
+	if s.isFrozen || s.areUnitsHidden || s.gameOver {
 		return nil
 	}
 	if s.idleTicksLeft > 0 {
@@ -303,10 +306,11 @@ loop:
 		case data.GameOver:
 			s.gameOver = true
 			s.showStatusReport()
+			s.statusBar.Print("GAME OVER, PRESS '?' FOR RESULTS.", 2, 0, false)
 			break loop
 		case data.UnitMove:
 			if s.mapView.AreMapCoordsVisible(message.X0, message.Y0) || s.mapView.AreMapCoordsVisible(message.X1, message.Y1) {
-				s.animation = NewUnitAnimation(s.mapView, /*s.audioPlayer*/nil,
+				s.animation = NewUnitAnimation(s.mapView /*s.audioPlayer*/, nil,
 					message.Unit, message.X0, message.Y0, message.X1, message.Y1, 30)
 				break loop
 			}
