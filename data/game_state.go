@@ -252,25 +252,15 @@ nextUnit:
 				temp += s.map0[1-unit.Side][sx+dx][sy+dy]
 			}
 		}
-		// If there are no enemy units in neaby "small" map and there is a supply line to unit and sth then look at the "tiny" map.
-		if temp == 0 &&
+		// If there are no enemy units in neaby "small" map and there is a supply line to unit and sth (not a special unit?) then look at the "tiny" map.
+		if temp == 0 && unit.HasSupplyLine &&
 			((s.game != Conflict && s.scenarioData.UnitScores[unit.Type]&248 == 0) ||
-				(s.game == Conflict && s.scenarioData.UnitMask[unit.Type&1] == 0)) &&
-			unit.HasSupplyLine {
+				(s.game == Conflict && s.scenarioData.UnitMask[unit.Type&1] == 0)) {
 			tx, ty := unit.X/32, unit.Y/16
-			//unit.X /= 4
-			//unit.Y /= 4
 			arg1 = -17536 // 48000
 			bestI := 0
 			bestX, bestY := 0, 0
 			for i := 0; i < 9; i++ {
-				//t := s.generic.Data44[i]
-				//if !InRange(Sign(int(int8((t&6)*32)))*8+unit.X+1, 1, 33) {
-				//	panic("")
-				//}
-				//if !InRange(Sign((int(int8(t))+2)/8)*4+unit.Y+1, 1, 17) {
-				//	panic("")
-				//}
 				dx, dy := s.generic.TinyMapOffsets(i)
 				x, y := tx+dx, ty+dy
 				if !InRange(x, 0, 4) || !InRange(y, 0, 4) {
@@ -281,6 +271,7 @@ nextUnit:
 				tmp := val * s.function26(unit.X/4, unit.Y/4, i) / 8
 				if i == 0 {
 					// Prioritize staying withing the same square.
+					// But why, if we seem to ignore the i==0 solution later..?
 					tmp *= 2
 				}
 				if tmp > arg1 {
@@ -289,8 +280,6 @@ nextUnit:
 					bestX, bestY = x, y
 				}
 			}
-			// reload the unit as its coords have been overwritten
-			//unit = s.units[s.lastUpdatedUnit%2][s.lastUpdatedUnit/2]
 			// Set unit objective to the center of the target square.
 			if bestI > 0 {
 				unit.TargetFormation = 0
@@ -336,8 +325,8 @@ nextUnit:
 				unit.MenCount = s.map0[unit.Side][sx+dx][sy+dy]
 				unit.EquipCount = (unit.MenCount + s.map3[unit.Side][sx+dx][sy+dy]) / 2
 				v16 := s.map0[1-unit.Side][sx+dx][sy+dy] / 2
-				for i := 0; i <= 7; i++ {
-					ddx, ddy := s.generic.SmallMapOffsets(i + 1)
+				for i := 1; i <= 8; i++ {
+					ddx, ddy := s.generic.SmallMapOffsets(i)
 					if !InRange(sx+dx+ddx, 0, 16) || !InRange(sy+dy+ddy, 0, 16) {
 						continue
 					}
@@ -1823,15 +1812,15 @@ func (s *GameState) WinningSideAndAdvantage() (winningSide int, advantage int) {
 
 func (s *GameState) FinalResults() (int, int, int) {
 	winningSide, advantage := s.WinningSideAndAdvantage()
-	absoluteAdvantage := 6
+	var absoluteAdvantage int // a number from [1..10]
 	if winningSide == 0 {
-		absoluteAdvantage -= advantage + 1
+		absoluteAdvantage = advantage + 6
 	} else {
-		absoluteAdvantage += advantage
+		absoluteAdvantage = 5 - advantage
 	}
 	v73 := s.playerSide
 	if s.options.Num()%4 == 0 { // if a two-player game?
-		if absoluteAdvantage < 6 {
+		if advantage < 6 {
 			v73 = 1
 		} else {
 			v73 = 0
