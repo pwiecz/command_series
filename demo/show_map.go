@@ -306,7 +306,7 @@ loop:
 			break loop
 		case data.UnitMove:
 			if s.mapView.AreMapCoordsVisible(message.X0, message.Y0) || s.mapView.AreMapCoordsVisible(message.X1, message.Y1) {
-				s.animation = NewUnitAnimation(s.mapView, s.audioPlayer,
+				s.animation = NewUnitAnimation(s.mapView, /*s.audioPlayer*/nil,
 					message.Unit, message.X0, message.Y0, message.X1, message.Y1, 30)
 				break loop
 			}
