@@ -46,6 +46,7 @@ type Unit struct {
 	SupplyUnit           int // Index of this unit's supply unit
 	FormationTopBit      bool
 	Type                 int
+	TypeName             string
 	ColorPalette         int
 	Name                 string
 	TargetFormation      int
@@ -67,6 +68,9 @@ type Unit struct {
 	Index int
 }
 
+func (u Unit) String() string {
+	return u.Name + " " + u.TypeName
+}
 func (u *Unit) ClearState() {
 	u.InContactWithEnemy = false
 	u.IsUnderAttack = false
@@ -86,7 +90,7 @@ type FlashbackUnit struct {
 	Terrain      byte
 }
 
-func ReadUnits(diskimage atr.SectorReader, filename string, game Game, unitNames [2][]string, generals [2][]General) ([2][]Unit, error) {
+func ReadUnits(diskimage atr.SectorReader, filename string, game Game, unitTypeNames []string, unitNames [2][]string, generals [2][]General) ([2][]Unit, error) {
 	fileData, err := atr.ReadFile(diskimage, filename)
 	if err != nil {
 		return [2][]Unit{}, fmt.Errorf("Cannot read units file %s (%v)", filename, err)
@@ -102,14 +106,14 @@ func ReadUnits(diskimage atr.SectorReader, filename string, game Game, unitNames
 		// Skip first two bytes of the file (they are all zeroes).
 		reader = bytes.NewReader(fileData[2:])
 	}
-	units, err := ParseUnits(reader, unitNames, generals)
+	units, err := ParseUnits(reader, unitTypeNames, unitNames, generals)
 	if err != nil {
 		return [2][]Unit{}, fmt.Errorf("Cannot parse units file %s (%v)", filename, err)
 	}
 	return units, nil
 }
 
-func ParseUnit(data [16]byte, unitNames []string, generals []General) (Unit, error) {
+func ParseUnit(data [16]byte, unitTypeNames []string, unitNames []string, generals []General) (Unit, error) {
 	var unit Unit
 	state := data[0]
 	unit.InContactWithEnemy = state&1 != 0
@@ -129,6 +133,10 @@ func ParseUnit(data [16]byte, unitNames []string, generals []General) (Unit, err
 	unit.FormationTopBit = data[5]&128 != 0
 	unit.VariantBitmap = data[6]
 	unit.Type = int(data[7] & 15)
+	if unit.Type >= len(unitTypeNames) {
+		return Unit{}, fmt.Errorf("Invalid unit type number: %d", unit.Type)
+	}
+	unit.TypeName = unitTypeNames[unit.Type]
 	unit.ColorPalette = int(data[7] / 16)
 	nameIndex := int(data[8] & 127)
 	// E.g. one Sidi unit have name index equal to the number of names.
@@ -169,7 +177,7 @@ func ParseUnit(data [16]byte, unitNames []string, generals []General) (Unit, err
 	return unit, nil
 }
 
-func ParseUnits(data io.Reader, unitNames [2][]string, generals [2][]General) ([2][]Unit, error) {
+func ParseUnits(data io.Reader, unitTypeNames []string, unitNames [2][]string, generals [2][]General) ([2][]Unit, error) {
 	var units [2][]Unit
 	for i := 0; i < 128; i++ {
 		var unitData [16]byte
@@ -181,7 +189,7 @@ func ParseUnits(data io.Reader, unitNames [2][]string, generals [2][]General) ([
 			unitData[15] = 100
 		}
 		side := i / 64
-		unit, err := ParseUnit(unitData, unitNames[side], generals[side])
+		unit, err := ParseUnit(unitData, unitTypeNames, unitNames[side], generals[side])
 		if err != nil {
 			return [2][]Unit{}, fmt.Errorf("Error parsing unit %d (%v)", i, err)
 		}

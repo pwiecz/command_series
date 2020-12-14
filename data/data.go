@@ -7,8 +7,7 @@ import "io"
 import "github.com/pwiecz/command_series/atr"
 
 // Representation of data parsed from {scenario}.DTA files.
-type ScenarioData struct {
-	Data       [512]byte
+type Data struct {
 	Data0Low   [16]int // Data[0:16] per unit type (lower 4 bits)
 	Data0High  [16]int // Data[0:16] per unit type (higher 4 bits)
 	Data16Low  [16]int // Data[16:32] per unit type (lower 4 bits)
@@ -88,135 +87,133 @@ type DataUpdate struct {
 	Value  byte
 }
 
-// ReadScenarioData reads and parses given {scenario}.DTA.
-func ReadScenarioData(diskimage atr.SectorReader, filename string) (ScenarioData, error) {
-	var scenarioData ScenarioData
+// ReadData reads and parses given {scenario}.DTA.
+func ReadData(diskimage atr.SectorReader, filename string) (Data, error) {
 	fileData, err := atr.ReadFile(diskimage, filename)
 	if err != nil {
-		return scenarioData, fmt.Errorf("Cannot read data file %s (%v)", filename, err)
+		return Data{}, fmt.Errorf("Cannot read data file %s (%v)", filename, err)
 	}
-	return ParseScenarioData(bytes.NewReader(fileData))
+	return ParseData(fileData)
 }
 
-// ReadScenarioData parses data from a {scenario.DTA file.
-func ParseScenarioData(data io.Reader) (ScenarioData, error) {
-	var scenario ScenarioData
-	_, err := io.ReadFull(data, scenario.Data[:])
-	if err != nil {
-		return scenario, err
+// ParseData parses data from a {scenario.DTA file.
+func ParseData(data []byte) (Data, error) {
+	if len(data) < 512 {
+		return Data{}, fmt.Errorf("Unexpected data file expecting >512, got %d", len(data))
 	}
-	for i, v := range scenario.Data[0:16] {
+	var scenario Data
+	for i, v := range data[0:16] {
 		scenario.Data0Low[i] = int(int8(v*16)) / 16
 		scenario.Data0High[i] = int(int8(v&240)) / 16
 	}
-	for i, v := range scenario.Data[16:32] {
+	for i, v := range data[16:32] {
 		scenario.Data16Low[i] = int(v & 15)
 		scenario.Data16High[i] = int(v / 16)
 	}
-	for i, v := range scenario.Data[32:48] {
+	for i, v := range data[32:48] {
 		scenario.Data32[i] = int(v)
 	}
-	for i, v := range scenario.Data[48:64] {
+	for i, v := range data[48:64] {
 		scenario.UnitScores[i] = int(v)
 	}
-	for i, v := range scenario.Data[64:80] {
+	for i, v := range data[64:80] {
 		scenario.RecoveryRate[i] = int(v)
 	}
-	copy(scenario.UnitMask[:], scenario.Data[80:])
+	copy(scenario.UnitMask[:], data[80:])
 	for i, v := range scenario.UnitMask {
 		scenario.UnitUsesSupplies[i] = v&8 == 0
 		scenario.UnitCanMove[i] = v&64 == 0
 	}
-	for i, v := range scenario.Data[96:104] {
+	for i, v := range data[96:104] {
 		scenario.TerrainMenAttack[i] = int(v)
 	}
-	for i, v := range scenario.Data[104:112] {
+	for i, v := range data[104:112] {
 		scenario.TerrainTankAttack[i] = int(v)
 	}
-	for i, v := range scenario.Data[112:120] {
+	for i, v := range data[112:120] {
 		scenario.TerrainMenDefence[i] = int(v)
 	}
-	for i, v := range scenario.Data[120:128] {
+	for i, v := range data[120:128] {
 		scenario.TerrainTankDefence[i] = int(v)
 	}
-	for i, v := range scenario.Data[128:136] {
+	for i, v := range data[128:136] {
 		scenario.FormationMenAttack[i] = int(v)
 	}
-	for i, v := range scenario.Data[136:144] {
+	for i, v := range data[136:144] {
 		scenario.FormationTankAttack[i] = int(v)
 	}
-	for i, v := range scenario.Data[144:152] {
+	for i, v := range data[144:152] {
 		scenario.FormationMenDefence[i] = int(v)
 	}
-	for i, v := range scenario.Data[152:160] {
+	for i, v := range data[152:160] {
 		scenario.FormationTankDefence[i] = int(v)
 	}
-	scenario.MinSupplyType = int(scenario.Data[160])
-	scenario.HexSizeInMiles = int(scenario.Data[161])
-	scenario.Data162 = int(scenario.Data[162])
-	scenario.Data163 = int(scenario.Data[163])
-	scenario.MaxResupplyAmount = int(scenario.Data[164])
-	scenario.MaxSupplyTransportCost = int(scenario.Data[165])
-	scenario.AvgDailySupplyUse = int(scenario.Data[166])
-	scenario.Data167 = int(scenario.Data[167])
-	scenario.MinutesPerTick = int(scenario.Data[168])
-	scenario.UnitUpdatesPerTimeIncrement = int(scenario.Data[169])
-	scenario.MenMultiplier = int(scenario.Data[170])
-	scenario.TanksMultiplier = int(scenario.Data[171])
-	scenario.Data173 = int(scenario.Data[173])
-	scenario.Data174 = int(scenario.Data[174])
-	scenario.Data175 = int(scenario.Data[175])
-	for i, v := range scenario.Data[176:190] {
+	scenario.MinSupplyType = int(data[160])
+	scenario.HexSizeInMiles = int(data[161])
+	scenario.Data162 = int(data[162])
+	scenario.Data163 = int(data[163])
+	scenario.MaxResupplyAmount = int(data[164])
+	scenario.MaxSupplyTransportCost = int(data[165])
+	scenario.AvgDailySupplyUse = int(data[166])
+	scenario.Data167 = int(data[167])
+	scenario.MinutesPerTick = int(data[168])
+	scenario.UnitUpdatesPerTimeIncrement = int(data[169])
+	scenario.MenMultiplier = int(data[170])
+	scenario.TanksMultiplier = int(data[171])
+	scenario.Data173 = int(data[173])
+	scenario.Data174 = int(data[174])
+	scenario.Data175 = int(data[175])
+	for i, v := range data[176:190] {
 		scenario.Data176[i/4][i%4] = int(v)
 	}
-	for i, v := range scenario.Data[192:200] {
+	for i, v := range data[192:200] {
 		scenario.Data192[i] = int(v)
 	}
-	for i, v := range scenario.Data[200:216] {
+	for i, v := range data[200:216] {
 		scenario.Data200Low[i] = int(v & 7)
 		scenario.UnitResupplyPerType[i] = (int((v & 240) >> 1))
 	}
-	for i, v := range scenario.Data[216:232] {
+	for i, v := range data[216:232] {
 		scenario.Data216[i] = int(v)
 	}
-	scenario.ResupplyRate[0] = int(scenario.Data[232])
-	scenario.ResupplyRate[1] = int(scenario.Data[233])
-	scenario.MenReplacementRate[0] = int(scenario.Data[234])
-	scenario.MenReplacementRate[1] = int(scenario.Data[235])
-	scenario.EquipReplacementRate[0] = int(scenario.Data[236])
-	scenario.EquipReplacementRate[1] = int(scenario.Data[237])
-	scenario.SideColor[0] = int(scenario.Data[248])
-	scenario.SideColor[1] = int(scenario.Data[249])
-	scenario.Data252[0] = int(scenario.Data[252])
-	scenario.Data252[1] = int(scenario.Data[253])
+	scenario.ResupplyRate[0] = int(data[232])
+	scenario.ResupplyRate[1] = int(data[233])
+	scenario.MenReplacementRate[0] = int(data[234])
+	scenario.MenReplacementRate[1] = int(data[235])
+	scenario.EquipReplacementRate[0] = int(data[236])
+	scenario.EquipReplacementRate[1] = int(data[237])
+	scenario.SideColor[0] = int(data[248])
+	scenario.SideColor[1] = int(data[249])
+	scenario.Data252[0] = int(data[252])
+	scenario.Data252[1] = int(data[253])
 	for terrainType := 0; terrainType < 8; terrainType++ {
-		for unitType, cost := range scenario.Data[255+16*terrainType : 255+16*(terrainType+1)] {
+		for unitType, cost := range data[255+16*terrainType : 255+16*(terrainType+1)] {
 			scenario.MoveCostPerTerrainTypesAndUnit[terrainType][unitType] = int(cost)
 		}
 	}
-	copy(scenario.PossibleWeather[:], scenario.Data[384:])
-	copy(scenario.DaytimePalette[:], scenario.Data[400:])
-	copy(scenario.NightPalette[:], scenario.Data[408:])
-	for i, limit := range scenario.Data[416:432] {
+	copy(scenario.PossibleWeather[:], data[384:])
+	copy(scenario.DaytimePalette[:], data[400:])
+	copy(scenario.NightPalette[:], data[408:])
+	for i, limit := range data[416:432] {
 		scenario.MenCountLimit[i] = int(limit)
 	}
-	for i, limit := range scenario.Data[432:448] {
+	for i, limit := range data[432:448] {
 		scenario.EquipCountLimit[i] = int(limit)
 	}
 	for i := 0; i < 21; i++ {
-		scenario.DataUpdates[i].Day = int(scenario.Data[448+i*3])
-		scenario.DataUpdates[i].Offset = scenario.Data[448+1+i*3]
-		scenario.DataUpdates[i].Value = scenario.Data[448+2+i*3]
+		scenario.DataUpdates[i].Day = int(data[448+i*3])
+		scenario.DataUpdates[i].Offset = data[448+1+i*3]
+		scenario.DataUpdates[i].Value = data[448+2+i*3]
 	}
 
+	reader := bytes.NewReader(data[512:])
 	// There are 32 header bytes, but only 14 string lists.
 	// Also offsets count from the start of the header, so subtract the header size
 	// (32 bytes)
 	stringListOffsets := make([]int, 16)
 	for i := 0; i < 16; i++ {
 		var offset [2]byte
-		_, err = io.ReadFull(data, offset[:])
-		if err != nil {
+		if _, err := io.ReadFull(reader, offset[:]); err != nil {
 			return scenario, err
 		}
 		stringListOffsets[i] = int(offset[0]) + 256*int(offset[1]) - 32
@@ -226,8 +223,7 @@ func ParseScenarioData(data io.Reader) (ScenarioData, error) {
 			return scenario, fmt.Errorf("Invalid scenario file. Non-monotonic string offsets num %d, %d (%d, %d)", i, i+1, stringListOffsets[i], stringListOffsets[i+1])
 		}
 		stringData := make([]byte, stringListOffsets[i+1]-stringListOffsets[i])
-		_, err = io.ReadFull(data, stringData)
-		if err != nil {
+		if _, err := io.ReadFull(reader, stringData); err != nil {
 			return scenario, err
 		}
 		strings := []string{}
@@ -287,7 +283,7 @@ func inRange(v, min, max byte) bool {
 	return true
 }
 
-func (s *ScenarioData) UpdateData(offset, value byte) {
+func (s *Data) UpdateData(offset, value byte) {
 	switch {
 	case inRange(offset, 0, 16):
 		s.Data0Low[offset] = int(int8(value*16)) / 16

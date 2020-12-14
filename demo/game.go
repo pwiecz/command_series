@@ -14,20 +14,11 @@ type SubGame interface {
 type Game struct {
 	subGame          SubGame
 	diskimage        atr.SectorReader
-	game             data.Game
-	sprites          data.Sprites
-	icons            data.Icons
-	scenarios        []data.Scenario
-	terrainMap       data.Map
-	generic          data.Generic
-	hexes            data.Hexes
+	gameData         *data.GameData
 	selectedScenario int
-	variants         []data.Variant
-	generals         [2][]data.General
-	terrain          data.Terrain
-	scenarioData     data.ScenarioData
+	scenarioData     *data.ScenarioData
 	selectedVariant  int
-	units            [2][]data.Unit
+	options          data.Options
 
 	otoContext  *oto.Context
 	audioPlayer *AudioPlayer
@@ -52,19 +43,31 @@ func NewGame(filename string) (*Game, error) {
 	return game, nil
 }
 
-func (g *Game) onGameLoaded(game data.Game, scenarios []data.Scenario, sprites data.Sprites, icons data.Icons, terrainMap data.Map, generic data.Generic, hexes data.Hexes) {
-	g.game = game
-	g.scenarios = scenarios
-	g.sprites = sprites
-	g.icons = icons
-	g.terrainMap = terrainMap
-	g.generic = generic
-	g.hexes = hexes
-	g.subGame = NewScenarioSelection(g.scenarios, g.sprites.IntroFont, g.onScenarioSelected)
+func (g *Game) onGameLoaded(gameData *data.GameData) {
+	g.gameData = gameData
+	g.subGame = NewScenarioSelection(g.gameData.Scenarios, g.gameData.Sprites.IntroFont, g.onScenarioSelected)
+}
+func (g *Game) onRestartGame() {
+	g.subGame = NewGameLoading(g.diskimage, g.onGameLoaded)
 }
 func (g *Game) onScenarioSelected(selectedScenario int) {
 	g.selectedScenario = selectedScenario
-	g.subGame = NewVariantsLoading(g.scenarios[selectedScenario], g)
+	g.subGame = NewScenarioLoading(g.diskimage, g.gameData.Scenarios[selectedScenario], g.gameData.Sprites.IntroFont, g.onScenarioLoaded)
+}
+func (g *Game) onScenarioLoaded(scenarioData *data.ScenarioData) {
+	g.scenarioData = scenarioData
+	g.subGame = NewVariantSelection(g.scenarioData.Variants, g.gameData.Sprites.IntroFont, g.onVariantSelected)
+}
+func (g *Game) onVariantSelected(selectedVariant int) {
+	g.selectedVariant = selectedVariant
+	g.subGame = NewOptionSelection(g.gameData.Game, g.gameData.Sprites.IntroFont, g.onOptionsSelected)
+}
+func (g *Game) onOptionsSelected(options data.Options) {
+	g.options = options
+	g.subGame = NewShowMap(g, g.options, g.audioPlayer, g.onGameOver)
+}
+func (g *Game) onGameOver(result, balance, rank int) {
+	g.subGame = NewFinalResult(result, balance, rank, g.gameData.Sprites.IntroFont, g.onRestartGame)
 }
 
 func (g *Game) Update() error {

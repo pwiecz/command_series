@@ -7,13 +7,13 @@ type OverviewMap struct {
 	image        *ebiten.Image
 	terrainMap   *data.Map
 	generic      *data.Generic
-	scenarioData *data.ScenarioData
+	scenarioData *data.Data
 	options      *data.Options
 	units        *[2][]data.Unit
 	cycle        int
 }
 
-func NewOverviewMap(terrainMap *data.Map, units *[2][]data.Unit, generic *data.Generic, scenarioData *data.ScenarioData, options *data.Options) *OverviewMap {
+func NewOverviewMap(terrainMap *data.Map, units *[2][]data.Unit, generic *data.Generic, scenarioData *data.Data, options *data.Options) *OverviewMap {
 	return &OverviewMap{
 		terrainMap:   terrainMap,
 		units:        units,

@@ -1,6 +1,5 @@
 package main
 
-import "fmt"
 import "image"
 import "image/color"
 
@@ -10,10 +9,11 @@ import "github.com/hajimehoshi/ebiten/inpututil"
 import "github.com/pwiecz/command_series/data"
 
 type OptionSelection struct {
-	mainGame       *Game
+	font           *data.Font
 	balanceStrings []string
 
-	options data.Options
+	onOptionsSelected func(data.Options)
+	options           data.Options
 
 	labels             []*Button
 	side0Button        *Button
@@ -37,15 +37,17 @@ var conflictSidesStrings = [2]string{"Free World", "Communist"}
 var balanceStrings = [5]string{"++GERMAN", "+GERMAN", "FAIR", "+ALLIED", "++ALLIED"}
 var conflictBalanceStrings = [5]string{"++COMMUNIST", "+COMMUNIST", "EVEN", "+FREEWORLD", "++FREEWORLD"}
 
-func NewOptionSelection(mainGame *Game) *OptionSelection {
-	s := &OptionSelection{mainGame: mainGame}
+func NewOptionSelection(game data.Game, font *data.Font, onOptionsSelected func(data.Options)) *OptionSelection {
+	s := &OptionSelection{
+		font:              font,
+		onOptionsSelected: onOptionsSelected}
 	s.options.GermanCommander = 1
 	s.options.Intelligence = data.Limited
 	s.options.GameBalance = 2
 	s.options.Speed = 2
 
 	var side0Command, side1Command string
-	switch mainGame.game {
+	switch game {
 	case data.Crusade:
 		side0Command = crusadeSidesStrings[0] + " Command:"
 		side1Command = crusadeSidesStrings[1] + " Command:"
@@ -56,7 +58,6 @@ func NewOptionSelection(mainGame *Game) *OptionSelection {
 		side0Command = conflictSidesStrings[0] + " Command:"
 		side1Command = conflictSidesStrings[1] + " Command:"
 	}
-	font := mainGame.sprites.IntroFont
 	s.labels = []*Button{
 		NewButton("OPTION SELECTION", 24, 32, image.Pt(300, 8), font),
 		NewButton(side0Command, 40, 48, image.Pt(300, 8), font),
@@ -76,7 +77,7 @@ func NewOptionSelection(mainGame *Game) *OptionSelection {
 	}
 	buttonPosition := float64(40 + (maxLabelLength+1)*8)
 
-	if mainGame.game != data.Conflict {
+	if game != data.Conflict {
 		s.balanceStrings = balanceStrings[:]
 	} else {
 		s.balanceStrings = conflictBalanceStrings[:]
@@ -188,7 +189,7 @@ func (s *OptionSelection) Update() error {
 		}
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
-		s.mainGame.subGame = NewShowMap(s.mainGame, s.options)
+		s.onOptionsSelected(s.options)
 	}
 	return nil
 }
@@ -206,14 +207,11 @@ func (s *OptionSelection) Draw(screen *ebiten.Image) {
 	s.speedButton.Draw(screen)
 
 	if s.cursorImage == nil {
-		cursorImage := *s.mainGame.sprites.IntroFont.Glyph(' ')
+		cursorImage := *s.font.Glyph(' ')
 		cursorImage.Palette = []color.Color{data.RGBPalette[0x84], data.RGBPalette[0x84]}
 		s.cursorImage = ebiten.NewImageFromImage(&cursorImage)
 	}
 	var opts ebiten.DrawImageOptions
-	if false {
-		fmt.Println(24, float64(s.cursorRow*8+56))
-	}
 	opts.GeoM.Translate(32, float64(s.cursorRow*8+48))
 	screen.DrawImage(s.cursorImage, &opts)
 }

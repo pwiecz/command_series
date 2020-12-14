@@ -11,7 +11,12 @@ import "github.com/hajimehoshi/ebiten/inpututil"
 import "github.com/pwiecz/command_series/data"
 
 type ShowMap struct {
-	mainGame      *Game
+	scenarioData *data.ScenarioData
+	gameData     *data.GameData
+	options      data.Options
+	audioPlayer  *AudioPlayer
+	onGameOver   func(int, int, int)
+
 	mapView       *MapView
 	topRect       *Rectangle
 	messageBox    *MessageBox
@@ -20,7 +25,6 @@ type ShowMap struct {
 
 	flashback *Flashback
 	animation *Animation
-	options   data.Options
 
 	idleTicksLeft  int
 	isFrozen       bool
@@ -42,33 +46,36 @@ type ShowMap struct {
 	gameOver bool
 }
 
-func NewShowMap(g *Game, options data.Options) *ShowMap {
-	scenario := g.scenarios[g.selectedScenario]
-	variant := g.variants[g.selectedVariant]
+func NewShowMap(g *Game, options data.Options, audioPlayer *AudioPlayer, onGameOver func(int, int, int)) *ShowMap {
+	scenario := &g.gameData.Scenarios[g.selectedScenario]
 	for x := scenario.MinX - 1; x <= scenario.MaxX+1; x++ {
-		g.terrainMap.SetTile(x, scenario.MinY-1, 12)
-		g.terrainMap.SetTile(x, scenario.MaxY+1, 12)
+		g.gameData.Map.SetTile(x, scenario.MinY-1, 12)
+		g.gameData.Map.SetTile(x, scenario.MaxY+1, 12)
 	}
 	for y := scenario.MinY; y <= scenario.MaxY; y++ {
-		g.terrainMap.SetTile(scenario.MinX-1, y, 10)
-		g.terrainMap.SetTile(scenario.MaxX+1, y, 12)
+		g.gameData.Map.SetTile(scenario.MinX-1, y, 10)
+		g.gameData.Map.SetTile(scenario.MaxX+1, y, 12)
 	}
 	s := &ShowMap{
-		mainGame:      g,
+		gameData:      g.gameData,
+		scenarioData:  g.scenarioData,
 		options:       options,
+		audioPlayer:   audioPlayer,
 		playerSide:    options.AlliedCommander,
 		commandBuffer: NewCommandBuffer(20),
-		sync:          data.NewMessageSync()}
+		sync:          data.NewMessageSync(),
+		onGameOver:    onGameOver}
 	rnd := rand.New(rand.NewSource(1))
-	s.gameState = data.NewGameState(rnd, g.game, &scenario, &g.scenarioData, &variant, g.selectedVariant, g.units, &g.terrain, &g.terrainMap, &g.generic, &g.hexes, g.generals, s.options, s.sync)
+	s.gameState = data.NewGameState(rnd, g.gameData, g.scenarioData, g.selectedScenario, g.selectedVariant, s.options, s.sync)
 	s.mapView = NewMapView(
-		&g.terrainMap, scenario.MinX, scenario.MinY, scenario.MaxX, scenario.MaxY,
-		&g.sprites.TerrainTiles, &g.sprites.UnitSymbolSprites, &g.sprites.UnitIconSprites,
-		&g.icons.Sprites, &g.scenarioData.DaytimePalette, &g.scenarioData.NightPalette,
+		&g.gameData.Map, scenario.MinX, scenario.MinY, scenario.MaxX, scenario.MaxY,
+		&g.gameData.Sprites.TerrainTiles,
+		&g.gameData.Sprites.UnitSymbolSprites, &g.gameData.Sprites.UnitIconSprites,
+		&g.gameData.Icons.Sprites, &g.scenarioData.Data.DaytimePalette, &g.scenarioData.Data.NightPalette,
 		image.Pt(160, 19*8))
-	s.messageBox = NewMessageBox(image.Pt(336, 40), g.sprites.GameFont)
+	s.messageBox = NewMessageBox(image.Pt(336, 40), g.gameData.Sprites.GameFont)
 	s.messageBox.Print("PREPARE FOR BATTLE!", 12, 1, false)
-	s.statusBar = NewMessageBox(image.Pt(376, 8), g.sprites.GameFont)
+	s.statusBar = NewMessageBox(image.Pt(376, 8), g.gameData.Sprites.GameFont)
 	s.statusBar.SetTextColor(16)
 	s.statusBar.SetRowBackground(0, 30)
 
@@ -126,7 +133,7 @@ func (s *ShowMap) Update() error {
 	if s.gameOver {
 		if ebiten.IsKeyPressed(ebiten.KeyShift) && inpututil.IsKeyJustPressed(ebiten.KeySlash) {
 			result, balance, rank := s.gameState.FinalResults()
-			s.mainGame.subGame = NewFinalResult(s.mainGame, result, balance, rank)
+			s.onGameOver(result, balance, rank)
 		}
 		s.statusBar.Print("GAME OVER, PRESS '?' FOR RESULTS.", 2, 0, false)
 		return nil
@@ -191,7 +198,7 @@ func (s *ShowMap) Update() error {
 				s.playerSide = 1 - s.playerSide
 				s.mapView.HideIcon()
 				s.messageBox.Clear()
-				s.messageBox.Print(s.mainGame.scenarioData.Sides[s.playerSide]+" PLAYER:", 2, 0, false)
+				s.messageBox.Print(s.scenarioData.Data.Sides[s.playerSide]+" PLAYER:", 2, 0, false)
 				s.messageBox.Print("PRESS \"T\" TO CONTINUE", 2, 1, false)
 				if !s.areUnitsHidden {
 					s.hideUnits()
@@ -280,7 +287,7 @@ loop:
 			if unit.Side == s.playerSide {
 				s.showMessageFromUnit(message)
 				break loop
-			} else if s.mainGame.game == data.Conflict {
+			} else if s.gameData.Game == data.Conflict {
 				if msg, ok := message.(data.WeAreAttacking); ok {
 					s.showMessageFromUnit(data.NewWeAreUnderFire(msg.Enemy()))
 					break loop
@@ -299,7 +306,7 @@ loop:
 			break loop
 		case data.UnitMove:
 			if s.mapView.AreMapCoordsVisible(message.X0, message.Y0) || s.mapView.AreMapCoordsVisible(message.X1, message.Y1) {
-				s.animation = NewUnitAnimation(s.mapView, s.mainGame.audioPlayer,
+				s.animation = NewUnitAnimation(s.mapView, s.audioPlayer,
 					message.Unit, message.X0, message.Y0, message.X1, message.Y1, 30)
 				break loop
 			}
@@ -311,7 +318,7 @@ loop:
 			}
 		case data.WeatherForecast:
 			s.messageBox.Clear()
-			s.messageBox.Print(fmt.Sprintf("WEATHER FORECAST: %s", s.mainGame.scenarioData.Weather[message.Weather]), 2, 0, false)
+			s.messageBox.Print(fmt.Sprintf("WEATHER FORECAST: %s", s.scenarioData.Data.Weather[message.Weather]), 2, 0, false)
 		case data.SupplyDistributionStart:
 			s.mapView.HideIcon()
 			s.messageBox.Print(" SUPPLY DISTRIBUTION ", 2, 1, true)
@@ -343,7 +350,7 @@ func (s *ShowMap) showMessageFromUnit(message data.MessageFromUnit) {
 	}
 	s.messageBox.Print("MESSAGE FROM ...", 2, 0, true)
 	unit := message.Unit()
-	unitName := fmt.Sprintf("%s %s:", unit.Name, s.mainGame.scenarioData.UnitTypes[unit.Type])
+	unitName := fmt.Sprintf("%s:", unit.String())
 	s.messageBox.Print(unitName, 2, 1, false)
 	lines := strings.Split("\""+message.String()+"\"", "\n")
 	for i, line := range lines {
@@ -381,7 +388,7 @@ func (s *ShowMap) giveOrder(unit data.Unit, order data.OrderType) {
 	case data.Move:
 		s.messageBox.Print("MOVE WHERE ?", 2, 0, false)
 	}
-	s.mainGame.units[unit.Side][unit.Index] = unit
+	s.scenarioData.Units[unit.Side][unit.Index] = unit
 }
 func (s *ShowMap) trySetObjective(x, y int) {
 	if s.orderedUnit == nil {
@@ -390,7 +397,7 @@ func (s *ShowMap) trySetObjective(x, y int) {
 		return
 	}
 	unitX := 2*x + y%2
-	s.setObjective(s.mainGame.units[s.orderedUnit.Side][s.orderedUnit.Index], unitX, y)
+	s.setObjective(s.scenarioData.Units[s.orderedUnit.Side][s.orderedUnit.Index], unitX, y)
 
 }
 func (s *ShowMap) setObjective(unit data.Unit, x, y int) {
@@ -398,13 +405,13 @@ func (s *ShowMap) setObjective(unit data.Unit, x, y int) {
 	unit.HasLocalCommand = false
 	s.messageBox.Clear()
 	s.messageBox.Print("WHO ", 2, 0, true)
-	s.messageBox.Print(fmt.Sprintf("%s %s", unit.Name, s.mainGame.scenarioData.UnitTypes[unit.Type]), 7, 0, false)
+	s.messageBox.Print(unit.String(), 7, 0, false)
 	s.messageBox.Print("OBJECTIVE HERE.", 2, 1, false)
 	distance := data.Function15_distanceToObjective(unit)
 	if distance > 0 {
-		s.messageBox.Print(fmt.Sprintf("DISTANCE: %d MILES.", distance*s.mainGame.scenarioData.HexSizeInMiles), 2, 2, false)
+		s.messageBox.Print(fmt.Sprintf("DISTANCE: %d MILES.", distance*s.scenarioData.Data.HexSizeInMiles), 2, 2, false)
 	}
-	s.mainGame.units[unit.Side][unit.Index] = unit
+	s.scenarioData.Units[unit.Side][unit.Index] = unit
 	s.orderedUnit = nil
 }
 func (s *ShowMap) showUnitInfo() {
@@ -427,7 +434,7 @@ func (s *ShowMap) showUnitInfo() {
 		nextRow++
 	}
 	s.messageBox.Print("WHO ", 2, nextRow, true)
-	s.messageBox.Print(fmt.Sprintf("%s %s", unit.Name, s.mainGame.scenarioData.UnitTypes[unit.Type]), 7, nextRow, false)
+	s.messageBox.Print(unit.String(), 7, nextRow, false)
 	nextRow++
 
 	s.messageBox.Print("    ", 2, nextRow, true)
@@ -437,22 +444,22 @@ func (s *ShowMap) showUnitInfo() {
 		men -= men % 10
 	}
 	if men > 0 {
-		menStr = fmt.Sprintf("%d MEN, ", men*s.mainGame.scenarioData.MenMultiplier)
+		menStr = fmt.Sprintf("%d MEN, ", men*s.scenarioData.Data.MenMultiplier)
 	}
 	tanks := unit.EquipCount
 	if unit.Side != s.playerSide {
 		tanks -= tanks % 10
 	}
 	if tanks > 0 {
-		menStr += fmt.Sprintf("%d %s, ", tanks*s.mainGame.scenarioData.TanksMultiplier, s.mainGame.scenarioData.Equipments[unit.Type])
+		menStr += fmt.Sprintf("%d %s, ", tanks*s.scenarioData.Data.TanksMultiplier, s.scenarioData.Data.Equipments[unit.Type])
 	}
 	s.messageBox.Print(menStr, 7, nextRow, false)
 	nextRow++
 
 	if unit.Side == s.playerSide {
 		s.messageBox.Print("    ", 2, nextRow, true)
-		supplyDays := unit.SupplyLevel / (s.mainGame.scenarioData.AvgDailySupplyUse + s.mainGame.scenarioData.Data163)
-		if s.mainGame.game != data.Crusade {
+		supplyDays := unit.SupplyLevel / (s.scenarioData.Data.AvgDailySupplyUse + s.scenarioData.Data.Data163)
+		if s.gameData.Game != data.Crusade {
 			supplyDays /= 2
 		}
 		supplyStr := fmt.Sprintf("%d DAYS SUPPLY.", supplyDays)
@@ -464,13 +471,13 @@ func (s *ShowMap) showUnitInfo() {
 	}
 
 	s.messageBox.Print("FORM", 2, nextRow, true)
-	formationStr := s.mainGame.scenarioData.Formations[unit.Formation]
+	formationStr := s.scenarioData.Data.Formations[unit.Formation]
 	s.messageBox.Print(formationStr, 7, nextRow, false)
 	if unit.Side != s.playerSide {
 		return
 	}
 	s.messageBox.Print("EXP", 7+len(formationStr)+1, nextRow, true)
-	expStr := s.mainGame.scenarioData.Experience[unit.Morale/27]
+	expStr := s.scenarioData.Data.Experience[unit.Morale/27]
 	s.messageBox.Print(expStr, 7+len(formationStr)+5, nextRow, false)
 	s.messageBox.Print("EFF", 7+len(formationStr)+5+len(expStr)+1, nextRow, true)
 	s.messageBox.Print(fmt.Sprintf("%d", 10*((256-unit.Fatigue)/25)), 7+len(formationStr)+5+len(expStr)+5, nextRow, false)
@@ -507,7 +514,7 @@ func (s *ShowMap) showGeneralInfo() {
 	general := unit.General
 	s.messageBox.Print("GENERAL ", 2, 0, true)
 	s.messageBox.Print(general.Name, 11, 0, false)
-	s.messageBox.Print("("+s.mainGame.scenarioData.Sides[unit.Side]+")", 23, 0, false)
+	s.messageBox.Print("("+s.scenarioData.Data.Sides[unit.Side]+")", 23, 0, false)
 	s.messageBox.Print("ATTACK  ", 2, 1, true)
 	s.messageBox.Print(numberToGeneralRating(general.Attack), 11, 1, false)
 	s.messageBox.Print("DEFEND  ", 2, 2, true)
@@ -524,20 +531,20 @@ func (s *ShowMap) showCityInfo() {
 		return
 	}
 	s.messageBox.Print(city.Name, 2, 0, false)
-	s.messageBox.Print(fmt.Sprintf("%d VICTORY POINTS, %s", city.VictoryPoints, s.mainGame.scenarioData.Sides[city.Owner]), 2, 1, false)
+	s.messageBox.Print(fmt.Sprintf("%d VICTORY POINTS, %s", city.VictoryPoints, s.scenarioData.Data.Sides[city.Owner]), 2, 1, false)
 }
 func (s *ShowMap) showStatusReport() {
 	s.messageBox.Clear()
-	if s.mainGame.game != data.Conflict {
+	if s.gameData.Game != data.Conflict {
 		s.messageBox.Print("STATUS REPORT", 2, 0, true)
-		s.messageBox.Print(s.mainGame.scenarioData.Sides[0], 16, 0, false)
-		s.messageBox.Print(s.mainGame.scenarioData.Sides[1], 26, 0, false)
+		s.messageBox.Print(s.scenarioData.Data.Sides[0], 16, 0, false)
+		s.messageBox.Print(s.scenarioData.Data.Sides[1], 26, 0, false)
 	} else {
 		s.messageBox.Print(" STATUS REPORT ", 2, 0, true)
-		s.messageBox.Print(s.mainGame.scenarioData.Sides[0], 19, 0, false)
-		s.messageBox.Print(s.mainGame.scenarioData.Sides[1], 29, 0, false)
+		s.messageBox.Print(s.scenarioData.Data.Sides[0], 19, 0, false)
+		s.messageBox.Print(s.scenarioData.Data.Sides[1], 29, 0, false)
 	}
-	if s.mainGame.game != data.Conflict {
+	if s.gameData.Game != data.Conflict {
 		s.messageBox.Print(" TROOPS LOST ", 2, 1, true)
 		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.MenLost(0)), 16, 1, false)
 		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.MenLost(1)), 26, 1, false)
@@ -546,7 +553,7 @@ func (s *ShowMap) showStatusReport() {
 		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.MenLost(0)), 19, 1, false)
 		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.MenLost(1)), 29, 1, false)
 	}
-	if s.mainGame.game != data.Conflict {
+	if s.gameData.Game != data.Conflict {
 		s.messageBox.Print(" TANKS  LOST ", 2, 2, true)
 		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.TanksLost(0)), 16, 2, false)
 		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.TanksLost(1)), 26, 2, false)
@@ -555,7 +562,7 @@ func (s *ShowMap) showStatusReport() {
 		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.TanksLost(0)), 19, 2, false)
 		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.TanksLost(1)), 29, 2, false)
 	}
-	if s.mainGame.game != data.Conflict {
+	if s.gameData.Game != data.Conflict {
 		s.messageBox.Print(" CITIES HELD ", 2, 3, true)
 		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.CitiesHeld(0)), 16, 3, false)
 		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.CitiesHeld(1)), 26, 3, false)
@@ -566,7 +573,7 @@ func (s *ShowMap) showStatusReport() {
 	}
 	winningSide, advantage := s.gameState.WinningSideAndAdvantage()
 	advantageStrs := []string{"SLIGHT", "MARGINAL", "TACTICAL", "DECISIVE", "TOTAL"}
-	winningSideStr := s.mainGame.scenarioData.Sides[winningSide]
+	winningSideStr := s.scenarioData.Data.Sides[winningSide]
 	s.messageBox.Print(fmt.Sprintf("%s %s ADVANTAGE.", advantageStrs[advantage], winningSideStr), 2, 4, false)
 }
 func (s *ShowMap) hideUnits() {
@@ -581,13 +588,13 @@ func (s *ShowMap) showOverviewMap() {
 	if !s.areUnitsHidden {
 		s.hideUnits()
 	}
-	s.overviewMap = NewOverviewMap(&s.mainGame.terrainMap, &s.mainGame.units, &s.mainGame.generic, &s.mainGame.scenarioData, &s.options)
+	s.overviewMap = NewOverviewMap(&s.gameData.Map, &s.scenarioData.Units, &s.gameData.Generic, &s.scenarioData.Data, &s.options)
 }
 func (s *ShowMap) showFlashback() {
 	if !s.areUnitsHidden {
 		s.hideUnits()
 	}
-	s.flashback = NewFlashback(s.mapView, s.messageBox, &s.mainGame.terrainMap, s.gameState.FlashbackUnits())
+	s.flashback = NewFlashback(s.mapView, s.messageBox, &s.gameData.Map, s.gameState.FlashbackUnits())
 }
 func (s *ShowMap) showLastMessageUnit() {
 	if s.lastMessageFromUnit == nil {
@@ -631,16 +638,16 @@ func (s *ShowMap) Draw(screen *ebiten.Image) {
 		screen.Fill(data.RGBPalette[8])
 		opts := ebiten.DrawImageOptions{}
 		opts.GeoM.Scale(4, 2)
-		opts.GeoM.Translate(float64(336-4*s.mainGame.terrainMap.Width)/2, float64(240-2*s.mainGame.terrainMap.Height)/2)
+		opts.GeoM.Translate(float64(336-4*s.gameData.Map.Width)/2, float64(240-2*s.gameData.Map.Height)/2)
 		s.overviewMap.Draw(screen, &opts)
 		return
 	}
 	if !s.gameState.IsNight() {
-		screen.Fill(data.RGBPalette[s.mainGame.scenarioData.DaytimePalette[2]])
-		s.separatorRect.SetColor(int(s.mainGame.scenarioData.DaytimePalette[0]))
+		screen.Fill(data.RGBPalette[s.scenarioData.Data.DaytimePalette[2]])
+		s.separatorRect.SetColor(int(s.scenarioData.Data.DaytimePalette[0]))
 	} else {
-		screen.Fill(data.RGBPalette[s.mainGame.scenarioData.NightPalette[2]])
-		s.separatorRect.SetColor(int(s.mainGame.scenarioData.NightPalette[0]))
+		screen.Fill(data.RGBPalette[s.scenarioData.Data.NightPalette[2]])
+		s.separatorRect.SetColor(int(s.scenarioData.Data.NightPalette[0]))
 	}
 	s.mapView.SetIsNight(s.gameState.IsNight())
 	s.mapView.SetUseIcons(s.options.UnitDisplay == 1)
@@ -658,7 +665,7 @@ func (s *ShowMap) Draw(screen *ebiten.Image) {
 		}
 	}
 
-	playerBaseColor := s.mainGame.scenarioData.SideColor[s.playerSide] * 16
+	playerBaseColor := s.scenarioData.Data.SideColor[s.playerSide] * 16
 	opts.GeoM.Reset()
 	s.topRect.SetColor(playerBaseColor + 10)
 	s.topRect.Draw(screen, &opts)

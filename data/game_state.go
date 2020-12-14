@@ -38,7 +38,7 @@ type GameState struct {
 	// Side of the most recently updated unit. Used for detecting moment when we switch analysing sides.
 	update int
 
-	scenarioData *ScenarioData
+	scenarioData *Data
 	terrain      *Terrain
 	terrainMap   *Map
 	generic      *Generic
@@ -51,7 +51,9 @@ type GameState struct {
 	sync *MessageSync
 }
 
-func NewGameState(rand *rand.Rand, game Game, scenario *Scenario, scenarioData *ScenarioData, variant *Variant, variantNum int, units [2][]Unit, terrain *Terrain, terrainMap *Map, generic *Generic, hexes *Hexes, generals [2][]General, gameOptions Options, sync *MessageSync) *GameState {
+func NewGameState(rand *rand.Rand, gameData *GameData, scenarioData *ScenarioData, scenarioNum, variantNum int, options Options, sync *MessageSync) *GameState {
+	scenario := &gameData.Scenarios[scenarioNum]
+	variant := &scenarioData.Variants[variantNum]
 	sunriseOffset := Abs(6-scenario.StartMonth) / 2
 	s := &GameState{}
 	s.rand = rand
@@ -63,18 +65,18 @@ func NewGameState(rand *rand.Rand, game Game, scenario *Scenario, scenarioData *
 	s.weather = scenario.StartWeather
 	s.isNight = s.hour < 5+sunriseOffset || s.hour > 20-sunriseOffset
 	s.supplyLevels = scenario.StartSupplyLevels
-	s.numUnitsToUpdatePerTimeIncrement = scenarioData.UnitUpdatesPerTimeIncrement / 2
+	s.numUnitsToUpdatePerTimeIncrement = scenarioData.Data.UnitUpdatesPerTimeIncrement / 2
 	s.lastUpdatedUnit = 127
 	s.citiesHeld = variant.CitiesHeld
-	s.scenarioData = scenarioData
-	s.units = units
-	s.terrain = terrain
-	s.terrainMap = terrainMap
-	s.generic = generic
-	s.hexes = hexes
-	s.generals = generals
+	s.scenarioData = &scenarioData.Data
+	s.units = scenarioData.Units
+	s.terrain = &scenarioData.Terrain
+	s.terrainMap = &gameData.Map
+	s.generic = &gameData.Generic
+	s.hexes = &gameData.Hexes
+	s.generals = scenarioData.Generals
 	s.variant = variant
-	s.options = gameOptions
+	s.options = options
 	s.sync = sync
 
 	for side, sideUnits := range s.units {
@@ -84,10 +86,10 @@ func NewGameState(rand *rand.Rand, game Game, scenario *Scenario, scenarioData *
 				unit.HalfDaysUntilAppear = 0
 			}
 			unit.VariantBitmap = 0 // not really needed
-			if side == 0 && gameOptions.GameBalance > 2 {
-				unit.Morale = (3 + gameOptions.GameBalance) * unit.Morale / 5
-			} else if side == 1 && gameOptions.GameBalance < 2 {
-				unit.Morale = (7 - gameOptions.GameBalance) * unit.Morale / 5
+			if side == 0 && options.GameBalance > 2 {
+				unit.Morale = (3 + options.GameBalance) * unit.Morale / 5
+			} else if side == 1 && options.GameBalance < 2 {
+				unit.Morale = (7 - options.GameBalance) * unit.Morale / 5
 			}
 			sideUnits[i] = unit
 		}
@@ -439,11 +441,9 @@ nextUnit:
 				}
 				t := v54 + v53 + v49 + v50
 				if i == 1 {
-					if city, ok := s.FindCity(unit.X, unit.Y); ok {
-						if city.VictoryPoints > 0 {
-							if v51 > 0 {
-								v9 = 2
-							}
+					if _, ok := s.FindCity(unit.X, unit.Y); ok {
+						if v51 > 0 {
+							v9 = 2
 						}
 					}
 				}
@@ -590,7 +590,7 @@ l24:
 				arg2 *= 2
 			}
 			if city, ok := s.FindCity(nx, ny); ok {
-				if city.Owner != unit.Side && city.VictoryPoints > 0 {
+				if city.Owner != unit.Side {
 					if s.ContainsUnitOfSide(nx, ny, 1-unit.Side) {
 						arg2 -= city.VictoryPoints
 					} else {
@@ -1606,7 +1606,7 @@ func (s *GameState) ContainsUnitOfSide(x, y, side int) bool {
 }
 func (s *GameState) ContainsCity(x, y int) bool {
 	for _, city := range s.terrain.Cities {
-		if city.X == x && city.Y == y {
+		if city.VictoryPoints > 0 && city.X == x && city.Y == y {
 			return true
 		}
 	}
@@ -1639,7 +1639,7 @@ func (s *GameState) FindCity(x, y int) (City, bool) {
 }
 func (s *GameState) FindCityAtMapCoords(x, y int) (City, bool) {
 	for _, city := range s.terrain.Cities {
-		if city.X/2 == x && city.Y == y {
+		if city.VictoryPoints > 0 && city.X/2 == x && city.Y == y {
 			return city, true
 		}
 	}
@@ -1851,9 +1851,14 @@ func (s *GameState) FinalResults() (int, int, int) {
 	if -criticalLocationBalance >= s.variant.CriticalLocations[1] {
 		v74 = 1 + 9*v73
 	}
-	balance := s.options.GameBalance + v73*(4-2*s.options.GameBalance)
-	rank := Min(v74-2*balance+4, 12)
-	return v74 - 1, balance - 1, rank - 1
+	var difficulty int
+	if v73 == 0 {
+		difficulty = s.options.GameBalance
+	} else {
+		difficulty = 4 - s.options.GameBalance
+	}
+	rank := Min(v74-2*difficulty+4, 12)
+	return v74 - 1, balance, rank - 1
 }
 func (s *GameState) isGameOver() bool {
 	if s.daysElapsed >= s.variant.LengthInDays {
