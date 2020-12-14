@@ -1858,7 +1858,7 @@ func (s *GameState) FinalResults() (int, int, int) {
 		difficulty = 4 - s.options.GameBalance
 	}
 	rank := Min(v74-2*difficulty+4, 12)
-	return v74 - 1, balance, rank - 1
+	return v74 - 1, difficulty, rank - 1
 }
 func (s *GameState) isGameOver() bool {
 	if s.daysElapsed >= s.variant.LengthInDays {
