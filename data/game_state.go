@@ -79,6 +79,8 @@ func NewGameState(rand *rand.Rand, gameData *GameData, scenarioData *ScenarioDat
 	s.options = options
 	s.sync = sync
 
+	s.update = 3
+
 	for side, sideUnits := range s.units {
 		for i, unit := range sideUnits {
 			if unit.VariantBitmap&(1<<variantNum) != 0 {
@@ -222,7 +224,7 @@ nextUnit:
 		unit.State4 = false // &= 239
 	}
 
-	if s.options.IsPlayerControlled(unit.Side) {
+	if ((unit.Side + 1) & s.options.Num()) == 0 {
 		s.update = unit.Side
 		// If not a local command and either objective is specified, or order is defend or move).
 		if !unit.HasLocalCommand && (unit.Order == Defend || unit.Order == Move || unit.ObjectiveX != 0) { // ... maybe?
@@ -651,7 +653,7 @@ l24:
 		// unhide unit
 		s.units[unit.Side][unit.Index].IsInGame = true
 		v := s.scenarioData.FormationMenDefence[unit.Formation] - 8
-		if s.options.IsPlayerControlled(unit.Side) {
+		if ((unit.Side + 1) & s.options.Num()) == 0 {
 			v *= 2
 		}
 		if v+v_6 > arg1 {
@@ -718,7 +720,7 @@ l21:
 			}
 			unit.TargetFormation = s.function10(unit.Order, 0)
 			// If unit is player controlled or its command is local
-			if s.options.IsPlayerControlled(unit.Side) || unit.HasLocalCommand {
+			if ((unit.Side+1)&s.options.Num()) != 0 || unit.HasLocalCommand {
 				// If it's next to its objective to defend and it's in contact with enemy
 				if distance == 1 && unit.Order == Defend && unit.InContactWithEnemy {
 					unit.TargetFormation = s.function10(unit.Order, 1)
@@ -796,8 +798,8 @@ l21:
 			}
 			v57 -= temp
 			s.hideUnit(unit)
-			if s.options.IsPlayerControlled(unit.Side) ||
-				s.options.Intelligence == Full || unit.InContactWithEnemy || unit.SeenByEnemy {
+			if ((unit.Side+1)&(s.options.Num()>>2)) == 0 ||
+				unit.InContactWithEnemy || unit.SeenByEnemy {
 				if !s.sync.SendUpdate(UnitMove{unit, unit.X / 2, unit.Y, sx / 2, sy}) {
 					quit = true
 					return
@@ -861,7 +863,7 @@ l21:
 				s.showUnit(unit2)
 				s.units[unit2.Side][unit2.Index] = unit2
 				if s.scenarioData.UnitScores[unit2.Type] > 8 {
-					if s.options.IsPlayerControlled(unit.Side) {
+					if ((unit.Side + 1) & s.options.Num()) > 0 {
 						sx = unit2.X
 						sy = unit2.Y
 						unit.Order = Attack
@@ -1064,7 +1066,7 @@ l21:
 					unit.ObjectiveX = unit2.X
 					unit.ObjectiveY = unit2.Y
 				} else {
-					if s.options.IsPlayerControlled(1-unit.Side) || s.options.Intelligence == Full {
+					if ((2 - unit.Side) & (s.options.Num() >> 2)) == 0 {
 						s.showUnit(unit2)
 					}
 					unit2.InContactWithEnemy = false
@@ -1187,7 +1189,7 @@ func (s *GameState) function6(offsetIx, add, x, y, unitType int) (int, int) {
 
 func (s *GameState) function29_showUnit(unit Unit) {
 	if unit.InContactWithEnemy || unit.SeenByEnemy /* &65 != 0 */ ||
-		s.options.IsPlayerControlled(unit.Side) || s.options.Intelligence == Full {
+		((unit.Side+1)&(s.options.Num()>>2)) == 0 {
 		s.showUnit(unit)
 	}
 }
@@ -1280,11 +1282,13 @@ func (s *GameState) function26(x, y int, index int) int {
 	return v
 }
 
+// If the side is controlled by the computer create the strategy level maps aggregating locations and numbers of units, important locations and such.
 func (s *GameState) reinitSmallMapsAndSuch(currentSide int) {
 	s.resetMaps()
-	//	v13 := 0
-	//	v15 := 0
-	//	v16 := 0
+	// Those variables in the original code do not seem to play any role
+	//v13 := 0
+	//v15 := 0
+	//v16 := 0
 	for _, sideUnits := range s.units {
 		for _, unit := range sideUnits {
 			if !unit.IsInGame || s.scenarioData.UnitMask[unit.Type]&16 != 0 {
@@ -1295,14 +1299,11 @@ func (s *GameState) reinitSmallMapsAndSuch(currentSide int) {
 				continue
 			}
 			if unit.Side == currentSide {
-				//				v15 += unit.MenCount + unit.EquipCount
-				//				v13 += 1
+				//v15 += unit.MenCount + unit.EquipCount
+				//v13 += 1
 			} else {
-				//				v16 += unit.MenCount + unit.EquipCount
-				// Possibly a bug in the original code and there should be /4 instead of /16
-				// Otherwise it's a way too complicated method to check for limited intelligence.
-				if s.options.Intelligence == Limited && //(unit.Side+1)&(s.options.Num()/16) > 0 &&
-					!unit.SeenByEnemy {
+				//v16 += unit.MenCount + unit.EquipCount
+				if ((currentSide+1)&(s.options.Num()>>4)) > 0 && !unit.SeenByEnemy {
 					continue
 				}
 			}
@@ -1493,6 +1494,7 @@ func (s *GameState) every12Hours() bool {
 }
 
 func (s *GameState) resupplyUnit(unit Unit) Unit {
+	unitVisible := ((unit.Side + 1) & (s.options.Num() >> 2)) == 0
 	unit.OrderBit4 = false
 	if !s.scenarioData.UnitUsesSupplies[unit.Type] ||
 		!s.scenarioData.UnitCanMove[unit.Type] {
@@ -1506,7 +1508,7 @@ func (s *GameState) resupplyUnit(unit Unit) Unit {
 		//  not other headquarters
 		minSupplyType++
 	}
-	if s.options.IsPlayerControlled(unit.Side) || s.options.Intelligence == Full {
+	if unitVisible {
 		s.showUnit(unit)
 	}
 	// keep the last friendly unit so that we can use it outside of the loop
@@ -1519,7 +1521,7 @@ outerLoop:
 			continue
 		}
 		supplyX, supplyY := supplyUnit.X, supplyUnit.Y
-		if s.options.IsPlayerControlled(unit.Side) || s.options.Intelligence == Full {
+		if unitVisible {
 			s.showUnit(supplyUnit)
 		}
 		supplyTransportBudget := s.scenarioData.MaxSupplyTransportCost
@@ -1554,7 +1556,7 @@ outerLoop:
 						break
 					}
 				}
-				if s.options.IsPlayerControlled(unit.Side) || s.options.Intelligence == Full {
+				if unitVisible {
 					s.sync.SendUpdate(SupplyTruckMove{supplyX / 2, supplyY, x / 2, y})
 					//  function13(x, y) (show truck icon at x, y)
 				}
@@ -1667,11 +1669,6 @@ func (s *GameState) terrainAt(x, y int) byte {
 }
 
 func (s *GameState) showUnit(unit Unit) {
-	if !(unit.InContactWithEnemy || unit.SeenByEnemy /* &65 != 0 */ ||
-		s.options.IsPlayerControlled(unit.Side) || s.options.Intelligence == Full) {
-		panic(fmt.Errorf("%v ", unit))
-	}
-
 	ix := s.coordsToMapIndex(unit.X, unit.Y)
 	s.terrainMap.SetTileAtIndex(ix, byte(unit.Type+unit.ColorPalette*16))
 }
@@ -1701,7 +1698,7 @@ func (s *GameState) ShowAllVisibleUnits() {
 			if sideUnits[i].Terrain%64 >= 48 {
 				panic(fmt.Errorf("%v", sideUnits[i]))
 			}
-			if unit.InContactWithEnemy || unit.SeenByEnemy || s.options.IsPlayerControlled(unit.Side) || s.options.Intelligence == Full {
+			if unit.InContactWithEnemy || unit.SeenByEnemy || ((s.options.Num()>>2)&(unit.Side+1)) == 0 {
 				s.showUnit(unit)
 			}
 		}
@@ -1762,6 +1759,7 @@ func (s *GameState) everyDay() bool {
 	s.sync.SendUpdate(DailyUpdate{
 		DaysRemaining: s.variant.LengthInDays - s.daysElapsed + 1,
 		SupplyLevel:   Clamp(s.supplyLevels[s.playerSide]/256, 0, 2)})
+	s.update = 3
 	return true
 }
 

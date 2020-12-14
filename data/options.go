@@ -16,12 +16,6 @@ type Options struct {
 	Speed           int // [1..3]
 }
 
-func (o Options) IsPlayerControlled(side int) bool {
-	if side == 0 {
-		return o.AlliedCommander == 0
-	}
-	return o.GermanCommander == 0
-}
 func (o Options) Num() int {
 	n := o.AlliedCommander + 2*o.GermanCommander
 	if o.Intelligence == Limited {
@@ -29,4 +23,3 @@ func (o Options) Num() int {
 	}
 	return n
 }
-

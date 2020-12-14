@@ -130,9 +130,6 @@ func (s *ShowMap) Update() error {
 		}()
 		s.started = true
 	}
-	if s.gameOver {
-		s.statusBar.Print("GAME OVER, PRESS '?' FOR RESULTS.", 2, 0, false)
-	}
 	s.commandBuffer.Update()
 	if s.animation != nil {
 		s.animation.Update()
@@ -307,6 +304,7 @@ loop:
 			s.gameOver = true
 			s.showStatusReport()
 			s.statusBar.Print("GAME OVER, PRESS '?' FOR RESULTS.", 2, 0, false)
+			s.sync.Stop()
 			break loop
 		case data.UnitMove:
 			if s.mapView.AreMapCoordsVisible(message.X0, message.Y0) || s.mapView.AreMapCoordsVisible(message.X1, message.Y1) {

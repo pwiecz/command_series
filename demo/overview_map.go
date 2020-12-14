@@ -58,7 +58,7 @@ func (m *OverviewMap) Draw(screen *ebiten.Image, opts *ebiten.DrawImageOptions) 
 	for side, sideUnits := range m.units {
 		color := m.scenarioData.SideColor[side]*16 + colors[side]
 		for _, unit := range sideUnits {
-			if unit.IsInGame && (unit.InContactWithEnemy || unit.SeenByEnemy || m.options.IsPlayerControlled(side) || m.options.Intelligence == data.Full) {
+			if unit.IsInGame && (unit.InContactWithEnemy || unit.SeenByEnemy || ((unit.Side+1)&(m.options.Num()>>2)) == 0) {
 				m.image.Set(unit.X/2, unit.Y, data.RGBPalette[color])
 			}
 		}
