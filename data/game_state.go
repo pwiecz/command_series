@@ -1518,7 +1518,8 @@ outerLoop:
 				break outerLoop
 			} else {
 				var x, y, cost int
-				for variant := 0; variant < 1; variant++ {
+				// TODO: why changing variant < 2 to variant < 1 has no effect (cost never 0? at least in dday?)
+				for variant := 0; variant < 2; variant++ {
 					x, y, cost = s.FindBestMoveFromTowards(supplyX, supplyY, unit.X, unit.Y, s.scenarioData.MinSupplyType, variant)
 					if cost != 0 {
 						break
@@ -1528,7 +1529,6 @@ outerLoop:
 					s.sync.SendUpdate(SupplyTruckMove{supplyX / 2, supplyY, x / 2, y})
 					//  function13(x, y) (show truck icon at x, y)
 				}
-				//dx, dy := moveToXY(move)
 				supplyX, supplyY = x, y
 				if s.ContainsUnitOfSide(supplyX, supplyY, 1-unit.Side) {
 					break
