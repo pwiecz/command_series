@@ -726,10 +726,9 @@ l21:
 					unit.TargetFormation = s.function10(unit.Order, 1)
 				}
 			}
-			temp := function8(unit.ObjectiveX-unit.X, unit.ObjectiveY-unit.Y)
-			offset, moveCost := s.function6(temp, mvAdd, unit.X, unit.Y, unit.Type)
-			sx = unit.X + s.generic.Dx[offset]
-			sy = unit.Y + s.generic.Dy[offset]
+			// TODO: investigate if scope of sx, sy is not too large, and they're used where they're not supposed to.
+			var moveCost int
+			sx, sy, moveCost = s.FindBestMoveFromTowards(unit.X, unit.Y, unit.ObjectiveX, unit.ObjectiveY, unit.Type, mvAdd)
 			if d32&64 > 0 { // in CiV artillery or mortars
 				if s.game != Conflict || unit.Formation == 0 {
 					sx = unit.ObjectiveX
@@ -737,7 +736,7 @@ l21:
 					tt := s.terrainTypeAt(sx, sy)
 					moveCost = s.scenarioData.MoveCostPerTerrainTypesAndUnit[tt][unit.Type]
 					arg1 = tt // shouldn't have any impact
-					mvAdd = 1
+					mvAdd = 1 // it just means don't go back to l5
 				} else if unit.Formation != 0 { /* Conflict */
 					if s.scenarioData.UnitMask[unit.Type]&32 != 0 {
 						break // goto l2
@@ -754,7 +753,7 @@ l21:
 				(unit.Order != Attack || moveCost != -1) &&
 				Abs(unit.ObjectiveX-unit.X)+Abs(unit.ObjectiveY-unit.Y) > 2 &&
 				mvAdd == 0 {
-				mvAdd = 2
+				mvAdd = 1
 				goto l5
 			}
 
@@ -771,7 +770,6 @@ l21:
 				v /= 2
 			}
 			if s.game != Crusade {
-				temp = v
 				if v == 0 {
 					break
 				}
@@ -788,6 +786,7 @@ l21:
 				}
 			}
 			w *= 8
+			var temp int
 			if s.game == Crusade {
 				temp = w / (v + 1)
 			} else {
@@ -1159,34 +1158,6 @@ func (s *GameState) coordsToMapIndex(x, y int) int {
 	return y*s.terrainMap.Width + x/2 - y/2
 }
 
-// TODO: deduplicate this function and FindBestMoveFromTowards()
-func (s *GameState) function6(offsetIx, add, x, y, unitType int) (int, int) {
-	ni := s.generic.DirectionToNeighbourIndex[offsetIx]
-
-	neigh1 := s.generic.Neighbours[add][ni]
-	offset1 := s.generic.MapOffsets[neigh1]
-	ix1 := s.coordsToMapIndex(x, y) + offset1
-	if !s.terrainMap.IsIndexValid(ix1) {
-		return 0, 0
-	}
-	tt1 := s.terrainTypeAtIndex(ix1)
-	mc1 := s.scenarioData.MoveCostPerTerrainTypesAndUnit[tt1][unitType]
-
-	neigh2 := s.generic.Neighbours[add+1][ni]
-	offset2 := s.generic.MapOffsets[neigh2]
-	ix2 := s.coordsToMapIndex(x, y) + offset2
-	if !s.terrainMap.IsIndexValid(ix2) {
-		return 0, 0
-	}
-	tt2 := s.terrainTypeAtIndex(ix2)
-	mc2 := s.scenarioData.MoveCostPerTerrainTypesAndUnit[tt2][unitType]
-
-	if mc2 > mc1-Rand(2, s.rand) {
-		return neigh2, mc2
-	}
-	return neigh1, mc1
-}
-
 func (s *GameState) function29_showUnit(unit Unit) {
 	if unit.InContactWithEnemy || unit.SeenByEnemy /* &65 != 0 */ ||
 		((unit.Side+1)&(s.options.Num()>>2)) == 0 {
@@ -1255,9 +1226,6 @@ func rotateRight6Bits(num byte) byte {
 	return num
 }
 
-func function8(dx, dy int) int {
-	return Sign(dy)*5 + Sign(dx-dy)*3 + Sign(dx+dy)
-}
 func (s *GameState) function10(order OrderType, offset int) int {
 	if offset < 0 || offset >= 4 {
 		panic(offset)
@@ -1705,23 +1673,31 @@ func (s *GameState) ShowAllVisibleUnits() {
 	}
 }
 
-func (s *GameState) FindBestMoveFromTowards(supplyX, supplyY, unitX, unitY, unitType, variant int) (int, int, int) {
-	dx, dy := unitX-supplyX, unitY-supplyY
+// function6
+func (s *GameState) FindBestMoveFromTowards(unitX0, unitY0, unitX1, unitY1, unitType, variant int) (int, int, int) {
+	dx, dy := unitX1-unitX0, unitY1-unitY0
+
 	neighbour1 := s.generic.DxDyToNeighbour(dx, dy, 2*variant)
-	supplyX1 := supplyX + s.generic.Dx[neighbour1]
-	supplyY1 := supplyY + s.generic.Dy[neighbour1]
-	terrainType1 := s.terrainTypeAt(supplyX1, supplyY1)
+	candX1 := unitX0 + s.generic.Dx[neighbour1]
+	candY1 := unitY0 + s.generic.Dy[neighbour1]
+	if !s.terrainMap.AreCoordsValid(candX1/2, candY1) {
+		return 0, 0, 0
+	}
+	terrainType1 := s.terrainTypeAt(candX1, candY1)
 	cost1 := s.scenarioData.MoveCostPerTerrainTypesAndUnit[terrainType1][unitType]
 
 	neighbour2 := s.generic.DxDyToNeighbour(dx, dy, 2*variant+1)
-	supplyX2 := supplyX + s.generic.Dx[neighbour2]
-	supplyY2 := supplyY + s.generic.Dy[neighbour2]
-	terrainType2 := s.terrainTypeAt(supplyX2, supplyY2)
+	candX2 := unitX0 + s.generic.Dx[neighbour2]
+	candY2 := unitY0 + s.generic.Dy[neighbour2]
+	if !s.terrainMap.AreCoordsValid(candX2/2, candY2) {
+		return 0, 0, 0
+	}
+	terrainType2 := s.terrainTypeAt(candX2, candY2)
 	cost2 := s.scenarioData.MoveCostPerTerrainTypesAndUnit[terrainType2][unitType]
 	if cost2 > cost1-Rand(2, s.rand) {
-		return supplyX2, supplyY2, cost2
+		return candX2, candY2, cost2
 	}
-	return supplyX1, supplyY1, cost1
+	return candX1, candY1, cost1
 }
 
 func (s *GameState) everyDay() bool {
