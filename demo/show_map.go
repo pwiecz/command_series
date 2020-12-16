@@ -279,6 +279,8 @@ loop:
 	for {
 		update := s.sync.GetUpdate()
 		if update == nil {
+			// some delay to "simulate" computation time
+			s.idleTicksLeft = 15
 			break loop
 		}
 		switch message := update.(type) {
@@ -352,9 +354,7 @@ loop:
 }
 
 func (s *ShowMap) showMessageFromUnit(message data.MessageFromUnit) {
-	for y := 0; y < 5; y++ {
-		s.messageBox.ClearRow(y)
-	}
+	s.messageBox.Clear()
 	s.messageBox.Print("MESSAGE FROM ...", 2, 0, true)
 	unit := message.Unit()
 	unitName := fmt.Sprintf("%s:", unit.String())
@@ -364,7 +364,8 @@ func (s *ShowMap) showMessageFromUnit(message data.MessageFromUnit) {
 		s.messageBox.Print(line, 2, 2+i, false)
 	}
 	s.mapView.ShowIcon(message.Icon(), unit.X/2, unit.Y)
-	s.idleTicksLeft = s.options.Speed.DelayTicks()
+	// 15 added to "simulate" the computation time
+	s.idleTicksLeft = s.options.Speed.DelayTicks() + 15
 	s.lastMessageFromUnit = message
 }
 func (s *ShowMap) areUnitCoordsVisible(x, y int) bool {

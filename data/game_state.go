@@ -129,7 +129,8 @@ func (s *GameState) Init() bool {
 }
 func (s *GameState) SwitchSides() {
 	s.playerSide = 1 - s.playerSide
-	s.commanderMask = ((s.commanderMask & 21) << 1) + ((s.commanderMask & 42) >> 1) // swap bits
+	// swap adjacent pairs of bits
+	s.commanderMask = ((s.commanderMask & 21) << 1) + ((s.commanderMask & 42) >> 1)
 }
 func (s *GameState) Update() bool {
 	s.unitsUpdated++
