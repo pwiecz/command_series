@@ -27,11 +27,11 @@ func CreateTestGameState(filename string, scenarioNum, variantNum int, messageSy
 		return nil
 	}
 	var options Options
-	options.AlliedCommander = 0
-	options.GermanCommander = 1
+	options.AlliedCommander = Player
+	options.GermanCommander = Computer
 	options.Intelligence = Limited
 	options.GameBalance = 2
-	return NewGameState(rand, gameData, scenarioData, scenarioNum, variantNum, options, messageSync)
+	return NewGameState(rand, gameData, scenarioData, scenarioNum, variantNum, 0, options, messageSync)
 }
 
 func TestRegression(t *testing.T) {

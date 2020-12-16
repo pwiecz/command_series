@@ -27,10 +27,6 @@ type OptionSelection struct {
 	cursorRow   int
 }
 
-var commanderStrings = [2]string{"PLAYER", "COMPUTER"}
-var intelligenceStrings = [2]string{"FULL", "LIMITED"}
-var unitDisplayStrings = [2]string{"SYMBOLS", "ICONS"}
-var speedStrings = [3]string{"FAST", "MEDIUM", "SLOW"}
 var crusadeSidesStrings = [2]string{"Allied", "German"}
 var decisionSidesStrings = [2]string{"British", "Axis"}
 var conflictSidesStrings = [2]string{"Free World", "Communist"}
@@ -40,11 +36,8 @@ var conflictBalanceStrings = [5]string{"++COMMUNIST", "+COMMUNIST", "EVEN", "+FR
 func NewOptionSelection(game data.Game, font *data.Font, onOptionsSelected func(data.Options)) *OptionSelection {
 	s := &OptionSelection{
 		font:              font,
-		onOptionsSelected: onOptionsSelected}
-	s.options.GermanCommander = 1
-	s.options.Intelligence = data.Limited
-	s.options.GameBalance = 2
-	s.options.Speed = 2
+		onOptionsSelected: onOptionsSelected,
+		options:           data.DefaultOptions()}
 
 	var side0Command, side1Command string
 	switch game {
@@ -83,31 +76,31 @@ func NewOptionSelection(game data.Game, font *data.Font, onOptionsSelected func(
 		s.balanceStrings = conflictBalanceStrings[:]
 	}
 
-	s.side0Button = NewButton(commanderStrings[s.options.AlliedCommander], buttonPosition, 48, image.Pt(300, 8), font)
-	s.side1Button = NewButton(commanderStrings[s.options.GermanCommander], buttonPosition, 56, image.Pt(300, 8), font)
-	s.intelligenceButton = NewButton(intelligenceStrings[s.options.Intelligence], buttonPosition, 64, image.Pt(300, 8), font)
-	s.unitDisplayButton = NewButton(unitDisplayStrings[s.options.UnitDisplay], buttonPosition, 72, image.Pt(300, 8), font)
+	s.side0Button = NewButton(s.options.AlliedCommander.String(), buttonPosition, 48, image.Pt(300, 8), font)
+	s.side1Button = NewButton(s.options.GermanCommander.String(), buttonPosition, 56, image.Pt(300, 8), font)
+	s.intelligenceButton = NewButton(s.options.Intelligence.String(), buttonPosition, 64, image.Pt(300, 8), font)
+	s.unitDisplayButton = NewButton(s.options.UnitDisplay.String(), buttonPosition, 72, image.Pt(300, 8), font)
 	s.balanceButton = NewButton(s.balanceStrings[s.options.GameBalance], buttonPosition, 80, image.Pt(300, 8), font)
-	s.speedButton = NewButton(speedStrings[s.options.Speed-1], buttonPosition, 88, image.Pt(300, 8), font)
+	s.speedButton = NewButton(s.options.Speed.String(), buttonPosition, 88, image.Pt(300, 8), font)
 
 	return s
 }
 
 func (s *OptionSelection) changeAlliedCommander() {
-	s.options.AlliedCommander = 1 - s.options.AlliedCommander
-	s.side0Button.Text = commanderStrings[s.options.AlliedCommander]
+	s.options.AlliedCommander = s.options.AlliedCommander.Other()
+	s.side0Button.Text = s.options.AlliedCommander.String()
 }
 func (s *OptionSelection) changeGermanCommander() {
-	s.options.GermanCommander = 1 - s.options.GermanCommander
-	s.side1Button.Text = commanderStrings[s.options.GermanCommander]
+	s.options.GermanCommander = s.options.GermanCommander.Other()
+	s.side1Button.Text = s.options.GermanCommander.String()
 }
 func (s *OptionSelection) changeIntelligence() {
-	s.options.Intelligence = 1 - s.options.Intelligence
-	s.intelligenceButton.Text = intelligenceStrings[s.options.Intelligence]
+	s.options.Intelligence = s.options.Intelligence.Other()
+	s.intelligenceButton.Text = s.options.Intelligence.String()
 }
 func (s *OptionSelection) changeUnitDisplay() {
 	s.options.UnitDisplay = 1 - s.options.UnitDisplay
-	s.unitDisplayButton.Text = unitDisplayStrings[s.options.UnitDisplay]
+	s.unitDisplayButton.Text = s.options.UnitDisplay.String()
 }
 func (s *OptionSelection) changeGameBalance(forward bool) {
 	if forward {
@@ -129,7 +122,7 @@ func (s *OptionSelection) changeGameSpeed(forward bool) {
 			s.options.Speed = 3
 		}
 	}
-	s.speedButton.Text = speedStrings[s.options.Speed-1]
+	s.speedButton.Text = s.options.Speed.String()
 }
 func (s *OptionSelection) Update() error {
 	if s.side0Button.Update() {

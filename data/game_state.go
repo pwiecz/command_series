@@ -19,6 +19,7 @@ type GameState struct {
 	supplyLevels [2]int
 
 	playerSide                       int // remove it from here
+	commanderMask                    int // a bitmask defining which units are visible for which side etc.
 	unitsUpdated                     int
 	numUnitsToUpdatePerTimeIncrement int
 	lastUpdatedUnit                  int
@@ -51,7 +52,7 @@ type GameState struct {
 	sync *MessageSync
 }
 
-func NewGameState(rand *rand.Rand, gameData *GameData, scenarioData *ScenarioData, scenarioNum, variantNum int, options Options, sync *MessageSync) *GameState {
+func NewGameState(rand *rand.Rand, gameData *GameData, scenarioData *ScenarioData, scenarioNum, variantNum int, playerSide int, options Options, sync *MessageSync) *GameState {
 	scenario := &gameData.Scenarios[scenarioNum]
 	variant := &scenarioData.Variants[variantNum]
 	sunriseOffset := Abs(6-scenario.StartMonth) / 2
@@ -76,6 +77,8 @@ func NewGameState(rand *rand.Rand, gameData *GameData, scenarioData *ScenarioDat
 	s.hexes = &gameData.Hexes
 	s.generals = scenarioData.Generals
 	s.variant = variant
+	s.playerSide = playerSide
+	s.commanderMask = calculateCommanderMask(options)
 	s.options = options
 	s.sync = sync
 
@@ -107,6 +110,14 @@ func NewGameState(rand *rand.Rand, gameData *GameData, scenarioData *ScenarioDat
 	return s
 }
 
+// Three two-bit parts telling which side is controlled by player, can see its units, and sth.
+func calculateCommanderMask(o Options) int {
+	n := o.AlliedCommander.Int() + 2*o.GermanCommander.Int()
+	if o.Intelligence == Limited {
+		n += 56 - 4*(o.AlliedCommander.Int()*o.GermanCommander.Int()+o.AlliedCommander.Int())
+	}
+	return n
+}
 func (s *GameState) Init() bool {
 	if !s.everyHour() {
 		return false
@@ -115,6 +126,10 @@ func (s *GameState) Init() bool {
 		return false
 	}
 	return true
+}
+func (s *GameState) SwitchSides() {
+	s.playerSide = 1 - s.playerSide
+	s.commanderMask = ((s.commanderMask & 21) << 1) + ((s.commanderMask & 42) >> 1) // swap bits
 }
 func (s *GameState) Update() bool {
 	s.unitsUpdated++
@@ -224,7 +239,7 @@ nextUnit:
 		unit.State4 = false // &= 239
 	}
 
-	if ((unit.Side + 1) & s.options.Num()) == 0 {
+	if ((unit.Side + 1) & s.commanderMask) == 0 {
 		s.update = unit.Side
 		// If not a local command and either objective is specified, or order is defend or move).
 		if !unit.HasLocalCommand && (unit.Order == Defend || unit.Order == Move || unit.ObjectiveX != 0) { // ... maybe?
@@ -653,7 +668,7 @@ l24:
 		// unhide unit
 		s.units[unit.Side][unit.Index].IsInGame = true
 		v := s.scenarioData.FormationMenDefence[unit.Formation] - 8
-		if ((unit.Side + 1) & s.options.Num()) == 0 {
+		if ((unit.Side + 1) & s.commanderMask) == 0 {
 			v *= 2
 		}
 		if v+v_6 > arg1 {
@@ -720,7 +735,7 @@ l21:
 			}
 			unit.TargetFormation = s.function10(unit.Order, 0)
 			// If unit is player controlled or its command is local
-			if ((unit.Side+1)&s.options.Num()) != 0 || unit.HasLocalCommand {
+			if ((unit.Side+1)&s.commanderMask) != 0 || unit.HasLocalCommand {
 				// If it's next to its objective to defend and it's in contact with enemy
 				if distance == 1 && unit.Order == Defend && unit.InContactWithEnemy {
 					unit.TargetFormation = s.function10(unit.Order, 1)
@@ -797,7 +812,7 @@ l21:
 			}
 			v57 -= temp
 			s.hideUnit(unit)
-			if ((unit.Side+1)&(s.options.Num()>>2)) == 0 ||
+			if ((unit.Side+1)&(s.commanderMask>>2)) == 0 ||
 				unit.InContactWithEnemy || unit.SeenByEnemy {
 				if !s.sync.SendUpdate(UnitMove{unit, unit.X / 2, unit.Y, sx / 2, sy}) {
 					quit = true
@@ -862,7 +877,7 @@ l21:
 				s.showUnit(unit2)
 				s.units[unit2.Side][unit2.Index] = unit2
 				if s.scenarioData.UnitScores[unit2.Type] > 8 {
-					if ((unit.Side + 1) & s.options.Num()) > 0 {
+					if ((unit.Side + 1) & s.commanderMask) > 0 {
 						sx = unit2.X
 						sy = unit2.Y
 						unit.Order = Attack
@@ -1065,7 +1080,7 @@ l21:
 					unit.ObjectiveX = unit2.X
 					unit.ObjectiveY = unit2.Y
 				} else {
-					if ((2 - unit.Side) & (s.options.Num() >> 2)) == 0 {
+					if ((2 - unit.Side) & (s.commanderMask >> 2)) == 0 {
 						s.showUnit(unit2)
 					}
 					unit2.InContactWithEnemy = false
@@ -1160,7 +1175,7 @@ func (s *GameState) coordsToMapIndex(x, y int) int {
 
 func (s *GameState) function29_showUnit(unit Unit) {
 	if unit.InContactWithEnemy || unit.SeenByEnemy /* &65 != 0 */ ||
-		((unit.Side+1)&(s.options.Num()>>2)) == 0 {
+		((unit.Side+1)&(s.commanderMask>>2)) == 0 {
 		s.showUnit(unit)
 	}
 }
@@ -1271,7 +1286,7 @@ func (s *GameState) reinitSmallMapsAndSuch(currentSide int) {
 				//v13 += 1
 			} else {
 				//v16 += unit.MenCount + unit.EquipCount
-				if ((currentSide+1)&(s.options.Num()>>4)) > 0 && !unit.SeenByEnemy {
+				if ((currentSide+1)&(s.commanderMask>>4)) > 0 && !unit.SeenByEnemy {
 					continue
 				}
 			}
@@ -1462,7 +1477,7 @@ func (s *GameState) every12Hours() bool {
 }
 
 func (s *GameState) resupplyUnit(unit Unit) Unit {
-	unitVisible := ((unit.Side + 1) & (s.options.Num() >> 2)) == 0
+	unitVisible := ((unit.Side + 1) & (s.commanderMask >> 2)) == 0
 	unit.OrderBit4 = false
 	if !s.scenarioData.UnitUsesSupplies[unit.Type] ||
 		!s.scenarioData.UnitCanMove[unit.Type] {
@@ -1656,6 +1671,10 @@ func (s *GameState) HideAllUnits() {
 		}
 	}
 }
+
+func (s *GameState) IsUnitVisible(unit Unit) bool {
+	return unit.IsInGame && (unit.InContactWithEnemy || unit.SeenByEnemy || ((unit.Side+1)&(s.commanderMask>>2)) == 0)
+}
 func (s *GameState) ShowAllVisibleUnits() {
 	for _, sideUnits := range s.units {
 		for i, unit := range sideUnits {
@@ -1666,7 +1685,7 @@ func (s *GameState) ShowAllVisibleUnits() {
 			if sideUnits[i].Terrain%64 >= 48 {
 				panic(fmt.Errorf("%v", sideUnits[i]))
 			}
-			if unit.InContactWithEnemy || unit.SeenByEnemy || ((s.options.Num()>>2)&(unit.Side+1)) == 0 {
+			if s.IsUnitVisible(unit) {
 				s.showUnit(unit)
 			}
 		}
@@ -1674,26 +1693,34 @@ func (s *GameState) ShowAllVisibleUnits() {
 }
 
 // function6
+// Finds best position to move if you want to move from unitX0,unitY0 to unitX1, unitY1 with unit
+// of type unitType. If variant == 0 consider only neighbour fields directly towards the goal,
+// if variant == 1 look at neighbour two fields "more to the side"
 func (s *GameState) FindBestMoveFromTowards(unitX0, unitY0, unitX1, unitY1, unitType, variant int) (int, int, int) {
 	dx, dy := unitX1-unitX0, unitY1-unitY0
 
 	neighbour1 := s.generic.DxDyToNeighbour(dx, dy, 2*variant)
 	candX1 := unitX0 + s.generic.Dx[neighbour1]
 	candY1 := unitY0 + s.generic.Dy[neighbour1]
+	var cost1 int
 	if !s.terrainMap.AreCoordsValid(candX1/2, candY1) {
-		return 0, 0, 0
+		candX1, candY1 = unitX0, unitY0
+	} else {
+		terrainType1 := s.terrainTypeAt(candX1, candY1)
+		cost1 = s.scenarioData.MoveCostPerTerrainTypesAndUnit[terrainType1][unitType]
 	}
-	terrainType1 := s.terrainTypeAt(candX1, candY1)
-	cost1 := s.scenarioData.MoveCostPerTerrainTypesAndUnit[terrainType1][unitType]
 
 	neighbour2 := s.generic.DxDyToNeighbour(dx, dy, 2*variant+1)
 	candX2 := unitX0 + s.generic.Dx[neighbour2]
 	candY2 := unitY0 + s.generic.Dy[neighbour2]
+	var cost2 int
 	if !s.terrainMap.AreCoordsValid(candX2/2, candY2) {
-		return 0, 0, 0
+		candX2, candY2 = unitX0, unitY0
+	} else {
+		terrainType2 := s.terrainTypeAt(candX2, candY2)
+		cost2 = s.scenarioData.MoveCostPerTerrainTypesAndUnit[terrainType2][unitType]
 	}
-	terrainType2 := s.terrainTypeAt(candX2, candY2)
-	cost2 := s.scenarioData.MoveCostPerTerrainTypesAndUnit[terrainType2][unitType]
+
 	if cost2 > cost1-Rand(2, s.rand) {
 		return candX2, candY2, cost2
 	}
@@ -1793,7 +1820,7 @@ func (s *GameState) FinalResults() (int, int, int) {
 		absoluteAdvantage = 5 - advantage
 	}
 	v73 := s.playerSide
-	if s.options.Num()%4 == 0 { // if a two-player game?
+	if s.commanderMask%4 == 0 { // if a two-player game?
 		if advantage < 6 {
 			v73 = 1
 		} else {

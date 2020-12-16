@@ -4,22 +4,22 @@ import "github.com/hajimehoshi/ebiten"
 import "github.com/pwiecz/command_series/data"
 
 type OverviewMap struct {
-	image        *ebiten.Image
-	terrainMap   *data.Map
-	generic      *data.Generic
-	scenarioData *data.Data
-	options      *data.Options
-	units        *[2][]data.Unit
-	cycle        int
+	image         *ebiten.Image
+	terrainMap    *data.Map
+	generic       *data.Generic
+	scenarioData  *data.Data
+	units         *[2][]data.Unit
+	isUnitVisible func(data.Unit) bool
+	cycle         int
 }
 
-func NewOverviewMap(terrainMap *data.Map, units *[2][]data.Unit, generic *data.Generic, scenarioData *data.Data, options *data.Options) *OverviewMap {
+func NewOverviewMap(terrainMap *data.Map, units *[2][]data.Unit, generic *data.Generic, scenarioData *data.Data, isUnitVisible func(data.Unit) bool) *OverviewMap {
 	return &OverviewMap{
-		terrainMap:   terrainMap,
-		units:        units,
-		generic:      generic,
-		scenarioData: scenarioData,
-		options:      options}
+		terrainMap:    terrainMap,
+		units:         units,
+		generic:       generic,
+		scenarioData:  scenarioData,
+		isUnitVisible: isUnitVisible}
 }
 
 func (m *OverviewMap) Draw(screen *ebiten.Image, opts *ebiten.DrawImageOptions) {
@@ -58,7 +58,7 @@ func (m *OverviewMap) Draw(screen *ebiten.Image, opts *ebiten.DrawImageOptions) 
 	for side, sideUnits := range m.units {
 		color := m.scenarioData.SideColor[side]*16 + colors[side]
 		for _, unit := range sideUnits {
-			if unit.IsInGame && (unit.InContactWithEnemy || unit.SeenByEnemy || ((unit.Side+1)&(m.options.Num()>>2)) == 0) {
+			if m.isUnitVisible(unit) {
 				m.image.Set(unit.X/2, unit.Y, data.RGBPalette[color])
 			}
 		}

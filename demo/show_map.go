@@ -61,12 +61,16 @@ func NewShowMap(g *Game, options data.Options, audioPlayer *AudioPlayer, onGameO
 		scenarioData:  g.scenarioData,
 		options:       options,
 		audioPlayer:   audioPlayer,
-		playerSide:    options.AlliedCommander,
 		commandBuffer: NewCommandBuffer(20),
 		sync:          data.NewMessageSync(),
 		onGameOver:    onGameOver}
+	if options.AlliedCommander == data.Player {
+		s.playerSide = 0
+	} else {
+		s.playerSide = 1
+	}
 	rnd := rand.New(rand.NewSource(1))
-	s.gameState = data.NewGameState(rnd, g.gameData, g.scenarioData, g.selectedScenario, g.selectedVariant, s.options, s.sync)
+	s.gameState = data.NewGameState(rnd, g.gameData, g.scenarioData, g.selectedScenario, g.selectedVariant, s.playerSide, s.options, s.sync)
 	s.mapView = NewMapView(
 		&g.gameData.Map, scenario.MinX, scenario.MinY, scenario.MaxX, scenario.MaxY,
 		&g.gameData.Sprites.TerrainTiles,
@@ -159,43 +163,44 @@ func (s *ShowMap) Update() error {
 			case StatusReport:
 				if !s.gameOver {
 					s.showStatusReport()
-					s.idleTicksLeft = 60 * s.options.Speed
+					s.idleTicksLeft = s.options.Speed.DelayTicks()
 				} else {
 					result, balance, rank := s.gameState.FinalResults()
 					s.onGameOver(result, balance, rank)
 				}
 			case UnitInfo:
 				s.showUnitInfo()
-				s.idleTicksLeft = 60 * s.options.Speed
+				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case GeneralInfo:
 				s.showGeneralInfo()
-				s.idleTicksLeft = 60 * s.options.Speed
+				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case CityInfo:
 				s.showCityInfo()
-				s.idleTicksLeft = 60 * s.options.Speed
+				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case HideUnits:
 				s.hideUnits()
-				s.idleTicksLeft = 60 * s.options.Speed
+				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case ShowOverviewMap:
 				s.showOverviewMap()
-				s.idleTicksLeft = 60 * s.options.Speed
+				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case ShowFlashback:
 				s.showFlashback()
-				s.idleTicksLeft = 60 * s.options.Speed
+				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case Who:
 				s.showLastMessageUnit()
-				s.idleTicksLeft = 60 * s.options.Speed
+				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case DecreaseSpeed:
-				s.idleTicksLeft = 60 * s.options.Speed
+				s.idleTicksLeft = s.options.Speed.DelayTicks()
 				s.decreaseGameSpeed()
 			case IncreaseSpeed:
-				s.idleTicksLeft = 60 * s.options.Speed
+				s.idleTicksLeft = s.options.Speed.DelayTicks()
 				s.increaseGameSpeed()
 			case SwitchUnitDisplay:
-				s.idleTicksLeft = 60 * s.options.Speed
+				s.idleTicksLeft = s.options.Speed.DelayTicks()
 				s.options.UnitDisplay = 1 - s.options.UnitDisplay
 			case SwitchSides:
 				s.playerSide = 1 - s.playerSide
+				s.gameState.SwitchSides()
 				s.mapView.HideIcon()
 				s.messageBox.Clear()
 				s.messageBox.Print(s.scenarioData.Data.Sides[s.playerSide]+" PLAYER:", 2, 0, false)
@@ -203,55 +208,55 @@ func (s *ShowMap) Update() error {
 				if !s.areUnitsHidden {
 					s.hideUnits()
 				}
-				s.idleTicksLeft = 60 * s.options.Speed
+				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case Quit:
 				s.sync.Stop()
 				return fmt.Errorf("QUIT")
 			case Reserve:
 				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, data.Reserve)
-				s.idleTicksLeft = 60 * s.options.Speed
+				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case Defend:
 				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, data.Defend)
-				s.idleTicksLeft = 60 * s.options.Speed
+				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case Attack:
 				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, data.Attack)
-				s.idleTicksLeft = 60 * s.options.Speed
+				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case Move:
 				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, data.Move)
-				s.idleTicksLeft = 60 * s.options.Speed
+				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case SetObjective:
 				s.trySetObjective(s.mapView.cursorX, s.mapView.cursorY)
-				s.idleTicksLeft = 60 * s.options.Speed
+				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case ScrollDown:
-				s.idleTicksLeft = 60 * s.options.Speed
+				s.idleTicksLeft = s.options.Speed.DelayTicks()
 				curX, curY := s.mapView.GetCursorPosition()
 				s.mapView.SetCursorPosition(curX, curY+1)
 			case ScrollDownFast:
-				s.idleTicksLeft = 60 * s.options.Speed
+				s.idleTicksLeft = s.options.Speed.DelayTicks()
 				curX, curY := s.mapView.GetCursorPosition()
 				s.mapView.SetCursorPosition(curX, curY+2)
 			case ScrollUp:
-				s.idleTicksLeft = 60 * s.options.Speed
+				s.idleTicksLeft = s.options.Speed.DelayTicks()
 				curX, curY := s.mapView.GetCursorPosition()
 				s.mapView.SetCursorPosition(curX, curY-1)
 			case ScrollUpFast:
-				s.idleTicksLeft = 60 * s.options.Speed
+				s.idleTicksLeft = s.options.Speed.DelayTicks()
 				curX, curY := s.mapView.GetCursorPosition()
 				s.mapView.SetCursorPosition(curX, curY-2)
 			case ScrollRight:
-				s.idleTicksLeft = 60 * s.options.Speed
+				s.idleTicksLeft = s.options.Speed.DelayTicks()
 				curX, curY := s.mapView.GetCursorPosition()
 				s.mapView.SetCursorPosition(curX+1, curY)
 			case ScrollRightFast:
-				s.idleTicksLeft = 60 * s.options.Speed
+				s.idleTicksLeft = s.options.Speed.DelayTicks()
 				curX, curY := s.mapView.GetCursorPosition()
 				s.mapView.SetCursorPosition(curX+2, curY)
 			case ScrollLeft:
-				s.idleTicksLeft = 60 * s.options.Speed
+				s.idleTicksLeft = s.options.Speed.DelayTicks()
 				curX, curY := s.mapView.GetCursorPosition()
 				s.mapView.SetCursorPosition(curX-1, curY)
 			case ScrollLeftFast:
-				s.idleTicksLeft = 60 * s.options.Speed
+				s.idleTicksLeft = s.options.Speed.DelayTicks()
 				curX, curY := s.mapView.GetCursorPosition()
 				s.mapView.SetCursorPosition(curX-2, curY)
 			}
@@ -330,14 +335,14 @@ loop:
 			s.messageBox.Print("SUPPLY LEVEL:", 2, 3, true)
 			supplyLevels := []string{"CRITICAL", "SUFFICIENT", "AMPLE"}
 			s.messageBox.Print(supplyLevels[message.SupplyLevel], 16, 3, false)
-			s.idleTicksLeft = 60 * s.options.Speed
+			s.idleTicksLeft = s.options.Speed.DelayTicks()
 			break loop
 		case data.TimeChanged:
 			s.statusBar.Clear()
 			s.statusBar.Print(s.dateTimeString(), 2, 0, false)
 			if s.gameState.Hour() == 18 && s.gameState.Minute() == 0 {
 				s.showStatusReport()
-				s.idleTicksLeft = 60 * s.options.Speed
+				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			}
 		default:
 			return fmt.Errorf("Unknown message: %v", message)
@@ -359,7 +364,7 @@ func (s *ShowMap) showMessageFromUnit(message data.MessageFromUnit) {
 		s.messageBox.Print(line, 2, 2+i, false)
 	}
 	s.mapView.ShowIcon(message.Icon(), unit.X/2, unit.Y)
-	s.idleTicksLeft = 60 * s.options.Speed
+	s.idleTicksLeft = s.options.Speed.DelayTicks()
 	s.lastMessageFromUnit = message
 }
 func (s *ShowMap) areUnitCoordsVisible(x, y int) bool {
@@ -590,7 +595,7 @@ func (s *ShowMap) showOverviewMap() {
 	if !s.areUnitsHidden {
 		s.hideUnits()
 	}
-	s.overviewMap = NewOverviewMap(&s.gameData.Map, &s.scenarioData.Units, &s.gameData.Generic, &s.scenarioData.Data, &s.options)
+	s.overviewMap = NewOverviewMap(&s.gameData.Map, &s.scenarioData.Units, &s.gameData.Generic, &s.scenarioData.Data, s.gameState.IsUnitVisible)
 }
 func (s *ShowMap) showFlashback() {
 	if !s.areUnitsHidden {
@@ -607,16 +612,19 @@ func (s *ShowMap) showLastMessageUnit() {
 	s.mapView.ShowIcon(s.lastMessageFromUnit.Icon(), messageUnit.X/2, messageUnit.Y)
 }
 func (s *ShowMap) increaseGameSpeed() {
-	s.changeGameSpeed(-1)
+	s.changeGameSpeed(true)
 }
 func (s *ShowMap) decreaseGameSpeed() {
-	s.changeGameSpeed(1)
+	s.changeGameSpeed(false)
 }
-func (s *ShowMap) changeGameSpeed(delta int) {
-	s.options.Speed = data.Clamp(s.options.Speed+delta, 1, 3)
+func (s *ShowMap) changeGameSpeed(faster bool) {
+	if faster {
+		s.options.Speed = s.options.Speed.Faster()
+	} else {
+		s.options.Speed = s.options.Speed.Slower()
+	}
 	s.messageBox.Clear()
-	speedNames := []string{"FAST", "MEDIUM", "SLOW"}
-	s.messageBox.Print(fmt.Sprintf("SPEED: %s", speedNames[s.options.Speed-1]), 2, 0, false)
+	s.messageBox.Print("SPEED: "+s.options.Speed.String(), 2, 0, false)
 }
 
 func (s *ShowMap) dateTimeString() string {
