@@ -57,7 +57,7 @@ type Data struct {
 	EquipReplacementRate           [2]int     // Data[236,237]
 	SideColor                      [2]int     // Data[248,249] the value*16 is the hue corresponding to the given side
 	Data252                        [2]int     // Data[252:254] per side
-	MoveCostPerTerrainTypesAndUnit [8][16]int // Data[255:383]
+	MoveSpeedPerTerrainTypeAndUnit [8][16]int // Data[255:383]
 	// Every chunk of four bytes list possible weather for a year's quarter.
 	PossibleWeather [16]byte       // Data[384:400]
 	DaytimePalette  [8]byte        // Data[400:408]
@@ -188,7 +188,7 @@ func ParseData(data []byte) (Data, error) {
 	scenario.Data252[1] = int(data[253])
 	for terrainType := 0; terrainType < 8; terrainType++ {
 		for unitType, cost := range data[255+16*terrainType : 255+16*(terrainType+1)] {
-			scenario.MoveCostPerTerrainTypesAndUnit[terrainType][unitType] = int(cost)
+			scenario.MoveSpeedPerTerrainTypeAndUnit[terrainType][unitType] = int(cost)
 		}
 	}
 	copy(scenario.PossibleWeather[:], data[384:])

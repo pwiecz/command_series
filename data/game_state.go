@@ -709,10 +709,10 @@ l21:
 		message = WeHaveExhaustedSupplies{unit}
 	}
 	{
-		v57 := 25 // unit's move "budget"
 		var distance int
 		var sx, sy int
-		for { // l22:
+		// l22:
+		for unitMoveBudget := 25; unitMoveBudget > 0; {
 			if unit.ObjectiveX == 0 {
 				break
 			}
@@ -742,14 +742,14 @@ l21:
 				}
 			}
 			// TODO: investigate if scope of sx, sy is not too large, and they're used where they're not supposed to.
-			var moveCost int
-			sx, sy, moveCost = s.FindBestMoveFromTowards(unit.X, unit.Y, unit.ObjectiveX, unit.ObjectiveY, unit.Type, mvAdd)
+			var moveSpeed int
+			sx, sy, moveSpeed = s.FindBestMoveFromTowards(unit.X, unit.Y, unit.ObjectiveX, unit.ObjectiveY, unit.Type, mvAdd)
 			if d32&64 > 0 { // in CiV artillery or mortars
 				if s.game != Conflict || unit.Formation == 0 {
 					sx = unit.ObjectiveX
 					sy = unit.ObjectiveY
 					tt := s.terrainTypeAt(sx, sy)
-					moveCost = s.scenarioData.MoveCostPerTerrainTypesAndUnit[tt][unit.Type]
+					moveSpeed = s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[tt][unit.Type]
 					arg1 = tt // shouldn't have any impact
 					mvAdd = 1 // it just means don't go back to l5
 				} else if unit.Formation != 0 { /* Conflict */
@@ -759,58 +759,58 @@ l21:
 				}
 			}
 			if s.ContainsUnitOfSide(sx, sy, unit.Side) {
-				moveCost = 0
+				moveSpeed = 0
 			}
 			if s.ContainsUnitOfSide(sx, sy, 1-unit.Side) {
-				moveCost = -1
+				moveSpeed = -1
 			}
-			if moveCost < 1 &&
-				(unit.Order != Attack || moveCost != -1) &&
+			if moveSpeed < 1 &&
+				(unit.Order != Attack || moveSpeed != -1) &&
 				Abs(unit.ObjectiveX-unit.X)+Abs(unit.ObjectiveY-unit.Y) > 2 &&
 				mvAdd == 0 {
 				mvAdd = 1
 				goto l5
 			}
 
-			if moveCost < 1 {
+			if moveSpeed < 1 {
 				break
 			}
-			v := s.scenarioData.Data192[unit.Formation] * moveCost / 8
+			moveSpeed = moveSpeed * s.scenarioData.Data192[unit.Formation] / 8
 			if unit.State4 {
-				v = v * s.scenarioData.Data200Low[unit.Type] / 8
+				moveSpeed = moveSpeed * s.scenarioData.Data200Low[unit.Type] / 8
 			}
-			v *= (512 - unit.Fatigue) / 32
-			v = v * s.generals[unit.Side][unit.GeneralIndex].Movement / 16
+			moveSpeed *= (512 - unit.Fatigue) / 32
+			moveSpeed = moveSpeed * s.generals[unit.Side][unit.GeneralIndex].Movement / 16
 			if unit.SupplyLevel == 0 {
-				v /= 2
+				moveSpeed /= 2
 			}
 			if s.game != Crusade {
-				if v == 0 {
+				if moveSpeed == 0 {
 					break
 				}
 			}
-			w := 1024
+			totalMoveCost := 1024
 			if s.game == Conflict {
-				w = 1023
+				totalMoveCost = 1023
 			}
 			if s.scenarioData.UnitMask[unit.Type]&4 != 0 {
 				if s.game != Conflict {
-					w += weather * 128
+					totalMoveCost += weather * 128
 				} else {
-					w += weather * 256
+					totalMoveCost += weather * 256
 				}
 			}
-			w *= 8
-			var temp int
+			totalMoveCost *= 8
+			var moveCost int
 			if s.game == Crusade {
-				temp = w / (v + 1)
+				moveCost = totalMoveCost / (moveSpeed + 1)
 			} else {
-				temp = w / v
+				moveCost = totalMoveCost / moveSpeed
 			}
-			if temp > v57 && Rand(temp, s.rand) > v57 {
+			if moveCost > unitMoveBudget && Rand(moveCost, s.rand) > unitMoveBudget {
 				break
 			}
-			v57 -= temp
+			unitMoveBudget -= moveCost
 			s.hideUnit(unit)
 			if ((unit.Side+1)&(s.commanderMask>>2)) == 0 ||
 				unit.InContactWithEnemy || unit.SeenByEnemy {
@@ -839,7 +839,7 @@ l21:
 				message = WeHaveCaptured{unit, city}
 				break
 			}
-			if v57 > 0 {
+			if unitMoveBudget > 0 {
 				if s.countNeighbourUnits(unit.X, unit.Y, 1-unit.Side) > 0 {
 					unit.InContactWithEnemy = true
 					unit.State4 = true // |= 17
@@ -847,9 +847,7 @@ l21:
 					unit.InContactWithEnemy = false // &= 254
 				}
 				s.function29_showUnit(unit)
-				continue
 			}
-			break
 		}
 		// l2:
 		unit.SupplyLevel = Clamp(unit.SupplyLevel-2, 0, 255)
@@ -1059,7 +1057,7 @@ l21:
 				ny := unit2.Y + s.generic.Dy[i]
 				tt := s.terrainTypeAt(nx, ny)
 				r := s.scenarioData.TerrainMenDefence[tt]
-				if s.scenarioData.MoveCostPerTerrainTypesAndUnit[tt][unit2.Type] > 0 {
+				if s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[tt][unit2.Type] > 0 {
 					if !s.ContainsUnit(nx, ny) && !s.ContainsCity(nx, ny) {
 						r += s.magicCoeff(s.hexes.Arr96[:], nx, ny, 1-unit.Side) * 4
 						if r > 11 && r >= bestDefence {
@@ -1094,7 +1092,7 @@ l21:
 				}
 				if arg1 > 60 && (s.game != Conflict || !unit.FormationTopBit) &&
 					s.magicCoeff(s.hexes.Arr96[:], oldX, oldY, unit.Side) > -4 &&
-					s.scenarioData.MoveCostPerTerrainTypesAndUnit[s.terrainTypeAt(oldX, oldY)][unit.Type] > 0 {
+					s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[s.terrainTypeAt(oldX, oldY)][unit.Type] > 0 {
 					s.hideUnit(unit)
 					unit.X = oldX
 					unit.Y = oldY
@@ -1532,11 +1530,11 @@ outerLoop:
 				s.hideUnit(supplyUnit)
 				break outerLoop
 			} else {
-				var x, y, cost int
+				var x, y, speed int
 				// TODO: why changing variant < 2 to variant < 1 has no effect (cost never 0? at least in dday?)
 				for variant := 0; variant < 2; variant++ {
-					x, y, cost = s.FindBestMoveFromTowards(supplyX, supplyY, unit.X, unit.Y, s.scenarioData.MinSupplyType, variant)
-					if cost != 0 {
+					x, y, speed = s.FindBestMoveFromTowards(supplyX, supplyY, unit.X, unit.Y, s.scenarioData.MinSupplyType, variant)
+					if speed != 0 {
 						break
 					}
 				}
@@ -1548,7 +1546,7 @@ outerLoop:
 				if s.ContainsUnitOfSide(supplyX, supplyY, 1-unit.Side) {
 					break
 				}
-				supplyTransportBudget -= 256 / (cost + 1)
+				supplyTransportBudget -= 256 / (speed + 1)
 			}
 		}
 		s.hideUnit(supplyUnit)
@@ -1702,29 +1700,29 @@ func (s *GameState) FindBestMoveFromTowards(unitX0, unitY0, unitX1, unitY1, unit
 	neighbour1 := s.generic.DxDyToNeighbour(dx, dy, 2*variant)
 	candX1 := unitX0 + s.generic.Dx[neighbour1]
 	candY1 := unitY0 + s.generic.Dy[neighbour1]
-	var cost1 int
+	var speed1 int
 	if !s.terrainMap.AreCoordsValid(candX1/2, candY1) {
 		candX1, candY1 = unitX0, unitY0
 	} else {
 		terrainType1 := s.terrainTypeAt(candX1, candY1)
-		cost1 = s.scenarioData.MoveCostPerTerrainTypesAndUnit[terrainType1][unitType]
+		speed1 = s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[terrainType1][unitType]
 	}
 
 	neighbour2 := s.generic.DxDyToNeighbour(dx, dy, 2*variant+1)
 	candX2 := unitX0 + s.generic.Dx[neighbour2]
 	candY2 := unitY0 + s.generic.Dy[neighbour2]
-	var cost2 int
+	var speed2 int
 	if !s.terrainMap.AreCoordsValid(candX2/2, candY2) {
 		candX2, candY2 = unitX0, unitY0
 	} else {
 		terrainType2 := s.terrainTypeAt(candX2, candY2)
-		cost2 = s.scenarioData.MoveCostPerTerrainTypesAndUnit[terrainType2][unitType]
+		speed2 = s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[terrainType2][unitType]
 	}
 
-	if cost2 > cost1-Rand(2, s.rand) {
-		return candX2, candY2, cost2
+	if speed2 > speed1-Rand(2, s.rand) {
+		return candX2, candY2, speed2
 	}
-	return candX1, candY1, cost1
+	return candX1, candY1, speed1
 }
 
 func (s *GameState) everyDay() bool {
