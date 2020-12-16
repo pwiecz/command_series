@@ -853,17 +853,12 @@ l21:
 		unit.SupplyLevel = Clamp(unit.SupplyLevel-2, 0, 255)
 		wasInContactWithEnemy := unit.InContactWithEnemy
 
-		if Rand(s.scenarioData.Data252[unit.Side], s.rand) > 0 {
-			unit.InContactWithEnemy = false
-			unit.IsUnderAttack = false
-			unit.State2 = false
-			unit.State4 = false // &= 232
-		} else {
-			unit.InContactWithEnemy = false
-			unit.IsUnderAttack = false
-			unit.State2 = false
-			unit.State4 = false
-			unit.SeenByEnemy = false // &= 168
+		unit.InContactWithEnemy = false
+		unit.IsUnderAttack = false
+		unit.State2 = false
+		unit.State4 = false // &= 232
+		if Rand(s.scenarioData.Data252[unit.Side], s.rand) == 0 {
+			unit.SeenByEnemy = false // &= ~64
 		}
 		if s.game == Conflict && Rand(s.scenarioData.Data175, s.rand)/8 > 0 {
 			unit.SeenByEnemy = true // |= 64
