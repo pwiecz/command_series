@@ -432,6 +432,12 @@ func (s *ShowMap) showUnitInfo() {
 		return
 	}
 	s.messageBox.Clear()
+	if unit.Side == s.playerSide && unit.ObjectiveX > 0 && s.areUnitCoordsVisible(unit.ObjectiveX, unit.ObjectiveY) {
+		s.mapView.ShowAnimatedIcon(data.ArrowIcons, unit.ObjectiveX/2, unit.ObjectiveY)
+	} else {
+		s.mapView.HideIcon()
+	}
+
 	if unit.Side != s.playerSide && !unit.InContactWithEnemy {
 		s.messageBox.Print(" NO INFORMATION ", 2, 0, true)
 		return

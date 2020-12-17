@@ -21,7 +21,25 @@ const (
 	SmilingFace      IconType = 13
 	MovingUnit       IconType = 14
 	QuestionMark     IconType = 15
+	Arrows0          IconType = 16
+	Arrows1          IconType = 17
+	Arrows2          IconType = 18
+	Arrows3          IconType = 19
+	Arrows4          IconType = 20
+	Arrows5          IconType = 21
+	Arrows6          IconType = 22
+	Arrows7          IconType = 23
 )
+
+var ArrowIcons = []IconType{
+	Arrows0,
+	Arrows1,
+	Arrows2,
+	Arrows3,
+	Arrows4,
+	Arrows5,
+	Arrows6,
+	Arrows7}
 
 type Icons struct {
 	// cursor, lightning bolt, 6 x concentric cicles, supply track, fighting unit,

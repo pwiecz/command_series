@@ -36,7 +36,8 @@ type MapView struct {
 	ebitenUnitIcons   [2][4][16]*ebiten.Image
 	ebitenIcons       [24]*ebiten.Image
 	cursorImage       *ebiten.Image
-	shownIcon         *ebiten.Image
+	iconAnimationStep int
+	shownIcons        []*ebiten.Image
 	iconX, iconY      int
 }
 
@@ -302,17 +303,31 @@ func (v *MapView) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
 	}
 	cursorX, cursorY := v.MapCoordsToScreenCoords(v.cursorX, v.cursorY)
 	v.drawSpriteAtCoords(v.cursorImage, float64(cursorX-6), float64(cursorY-2), screen, options)
-	if v.shownIcon != nil && v.AreMapCoordsVisible(v.iconX, v.iconY) {
+	if len(v.shownIcons) > 0 && v.AreMapCoordsVisible(v.iconX, v.iconY) {
 		iconX, iconY := v.MapCoordsToScreenCoords(v.iconX, v.iconY)
-		v.drawSpriteAtCoords(v.shownIcon, float64(iconX), float64(iconY-5), screen, options)
+		icon := v.shownIcons[(v.iconAnimationStep/4)%len(v.shownIcons)]
+		v.drawSpriteAtCoords(icon, float64(iconX), float64(iconY-5), screen, options)
+		v.iconAnimationStep++
 	}
 	return
 }
 func (v *MapView) ShowIcon(icon data.IconType, x, y int) {
-	v.shownIcon = v.GetSpriteFromIcon(icon)
+	v.shownIcons = append(v.shownIcons[:0], v.GetSpriteFromIcon(icon))
+	v.iconAnimationStep = 0
+	v.iconX = x
+	v.iconY = y
+}
+func (v *MapView) ShowAnimatedIcon(icons []data.IconType, x, y int) {
+	v.shownIcons = v.shownIcons[:0]
+	for _, icon := range icons {
+		v.shownIcons = append(v.shownIcons, v.GetSpriteFromIcon(icon))
+	}
+	v.iconAnimationStep = 0
 	v.iconX = x
 	v.iconY = y
 }
 func (v *MapView) HideIcon() {
-	v.shownIcon = nil
+	if len(v.shownIcons) > 0 {
+		v.shownIcons = v.shownIcons[:0]
+	}
 }
