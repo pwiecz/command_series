@@ -77,6 +77,7 @@ func NewShowMap(g *Game, options data.Options, audioPlayer *AudioPlayer, onGameO
 		&g.gameData.Sprites.UnitSymbolSprites, &g.gameData.Sprites.UnitIconSprites,
 		&g.gameData.Icons.Sprites, &g.scenarioData.Data.DaytimePalette, &g.scenarioData.Data.NightPalette,
 		image.Pt(160, 19*8))
+	s.mapView.SetCursorPosition(scenario.MinX+10, scenario.MinY+9)
 	s.messageBox = NewMessageBox(image.Pt(336, 40), g.gameData.Sprites.GameFont)
 	s.messageBox.Print("PREPARE FOR BATTLE!", 12, 1, false)
 	s.statusBar = NewMessageBox(image.Pt(376, 8), g.gameData.Sprites.GameFont)
