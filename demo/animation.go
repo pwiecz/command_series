@@ -3,28 +3,31 @@ package main
 import "github.com/pwiecz/command_series/data"
 import "github.com/hajimehoshi/ebiten"
 
-type Animation struct {
+type Animation interface {
+	Update()
+	Done() bool
+	Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions)
+}
+
+type UnitAnimation struct {
 	mapView *MapView
 	player  *AudioPlayer
 	sprite  *ebiten.Image
-	hasUnit bool
 	unit    data.Unit
-	icon    data.IconType
 
 	x0, y0, x1, y1 int
 	frames         int
 	elapsed        int
 }
 
-func NewUnitAnimation(mapView *MapView, player *AudioPlayer, unit data.Unit, x0, y0, x1, y1, frames int) *Animation {
+func NewUnitAnimation(mapView *MapView, player *AudioPlayer, unit data.Unit, x0, y0, x1, y1, frames int) Animation {
 	if frames <= 0 {
 		panic("frames must be positive")
 	}
 
-	return &Animation{
+	return &UnitAnimation{
 		mapView: mapView,
 		player:  player,
-		hasUnit: true,
 		unit:    unit,
 		x0:      x0,
 		y0:      y0,
@@ -33,22 +36,7 @@ func NewUnitAnimation(mapView *MapView, player *AudioPlayer, unit data.Unit, x0,
 		frames:  frames}
 }
 
-func NewIconAnimation(mapView *MapView, icon data.IconType, x0, y0, x1, y1, frames int) *Animation {
-	if frames <= 0 {
-		panic("frames must be positive")
-	}
-	return &Animation{
-		mapView: mapView,
-		hasUnit: false,
-		icon:    icon,
-		x0:      x0,
-		y0:      y0,
-		x1:      x1,
-		y1:      y1,
-		frames:  frames}
-}
-
-func (a *Animation) Update() {
+func (a *UnitAnimation) Update() {
 	a.elapsed++
 	if a.player != nil {
 		if a.elapsed < a.frames {
@@ -62,19 +50,85 @@ func (a *Animation) Update() {
 	}
 }
 
-func (a *Animation) Done() bool {
+func (a *UnitAnimation) Done() bool {
 	return a.elapsed >= a.frames
 }
-func (a *Animation) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
+func (a *UnitAnimation) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
 	alpha := float64(a.elapsed) / float64(a.frames)
 	// Delay creating sprite to be sure that mapView.isNight is up to date.
 	// Otherwise e.g. sprite may be using daytime palette at night.
 	if a.sprite == nil {
-		if a.hasUnit {
-			a.sprite = a.mapView.GetSpriteFromTileNum(byte(a.unit.Type + a.unit.ColorPalette*16))
-		} else {
-			a.sprite = a.mapView.GetSpriteFromIcon(a.icon)
-		}
+		a.sprite = a.mapView.GetSpriteFromTileNum(byte(a.unit.Type + a.unit.ColorPalette*16))
 	}
 	a.mapView.DrawSpriteBetween(a.sprite, a.x0, a.y0, a.x1, a.y1, alpha, screen, options)
+}
+
+type IconAnimation struct {
+	mapView *MapView
+	sprite  *ebiten.Image
+
+	x0, y0, x1, y1 int
+	frames         int
+	elapsed        int
+}
+
+func NewIconAnimation(mapView *MapView, icon data.IconType, x0, y0, x1, y1, frames int) Animation {
+	if frames <= 0 {
+		panic("frames must be positive")
+	}
+	return &IconAnimation{
+		mapView: mapView,
+		sprite:  mapView.GetSpriteFromIcon(icon),
+		x0:      x0,
+		y0:      y0,
+		x1:      x1,
+		y1:      y1,
+		frames:  frames}
+}
+
+func (a *IconAnimation) Update() {
+	a.elapsed++
+}
+
+func (a *IconAnimation) Done() bool {
+	return a.elapsed >= a.frames
+}
+func (a *IconAnimation) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
+	alpha := float64(a.elapsed) / float64(a.frames)
+	a.mapView.DrawSpriteBetween(a.sprite, a.x0, a.y0, a.x1, a.y1, alpha, screen, options)
+}
+
+type IconsAnimation struct {
+	mapView *MapView
+	sprite  *ebiten.Image
+	icons   []data.IconType
+
+	x, y    int
+	elapsed int
+}
+
+func NewIconsAnimation(mapView *MapView, icons []data.IconType, x, y int) Animation {
+	if len(icons) == 0 {
+		panic("icons cannot be empty")
+	}
+	return &IconsAnimation{
+		mapView: mapView,
+		icons:   icons,
+		x:       x,
+		y:       y}
+}
+func (a *IconsAnimation) Update() {
+	a.elapsed++
+}
+func (a *IconsAnimation) Done() bool {
+	return a.elapsed > len(a.icons)*3
+}
+func (a *IconsAnimation) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
+	iconIndex := a.elapsed / 3
+	if iconIndex < len(a.icons) {
+		sprite := a.mapView.GetSpriteFromIcon(a.icons[iconIndex])
+		a.mapView.DrawSpriteAt(sprite, a.x, a.y, screen, options)
+	} else {
+		a.mapView.ShowIcon(a.icons[len(a.icons)-1], a.x, a.y)
+	}
 }

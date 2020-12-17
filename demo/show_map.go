@@ -24,7 +24,7 @@ type ShowMap struct {
 	separatorRect *Rectangle
 
 	flashback *Flashback
-	animation *Animation
+	animation Animation
 
 	idleTicksLeft  int
 	isFrozen       bool
@@ -301,6 +301,9 @@ loop:
 					break loop
 				}
 			}
+		case data.UnitAttack:
+			s.animation = NewIconsAnimation(s.mapView, []data.IconType{data.Circles5, data.Circles4, data.Circles3, data.Circles2, data.Circles1, data.Circles0, data.LightningBolt}, message.X/2, message.Y)
+			break loop
 		case data.Reinforcements:
 			if message.Sides[s.playerSide] {
 				s.messageBox.Clear()
@@ -364,7 +367,11 @@ func (s *ShowMap) showMessageFromUnit(message data.MessageFromUnit) {
 	for i, line := range lines {
 		s.messageBox.Print(line, 2, 2+i, false)
 	}
-	s.mapView.ShowIcon(message.Icon(), unit.X/2, unit.Y)
+	if s.mapView.AreMapCoordsVisible(unit.X/2, unit.Y) {
+		s.mapView.ShowIcon(message.Icon(), unit.X/2, unit.Y)
+	} else {
+		s.mapView.HideIcon()
+	}
 	// 15 added to "simulate" the computation time
 	s.idleTicksLeft = s.options.Speed.DelayTicks() + 15
 	s.lastMessageFromUnit = message

@@ -46,19 +46,26 @@ func TestRegression_Basic(t *testing.T) {
 		}
 	}()
 
-	var messages []interface{}
+	var numMessages, numMessagesFromUnit int
 	for {
 		update := messageSync.GetUpdate()
-		messages = append(messages, update)
+		numMessages++
+		if _, ok := update.(MessageFromUnit); ok {
+			numMessagesFromUnit++
+		}
 		if _, ok := update.(GameOver); ok {
 			messageSync.Stop()
 			break
 		}
 	}
 
-	expectedNumMessages := 1463
-	if len(messages) != expectedNumMessages {
-		t.Errorf("Expecting %d messages, got %d", expectedNumMessages, len(messages))
+	expectedNumMessages := 1508
+	if numMessages != expectedNumMessages {
+		t.Errorf("Expecting %d messages, got %d", expectedNumMessages, numMessages)
+	}
+	expectedNumMessagesFromUnit := 75
+	if numMessagesFromUnit != expectedNumMessagesFromUnit {
+		t.Errorf("Expecting %d messages from a unit, got %d", expectedNumMessagesFromUnit, numMessagesFromUnit)
 	}
 
 	expectedResult, expectedBalance, expectedRank := 6, 2, 6
@@ -88,22 +95,29 @@ func TestRegression_TwoPlayers(t *testing.T) {
 		}
 	}()
 
-	var messages []interface{}
+	var numMessages, numMessagesFromUnit int
 	for {
 		update := messageSync.GetUpdate()
-		messages = append(messages, update)
+		numMessages++
+		if _, ok := update.(MessageFromUnit); ok {
+			numMessagesFromUnit++
+		}
 		if _, ok := update.(GameOver); ok {
 			messageSync.Stop()
 			break
 		}
-		if len(messages) == 100 {
+		if numMessages == 100 {
 			gameState.SwitchSides()
 		}
 	}
 
-	expectedNumMessages := 15160
-	if len(messages) != expectedNumMessages {
-		t.Errorf("Expecting %d messages, got %d", expectedNumMessages, len(messages))
+	expectedNumMessages := 15278
+	if numMessages != expectedNumMessages {
+		t.Errorf("Expecting %d messages, got %d", expectedNumMessages, numMessages)
+	}
+	expectedNumMessagesFromUnit := 265
+	if numMessagesFromUnit != expectedNumMessagesFromUnit {
+		t.Errorf("Expecting %d messages from a unit, got %d", expectedNumMessagesFromUnit, numMessagesFromUnit)
 	}
 
 	expectedResult, expectedBalance, expectedRank := 0, 2, 0

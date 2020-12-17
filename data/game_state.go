@@ -1012,7 +1012,9 @@ l21:
 			arg1 = Clamp(arg1, 0, 128)
 		}
 		// function13(sx, sy)
-		// function4(arg1) - some delay?
+		// function4(arg1)
+		s.sync.SendUpdate(UnitAttack{sx, sy, arg1})
+
 		menLost2 := Clamp((Rand(unit2.MenCount*arg1, s.rand)+500)/512, 0, unit2.MenCount)
 		s.menLost[1-unit.Side] += menLost2
 		tanksLost2 := Clamp((Rand(unit2.EquipCount*arg1, s.rand)+255)/512, 0, unit2.EquipCount)

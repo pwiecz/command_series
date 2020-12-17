@@ -12,7 +12,13 @@ type IconType int
 
 const (
 	Cursor           IconType = 0
-	LightningBold    IconType = 1
+	LightningBolt    IconType = 1
+	Circles0         IconType = 2
+	Circles1         IconType = 3
+	Circles2         IconType = 4
+	Circles3         IconType = 5
+	Circles4         IconType = 6
+	Circles5         IconType = 7
 	SupplyTruck      IconType = 8
 	FightingUnit     IconType = 9
 	UnitOnKnees      IconType = 10

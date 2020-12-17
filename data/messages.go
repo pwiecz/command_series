@@ -124,6 +124,11 @@ type Reinforcements struct{ Sides [2]bool }
 
 type GameOver struct{ Results string }
 
+type UnitAttack struct {
+	X, Y    int
+	Outcome int
+}
+
 type UnitMove struct {
 	Unit           Unit
 	X0, Y0, X1, Y1 int

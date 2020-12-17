@@ -217,6 +217,10 @@ func (v *MapView) DrawSpriteBetween(sprite *ebiten.Image, mapX0, mapY0, mapX1, m
 	x, y := float64(x0)+float64(x1-x0)*alpha, float64(y0)+float64(y1-y0)*alpha
 	v.drawSpriteAtCoords(sprite, x, y, screen, options)
 }
+func (v *MapView) DrawSpriteAt(sprite *ebiten.Image, mapX, mapY int, screen *ebiten.Image, options *ebiten.DrawImageOptions) {
+	x, y := v.MapCoordsToScreenCoords(mapX, mapY)
+	v.drawSpriteAtCoords(sprite, float64(x), float64(y), screen, options)
+}
 
 func (v *MapView) GetSpriteFromTileNum(tileNum byte) *ebiten.Image {
 	if tileNum%64 < 48 {
