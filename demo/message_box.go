@@ -2,7 +2,8 @@ package main
 
 import "image"
 import "github.com/hajimehoshi/ebiten"
-import "github.com/pwiecz/command_series/data"
+
+import "github.com/pwiecz/command_series/lib"
 
 type coordsContent struct {
 	textColor, backgroundColor int
@@ -12,14 +13,14 @@ type coordsContent struct {
 type MessageBox struct {
 	messageImage                  *ebiten.Image
 	size                          image.Point
-	font                          *data.Font
+	font                          *lib.Font
 	numRows, numColumns           int
 	rowBackgrounds                []int
 	textColor                     int
 	currentContent, targetContent [][]coordsContent
 }
 
-func NewMessageBox(size image.Point, font *data.Font) *MessageBox {
+func NewMessageBox(size image.Point, font *lib.Font) *MessageBox {
 	b := &MessageBox{
 		messageImage: ebiten.NewImage(size.X, size.Y),
 		size:         size,
@@ -110,11 +111,11 @@ func (b *MessageBox) Draw(screen *ebiten.Image, opts *ebiten.DrawImageOptions) {
 			if b.currentContent[y][x] != b.targetContent[y][x] {
 				glyph := b.font.Glyph(b.targetContent[y][x].rune)
 				if !b.targetContent[y][x].inverted {
-					glyph.Palette[0] = data.RGBPalette[b.targetContent[y][x].backgroundColor]
-					glyph.Palette[1] = data.RGBPalette[b.targetContent[y][x].textColor]
+					glyph.Palette[0] = lib.RGBPalette[b.targetContent[y][x].backgroundColor]
+					glyph.Palette[1] = lib.RGBPalette[b.targetContent[y][x].textColor]
 				} else {
-					glyph.Palette[0] = data.RGBPalette[b.targetContent[y][x].textColor]
-					glyph.Palette[1] = data.RGBPalette[b.targetContent[y][x].backgroundColor]
+					glyph.Palette[0] = lib.RGBPalette[b.targetContent[y][x].textColor]
+					glyph.Palette[1] = lib.RGBPalette[b.targetContent[y][x].backgroundColor]
 				}
 				glyphImg := ebiten.NewImageFromImage(glyph)
 				var opts ebiten.DrawImageOptions

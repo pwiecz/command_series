@@ -1,4 +1,4 @@
-package data
+package lib
 
 import "fmt"
 import "github.com/pwiecz/command_series/atr"

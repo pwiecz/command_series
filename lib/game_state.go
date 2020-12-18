@@ -1,4 +1,4 @@
-package data
+package lib
 
 import "fmt"
 import "math/rand"
@@ -263,15 +263,15 @@ nextUnit:
 		// v57 := sign(sign_extend([29927 + 10 + unit.side])/16)*4
 		sx, sy := unit.X/8, unit.Y/4
 		// Num enemy troops nearby (neighbouring "small" map fields).
-		temp := 0
+		numEnemyTroops := 0
 		for i := 0; i < 9; i++ {
 			dx, dy := s.generic.SmallMapOffsets(i)
 			if InRange(sx+dx, 0, 16) && InRange(dy+sy, 0, 16) {
-				temp += s.map0[1-unit.Side][sx+dx][sy+dy]
+				numEnemyTroops += s.map0[1-unit.Side][sx+dx][sy+dy]
 			}
 		}
 		// If there are no enemy units in neaby "small" map and there is a supply line to unit and sth (not a special unit?) then look at the "tiny" map.
-		if temp == 0 && unit.HasSupplyLine &&
+		if numEnemyTroops == 0 && unit.HasSupplyLine &&
 			((s.game != Conflict && s.scenarioData.UnitScores[unit.Type]&248 == 0) ||
 				(s.game == Conflict && s.scenarioData.UnitMask[unit.Type&1] == 0)) {
 			tx, ty := unit.X/32, unit.Y/16
@@ -303,9 +303,9 @@ nextUnit:
 				unit.TargetFormation = 0
 				unit.OrderBit4 = false
 				unit.Order = Reserve
-				temp = (unit.MenCount + unit.EquipCount + 8) / 16
-				s.map2_0[unit.Side][tx][ty] = Abs(s.map2_0[unit.Side][bestX][bestY] - temp)
-				s.map2_0[unit.Side][bestX][bestY] += temp
+				count := (unit.MenCount + unit.EquipCount + 8) / 16
+				s.map2_0[unit.Side][tx][ty] = Abs(s.map2_0[unit.Side][bestX][bestY] - count)
+				s.map2_0[unit.Side][bestX][bestY] += count
 				unit.ObjectiveX = bestX*32 + 16 // ((v20&6)*16)|16
 				if s.game == Conflict {
 					unit.ObjectiveX += Rand(3, s.rand) * 2
@@ -327,6 +327,7 @@ nextUnit:
 				temp2 = 1
 				v61 = 1
 			}
+			// Subtract impact of the unit itself.
 			s.map0[unit.Side][sx][sy] = Clamp(s.map0[unit.Side][sx][sy]-temp2, 0, 255)
 			s.map3[unit.Side][sx][sy] = Clamp(s.map3[unit.Side][sx][sy]-v61, 0, 255)
 			// save a copy of the unit, as we're going to modify it.

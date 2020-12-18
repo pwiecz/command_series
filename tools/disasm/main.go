@@ -4,7 +4,7 @@ import "bufio"
 import "fmt"
 import "os"
 
-import "github.com/pwiecz/command_series/lib"
+import "github.com/pwiecz/command_series/tools/lib"
 
 type scopeType int
 
@@ -47,7 +47,7 @@ func main() {
 			scopes = scopes[:len(scopes)-1]
 			printIndent(len(scopes))
 		case lib.Else:
-			printIndent(len(scopes)-1)
+			printIndent(len(scopes) - 1)
 		case lib.FiAll:
 			for i := 0; i < len(scopes); i++ {
 				if scopes[i] == IF {

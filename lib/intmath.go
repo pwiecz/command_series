@@ -1,4 +1,4 @@
-package data
+package lib
 
 import "math/rand"
 

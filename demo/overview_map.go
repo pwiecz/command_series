@@ -1,19 +1,20 @@
 package main
 
 import "github.com/hajimehoshi/ebiten"
-import "github.com/pwiecz/command_series/data"
+
+import "github.com/pwiecz/command_series/lib"
 
 type OverviewMap struct {
 	image         *ebiten.Image
-	terrainMap    *data.Map
-	generic       *data.Generic
-	scenarioData  *data.Data
-	units         *[2][]data.Unit
-	isUnitVisible func(data.Unit) bool
+	terrainMap    *lib.Map
+	generic       *lib.Generic
+	scenarioData  *lib.Data
+	units         *[2][]lib.Unit
+	isUnitVisible func(lib.Unit) bool
 	cycle         int
 }
 
-func NewOverviewMap(terrainMap *data.Map, units *[2][]data.Unit, generic *data.Generic, scenarioData *data.Data, isUnitVisible func(data.Unit) bool) *OverviewMap {
+func NewOverviewMap(terrainMap *lib.Map, units *[2][]lib.Unit, generic *lib.Generic, scenarioData *lib.Data, isUnitVisible func(lib.Unit) bool) *OverviewMap {
 	return &OverviewMap{
 		terrainMap:    terrainMap,
 		units:         units,
@@ -25,7 +26,7 @@ func NewOverviewMap(terrainMap *data.Map, units *[2][]data.Unit, generic *data.G
 func (m *OverviewMap) Draw(screen *ebiten.Image, opts *ebiten.DrawImageOptions) {
 	if m.image == nil {
 		m.image = ebiten.NewImage(m.terrainMap.Width, m.terrainMap.Height)
-		m.image.Fill(data.RGBPalette[14])
+		m.image.Fill(lib.RGBPalette[14])
 		for y := 0; y < m.terrainMap.Width; y++ {
 			for x := 0; x < m.terrainMap.Height; x++ {
 				if !m.terrainMap.AreCoordsValid(x, y) {
@@ -40,9 +41,9 @@ func (m *OverviewMap) Draw(screen *ebiten.Image, opts *ebiten.DrawImageOptions) 
 				// The logic of picking colors is a hack made to match the original look.
 				// There's some logic behind the colors, chosen but the condition itself is just pure hack.
 				if col&15 == 6 {
-					m.image.Set(x, y, data.RGBPalette[134])
+					m.image.Set(x, y, lib.RGBPalette[134])
 				} else {
-					m.image.Set(x, y, data.RGBPalette[14])
+					m.image.Set(x, y, lib.RGBPalette[14])
 				}
 			}
 		}
@@ -59,7 +60,7 @@ func (m *OverviewMap) Draw(screen *ebiten.Image, opts *ebiten.DrawImageOptions) 
 		color := m.scenarioData.SideColor[side]*16 + colors[side]
 		for _, unit := range sideUnits {
 			if m.isUnitVisible(unit) {
-				m.image.Set(unit.X/2, unit.Y, data.RGBPalette[color])
+				m.image.Set(unit.X/2, unit.Y, lib.RGBPalette[color])
 			}
 		}
 	}

@@ -8,12 +8,12 @@ import "math/rand"
 import "github.com/hajimehoshi/ebiten"
 import "github.com/hajimehoshi/ebiten/inpututil"
 
-import "github.com/pwiecz/command_series/data"
+import "github.com/pwiecz/command_series/lib"
 
 type ShowMap struct {
-	scenarioData *data.ScenarioData
-	gameData     *data.GameData
-	options      data.Options
+	scenarioData *lib.ScenarioData
+	gameData     *lib.GameData
+	options      lib.Options
 	audioPlayer  *AudioPlayer
 	onGameOver   func(int, int, int)
 
@@ -31,22 +31,22 @@ type ShowMap struct {
 	areUnitsHidden bool
 	playerSide     int
 
-	orderedUnit *data.Unit
+	orderedUnit *lib.Unit
 
-	gameState     *data.GameState
+	gameState     *lib.GameState
 	commandBuffer *CommandBuffer
 
-	sync    *data.MessageSync
+	sync    *lib.MessageSync
 	started bool
 
 	overviewMap *OverviewMap
 
-	lastMessageFromUnit data.MessageFromUnit
+	lastMessageFromUnit lib.MessageFromUnit
 
 	gameOver bool
 }
 
-func NewShowMap(g *Game, options data.Options, audioPlayer *AudioPlayer, onGameOver func(int, int, int)) *ShowMap {
+func NewShowMap(g *Game, options lib.Options, audioPlayer *AudioPlayer, onGameOver func(int, int, int)) *ShowMap {
 	scenario := &g.gameData.Scenarios[g.selectedScenario]
 	for x := scenario.MinX - 1; x <= scenario.MaxX+1; x++ {
 		g.gameData.Map.SetTile(x, scenario.MinY-1, 12)
@@ -62,15 +62,15 @@ func NewShowMap(g *Game, options data.Options, audioPlayer *AudioPlayer, onGameO
 		options:       options,
 		audioPlayer:   audioPlayer,
 		commandBuffer: NewCommandBuffer(20),
-		sync:          data.NewMessageSync(),
+		sync:          lib.NewMessageSync(),
 		onGameOver:    onGameOver}
-	if options.AlliedCommander == data.Player {
+	if options.AlliedCommander == lib.Player {
 		s.playerSide = 0
 	} else {
 		s.playerSide = 1
 	}
 	rnd := rand.New(rand.NewSource(1))
-	s.gameState = data.NewGameState(rnd, g.gameData, g.scenarioData, g.selectedScenario, g.selectedVariant, s.playerSide, s.options, s.sync)
+	s.gameState = lib.NewGameState(rnd, g.gameData, g.scenarioData, g.selectedScenario, g.selectedVariant, s.playerSide, s.options, s.sync)
 	s.mapView = NewMapView(
 		&g.gameData.Map, scenario.MinX, scenario.MinY, scenario.MaxX, scenario.MaxY,
 		&g.gameData.Sprites.TerrainTiles,
@@ -214,16 +214,16 @@ func (s *ShowMap) Update() error {
 				s.sync.Stop()
 				return fmt.Errorf("QUIT")
 			case Reserve:
-				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, data.Reserve)
+				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, lib.Reserve)
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case Defend:
-				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, data.Defend)
+				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, lib.Defend)
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case Attack:
-				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, data.Attack)
+				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, lib.Attack)
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case Move:
-				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, data.Move)
+				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, lib.Move)
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case SetObjective:
 				s.trySetObjective(s.mapView.cursorX, s.mapView.cursorY)
@@ -285,65 +285,65 @@ loop:
 			break loop
 		}
 		switch message := update.(type) {
-		case data.Initialized:
+		case lib.Initialized:
 			s.idleTicksLeft = 60
 			s.statusBar.Clear()
 			s.statusBar.Print(s.dateTimeString(), 2, 0, false)
 			break loop
-		case data.MessageFromUnit:
+		case lib.MessageFromUnit:
 			unit := message.Unit()
 			if unit.Side == s.playerSide {
 				s.showMessageFromUnit(message)
 				break loop
-			} else if s.gameData.Game == data.Conflict {
-				if msg, ok := message.(data.WeAreAttacking); ok {
-					s.showMessageFromUnit(data.NewWeAreUnderFire(msg.Enemy()))
+			} else if s.gameData.Game == lib.Conflict {
+				if msg, ok := message.(lib.WeAreAttacking); ok {
+					s.showMessageFromUnit(lib.NewWeAreUnderFire(msg.Enemy()))
 					break loop
 				}
 			}
-		case data.UnitAttack:
-			s.animation = NewIconsAnimation(s.mapView, []data.IconType{data.Circles5, data.Circles4, data.Circles3, data.Circles2, data.Circles1, data.Circles0, data.LightningBolt}, message.X/2, message.Y)
+		case lib.UnitAttack:
+			s.animation = NewIconsAnimation(s.mapView, lib.CircleIcons, message.X/2, message.Y)
 			break loop
-		case data.Reinforcements:
+		case lib.Reinforcements:
 			if message.Sides[s.playerSide] {
 				s.messageBox.Clear()
 				s.messageBox.Print("REINFORCEMENTS!", 2, 1, false)
 				s.idleTicksLeft = 100
 			}
 			break loop
-		case data.GameOver:
+		case lib.GameOver:
 			s.gameOver = true
 			s.showStatusReport()
 			s.statusBar.Print("GAME OVER, PRESS '?' FOR RESULTS.", 2, 0, false)
 			s.sync.Stop()
 			break loop
-		case data.UnitMove:
+		case lib.UnitMove:
 			if s.mapView.AreMapCoordsVisible(message.X0, message.Y0) || s.mapView.AreMapCoordsVisible(message.X1, message.Y1) {
 				s.animation = NewUnitAnimation(s.mapView /*s.audioPlayer*/, nil,
 					message.Unit, message.X0, message.Y0, message.X1, message.Y1, 30)
 				break loop
 			}
-		case data.SupplyTruckMove:
+		case lib.SupplyTruckMove:
 			if s.mapView.AreMapCoordsVisible(message.X0, message.Y0) || s.mapView.AreMapCoordsVisible(message.X1, message.Y1) {
-				s.animation = NewIconAnimation(s.mapView, data.SupplyTruck,
+				s.animation = NewIconAnimation(s.mapView, lib.SupplyTruck,
 					message.X0, message.Y0, message.X1, message.Y1, 3)
 				break loop
 			}
-		case data.WeatherForecast:
+		case lib.WeatherForecast:
 			s.messageBox.Clear()
 			s.messageBox.Print(fmt.Sprintf("WEATHER FORECAST: %s", s.scenarioData.Data.Weather[message.Weather]), 2, 0, false)
-		case data.SupplyDistributionStart:
+		case lib.SupplyDistributionStart:
 			s.mapView.HideIcon()
 			s.messageBox.Print(" SUPPLY DISTRIBUTION ", 2, 1, true)
-		case data.SupplyDistributionEnd:
-		case data.DailyUpdate:
+		case lib.SupplyDistributionEnd:
+		case lib.DailyUpdate:
 			s.messageBox.Print(fmt.Sprintf("%d DAYS REMAINING.", message.DaysRemaining), 2, 2, false)
 			s.messageBox.Print("SUPPLY LEVEL:", 2, 3, true)
 			supplyLevels := []string{"CRITICAL", "SUFFICIENT", "AMPLE"}
 			s.messageBox.Print(supplyLevels[message.SupplyLevel], 16, 3, false)
 			s.idleTicksLeft = s.options.Speed.DelayTicks()
 			break loop
-		case data.TimeChanged:
+		case lib.TimeChanged:
 			s.statusBar.Clear()
 			s.statusBar.Print(s.dateTimeString(), 2, 0, false)
 			if s.gameState.Hour() == 18 && s.gameState.Minute() == 0 {
@@ -357,7 +357,7 @@ loop:
 	return nil
 }
 
-func (s *ShowMap) showMessageFromUnit(message data.MessageFromUnit) {
+func (s *ShowMap) showMessageFromUnit(message lib.MessageFromUnit) {
 	s.messageBox.Clear()
 	s.messageBox.Print("MESSAGE FROM ...", 2, 0, true)
 	unit := message.Unit()
@@ -379,7 +379,7 @@ func (s *ShowMap) showMessageFromUnit(message data.MessageFromUnit) {
 func (s *ShowMap) areUnitCoordsVisible(x, y int) bool {
 	return s.mapView.AreMapCoordsVisible(x/2, y)
 }
-func (s *ShowMap) tryGiveOrderAtMapCoords(x, y int, order data.OrderType) {
+func (s *ShowMap) tryGiveOrderAtMapCoords(x, y int, order lib.OrderType) {
 	s.messageBox.Clear()
 	if unit, ok := s.gameState.FindUnitAtMapCoords(x, y); ok && unit.Side == s.playerSide {
 		s.giveOrder(unit, order)
@@ -388,20 +388,20 @@ func (s *ShowMap) tryGiveOrderAtMapCoords(x, y int, order data.OrderType) {
 		s.messageBox.Print("NO FRIENDLY UNIT.", 2, 0, false)
 	}
 }
-func (s *ShowMap) giveOrder(unit data.Unit, order data.OrderType) {
+func (s *ShowMap) giveOrder(unit lib.Unit, order lib.OrderType) {
 	unit.Order = order
 	unit.HasLocalCommand = false
 	switch order {
-	case data.Reserve:
+	case lib.Reserve:
 		unit.ObjectiveX = 0
 		s.messageBox.Print("RESERVE", 2, 0, false)
-	case data.Attack:
+	case lib.Attack:
 		unit.ObjectiveX = 0
 		s.messageBox.Print("ATTACKING", 2, 0, false)
-	case data.Defend:
+	case lib.Defend:
 		unit.ObjectiveX, unit.ObjectiveY = unit.X, unit.Y
 		s.messageBox.Print("DEFENDING", 2, 0, false)
-	case data.Move:
+	case lib.Move:
 		s.messageBox.Print("MOVE WHERE ?", 2, 0, false)
 	}
 	s.scenarioData.Units[unit.Side][unit.Index] = unit
@@ -416,14 +416,14 @@ func (s *ShowMap) trySetObjective(x, y int) {
 	s.setObjective(s.scenarioData.Units[s.orderedUnit.Side][s.orderedUnit.Index], unitX, y)
 
 }
-func (s *ShowMap) setObjective(unit data.Unit, x, y int) {
+func (s *ShowMap) setObjective(unit lib.Unit, x, y int) {
 	unit.ObjectiveX, unit.ObjectiveY = x, y
 	unit.HasLocalCommand = false
 	s.messageBox.Clear()
 	s.messageBox.Print("WHO ", 2, 0, true)
 	s.messageBox.Print(unit.String(), 7, 0, false)
 	s.messageBox.Print("OBJECTIVE HERE.", 2, 1, false)
-	distance := data.Function15_distanceToObjective(unit)
+	distance := lib.Function15_distanceToObjective(unit)
 	if distance > 0 {
 		s.messageBox.Print(fmt.Sprintf("DISTANCE: %d MILES.", distance*s.scenarioData.Data.HexSizeInMiles), 2, 2, false)
 	}
@@ -441,7 +441,7 @@ func (s *ShowMap) showUnitInfo() {
 	}
 	s.messageBox.Clear()
 	if unit.Side == s.playerSide && unit.ObjectiveX > 0 && s.areUnitCoordsVisible(unit.ObjectiveX, unit.ObjectiveY) {
-		s.mapView.ShowAnimatedIcon(data.ArrowIcons, unit.ObjectiveX/2, unit.ObjectiveY, 0, -5)
+		s.mapView.ShowAnimatedIcon(lib.ArrowIcons, unit.ObjectiveX/2, unit.ObjectiveY, 0, -5)
 	} else {
 		s.mapView.HideIcon()
 	}
@@ -481,7 +481,7 @@ func (s *ShowMap) showUnitInfo() {
 	if unit.Side == s.playerSide {
 		s.messageBox.Print("    ", 2, nextRow, true)
 		supplyDays := unit.SupplyLevel / (s.scenarioData.Data.AvgDailySupplyUse + s.scenarioData.Data.Data163)
-		if s.gameData.Game != data.Crusade {
+		if s.gameData.Game != lib.Crusade {
 			supplyDays /= 2
 		}
 		supplyStr := fmt.Sprintf("%d DAYS SUPPLY.", supplyDays)
@@ -557,7 +557,7 @@ func (s *ShowMap) showCityInfo() {
 }
 func (s *ShowMap) showStatusReport() {
 	s.messageBox.Clear()
-	if s.gameData.Game != data.Conflict {
+	if s.gameData.Game != lib.Conflict {
 		s.messageBox.Print("STATUS REPORT", 2, 0, true)
 		s.messageBox.Print(s.scenarioData.Data.Sides[0], 16, 0, false)
 		s.messageBox.Print(s.scenarioData.Data.Sides[1], 26, 0, false)
@@ -566,7 +566,7 @@ func (s *ShowMap) showStatusReport() {
 		s.messageBox.Print(s.scenarioData.Data.Sides[0], 19, 0, false)
 		s.messageBox.Print(s.scenarioData.Data.Sides[1], 29, 0, false)
 	}
-	if s.gameData.Game != data.Conflict {
+	if s.gameData.Game != lib.Conflict {
 		s.messageBox.Print(" TROOPS LOST ", 2, 1, true)
 		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.MenLost(0)), 16, 1, false)
 		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.MenLost(1)), 26, 1, false)
@@ -575,7 +575,7 @@ func (s *ShowMap) showStatusReport() {
 		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.MenLost(0)), 19, 1, false)
 		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.MenLost(1)), 29, 1, false)
 	}
-	if s.gameData.Game != data.Conflict {
+	if s.gameData.Game != lib.Conflict {
 		s.messageBox.Print(" TANKS  LOST ", 2, 2, true)
 		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.TanksLost(0)), 16, 2, false)
 		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.TanksLost(1)), 26, 2, false)
@@ -584,7 +584,7 @@ func (s *ShowMap) showStatusReport() {
 		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.TanksLost(0)), 19, 2, false)
 		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.TanksLost(1)), 29, 2, false)
 	}
-	if s.gameData.Game != data.Conflict {
+	if s.gameData.Game != lib.Conflict {
 		s.messageBox.Print(" CITIES HELD ", 2, 3, true)
 		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.CitiesHeld(0)), 16, 3, false)
 		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.CitiesHeld(1)), 26, 3, false)
@@ -660,7 +660,7 @@ func (s *ShowMap) screenCoordsToUnitCoords(screenX, screenY int) (x, y int) {
 
 func (s *ShowMap) Draw(screen *ebiten.Image) {
 	if s.overviewMap != nil {
-		screen.Fill(data.RGBPalette[8])
+		screen.Fill(lib.RGBPalette[8])
 		opts := ebiten.DrawImageOptions{}
 		opts.GeoM.Scale(4, 2)
 		opts.GeoM.Translate(float64(336-4*s.gameData.Map.Width)/2, float64(240-2*s.gameData.Map.Height)/2)
@@ -668,10 +668,10 @@ func (s *ShowMap) Draw(screen *ebiten.Image) {
 		return
 	}
 	if !s.gameState.IsNight() {
-		screen.Fill(data.RGBPalette[s.scenarioData.Data.DaytimePalette[2]])
+		screen.Fill(lib.RGBPalette[s.scenarioData.Data.DaytimePalette[2]])
 		s.separatorRect.SetColor(int(s.scenarioData.Data.DaytimePalette[0]))
 	} else {
-		screen.Fill(data.RGBPalette[s.scenarioData.Data.NightPalette[2]])
+		screen.Fill(lib.RGBPalette[s.scenarioData.Data.NightPalette[2]])
 		s.separatorRect.SetColor(int(s.scenarioData.Data.NightPalette[0]))
 	}
 	s.mapView.SetIsNight(s.gameState.IsNight())

@@ -6,14 +6,14 @@ import "image/color"
 import "github.com/hajimehoshi/ebiten"
 import "github.com/hajimehoshi/ebiten/inpututil"
 
-import "github.com/pwiecz/command_series/data"
+import "github.com/pwiecz/command_series/lib"
 
 type OptionSelection struct {
-	font           *data.Font
+	font           *lib.Font
 	balanceStrings []string
 
-	onOptionsSelected func(data.Options)
-	options           data.Options
+	onOptionsSelected func(lib.Options)
+	options           lib.Options
 
 	labels             []*Button
 	side0Button        *Button
@@ -33,21 +33,21 @@ var conflictSidesStrings = [2]string{"Free World", "Communist"}
 var balanceStrings = [5]string{"++GERMAN", "+GERMAN", "FAIR", "+ALLIED", "++ALLIED"}
 var conflictBalanceStrings = [5]string{"++COMMUNIST", "+COMMUNIST", "EVEN", "+FREEWORLD", "++FREEWORLD"}
 
-func NewOptionSelection(game data.Game, font *data.Font, onOptionsSelected func(data.Options)) *OptionSelection {
+func NewOptionSelection(game lib.Game, font *lib.Font, onOptionsSelected func(lib.Options)) *OptionSelection {
 	s := &OptionSelection{
 		font:              font,
 		onOptionsSelected: onOptionsSelected,
-		options:           data.DefaultOptions()}
+		options:           lib.DefaultOptions()}
 
 	var side0Command, side1Command string
 	switch game {
-	case data.Crusade:
+	case lib.Crusade:
 		side0Command = crusadeSidesStrings[0] + " Command:"
 		side1Command = crusadeSidesStrings[1] + " Command:"
-	case data.Decision:
+	case lib.Decision:
 		side0Command = decisionSidesStrings[0] + " Command:"
 		side1Command = decisionSidesStrings[1] + " Command:"
-	case data.Conflict:
+	case lib.Conflict:
 		side0Command = conflictSidesStrings[0] + " Command:"
 		side1Command = conflictSidesStrings[1] + " Command:"
 	}
@@ -70,7 +70,7 @@ func NewOptionSelection(game data.Game, font *data.Font, onOptionsSelected func(
 	}
 	buttonPosition := float64(40 + (maxLabelLength+1)*8)
 
-	if game != data.Conflict {
+	if game != lib.Conflict {
 		s.balanceStrings = balanceStrings[:]
 	} else {
 		s.balanceStrings = conflictBalanceStrings[:]
@@ -188,7 +188,7 @@ func (s *OptionSelection) Update() error {
 }
 
 func (s *OptionSelection) Draw(screen *ebiten.Image) {
-	screen.Fill(data.RGBPalette[15])
+	screen.Fill(lib.RGBPalette[15])
 	for _, label := range s.labels {
 		label.Draw(screen)
 	}
@@ -201,7 +201,7 @@ func (s *OptionSelection) Draw(screen *ebiten.Image) {
 
 	if s.cursorImage == nil {
 		cursorImage := *s.font.Glyph(' ')
-		cursorImage.Palette = []color.Color{data.RGBPalette[0x84], data.RGBPalette[0x84]}
+		cursorImage.Palette = []color.Color{lib.RGBPalette[0x84], lib.RGBPalette[0x84]}
 		s.cursorImage = ebiten.NewImageFromImage(&cursorImage)
 	}
 	var opts ebiten.DrawImageOptions

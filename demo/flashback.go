@@ -6,18 +6,18 @@ import "fmt"
 import "github.com/hajimehoshi/ebiten"
 import "github.com/hajimehoshi/ebiten/inpututil"
 
-import "github.com/pwiecz/command_series/data"
+import "github.com/pwiecz/command_series/lib"
 
 type Flashback struct {
 	mapView    *MapView
 	messageBox *MessageBox
-	terrainMap *data.Map
-	flashback  [][]data.FlashbackUnit
+	terrainMap *lib.Map
+	flashback  [][]lib.FlashbackUnit
 	day        int
 	shownDay   int
 }
 
-func NewFlashback(mapView *MapView, messageBox *MessageBox, terrainMap *data.Map, flashback [][]data.FlashbackUnit) *Flashback {
+func NewFlashback(mapView *MapView, messageBox *MessageBox, terrainMap *lib.Map, flashback [][]lib.FlashbackUnit) *Flashback {
 	messageBox.Clear()
 	messageBox.Print("FLASHBACK: DAY 1", 2, 0, false)
 	messageBox.Print(" F2 ", 2, 1, true)

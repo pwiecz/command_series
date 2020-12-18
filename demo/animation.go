@@ -1,7 +1,8 @@
 package main
 
-import "github.com/pwiecz/command_series/data"
 import "github.com/hajimehoshi/ebiten"
+
+import "github.com/pwiecz/command_series/lib"
 
 type Animation interface {
 	Update()
@@ -13,14 +14,14 @@ type UnitAnimation struct {
 	mapView *MapView
 	player  *AudioPlayer
 	sprite  *ebiten.Image
-	unit    data.Unit
+	unit    lib.Unit
 
 	x0, y0, x1, y1 int
 	frames         int
 	elapsed        int
 }
 
-func NewUnitAnimation(mapView *MapView, player *AudioPlayer, unit data.Unit, x0, y0, x1, y1, frames int) Animation {
+func NewUnitAnimation(mapView *MapView, player *AudioPlayer, unit lib.Unit, x0, y0, x1, y1, frames int) Animation {
 	if frames <= 0 {
 		panic("frames must be positive")
 	}
@@ -72,7 +73,7 @@ type IconAnimation struct {
 	elapsed        int
 }
 
-func NewIconAnimation(mapView *MapView, icon data.IconType, x0, y0, x1, y1, frames int) Animation {
+func NewIconAnimation(mapView *MapView, icon lib.IconType, x0, y0, x1, y1, frames int) Animation {
 	if frames <= 0 {
 		panic("frames must be positive")
 	}
@@ -101,13 +102,13 @@ func (a *IconAnimation) Draw(screen *ebiten.Image, options *ebiten.DrawImageOpti
 type IconsAnimation struct {
 	mapView *MapView
 	sprite  *ebiten.Image
-	icons   []data.IconType
+	icons   []lib.IconType
 
 	x, y    int
 	elapsed int
 }
 
-func NewIconsAnimation(mapView *MapView, icons []data.IconType, x, y int) Animation {
+func NewIconsAnimation(mapView *MapView, icons []lib.IconType, x, y int) Animation {
 	if len(icons) == 0 {
 		panic("icons cannot be empty")
 	}

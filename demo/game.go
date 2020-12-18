@@ -5,7 +5,7 @@ import "github.com/hajimehoshi/ebiten"
 import "github.com/hajimehoshi/oto"
 
 import "github.com/pwiecz/command_series/atr"
-import "github.com/pwiecz/command_series/data"
+import "github.com/pwiecz/command_series/lib"
 
 type SubGame interface {
 	Update() error
@@ -14,11 +14,11 @@ type SubGame interface {
 type Game struct {
 	subGame          SubGame
 	diskimage        atr.SectorReader
-	gameData         *data.GameData
+	gameData         *lib.GameData
 	selectedScenario int
-	scenarioData     *data.ScenarioData
+	scenarioData     *lib.ScenarioData
 	selectedVariant  int
-	options          data.Options
+	options          lib.Options
 
 	otoContext  *oto.Context
 	audioPlayer *AudioPlayer
@@ -43,7 +43,7 @@ func NewGame(filename string) (*Game, error) {
 	return game, nil
 }
 
-func (g *Game) onGameLoaded(gameData *data.GameData) {
+func (g *Game) onGameLoaded(gameData *lib.GameData) {
 	g.gameData = gameData
 	g.subGame = NewScenarioSelection(g.gameData.Scenarios, g.gameData.Sprites.IntroFont, g.onScenarioSelected)
 }
@@ -54,7 +54,7 @@ func (g *Game) onScenarioSelected(selectedScenario int) {
 	g.selectedScenario = selectedScenario
 	g.subGame = NewScenarioLoading(g.diskimage, g.gameData.Scenarios[selectedScenario], g.gameData.Sprites.IntroFont, g.onScenarioLoaded)
 }
-func (g *Game) onScenarioLoaded(scenarioData *data.ScenarioData) {
+func (g *Game) onScenarioLoaded(scenarioData *lib.ScenarioData) {
 	g.scenarioData = scenarioData
 	g.subGame = NewVariantSelection(g.scenarioData.Variants, g.gameData.Sprites.IntroFont, g.onVariantSelected)
 }
@@ -62,7 +62,7 @@ func (g *Game) onVariantSelected(selectedVariant int) {
 	g.selectedVariant = selectedVariant
 	g.subGame = NewOptionSelection(g.gameData.Game, g.gameData.Sprites.IntroFont, g.onOptionsSelected)
 }
-func (g *Game) onOptionsSelected(options data.Options) {
+func (g *Game) onOptionsSelected(options lib.Options) {
 	g.options = options
 	g.subGame = NewShowMap(g, g.options, g.audioPlayer, g.onGameOver)
 }
@@ -81,7 +81,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	if g.subGame != nil {
 		g.subGame.Draw(screen)
 	} else {
-		screen.Fill(data.RGBPalette[15])
+		screen.Fill(lib.RGBPalette[15])
 	}
 }
 

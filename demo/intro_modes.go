@@ -6,8 +6,9 @@ import "image/color"
 
 import "github.com/hajimehoshi/ebiten"
 import "github.com/hajimehoshi/ebiten/inpututil"
+
 import "github.com/pwiecz/command_series/atr"
-import "github.com/pwiecz/command_series/data"
+import "github.com/pwiecz/command_series/lib"
 
 type ScenarioSelection struct {
 	labels             []*Button
@@ -15,7 +16,7 @@ type ScenarioSelection struct {
 	onScenarioSelected func(int)
 }
 
-func NewScenarioSelection(scenarios []data.Scenario, font *data.Font, onScenarioSelected func(int)) *ScenarioSelection {
+func NewScenarioSelection(scenarios []lib.Scenario, font *lib.Font, onScenarioSelected func(int)) *ScenarioSelection {
 	labels := []*Button{
 		NewButton("SCENARIO SELECTION", 16, 32, image.Pt(300, 8), font),
 		NewButton(fmt.Sprintf("TYPE (1-%d)", len(scenarios)), 16, float64(56+len(scenarios)*8), image.Pt(300, 8), font)}
@@ -43,7 +44,7 @@ func (s *ScenarioSelection) Update() error {
 	return nil
 }
 func (s *ScenarioSelection) Draw(screen *ebiten.Image) {
-	screen.Fill(data.RGBPalette[15])
+	screen.Fill(lib.RGBPalette[15])
 	for _, label := range s.labels {
 		label.Draw(screen)
 	}
@@ -58,7 +59,7 @@ type VariantSelection struct {
 	onVariantSelected func(int)
 }
 
-func NewVariantSelection(variants []data.Variant, font *data.Font, onVariantSelected func(int)) *VariantSelection {
+func NewVariantSelection(variants []lib.Variant, font *lib.Font, onVariantSelected func(int)) *VariantSelection {
 	labels := []*Button{
 		NewButton("VARIANT SELECTION", 16, 32, image.Pt(300, 8), font),
 		NewButton(fmt.Sprintf("TYPE (1-%d)", len(variants)), 16, float64(56+len(variants)*8), image.Pt(300, 8), font)}
@@ -88,7 +89,7 @@ func (s *VariantSelection) Update() error {
 	return nil
 }
 func (s *VariantSelection) Draw(screen *ebiten.Image) {
-	screen.Fill(data.RGBPalette[15])
+	screen.Fill(lib.RGBPalette[15])
 	for _, label := range s.labels {
 		label.Draw(screen)
 	}
@@ -99,15 +100,15 @@ func (s *VariantSelection) Draw(screen *ebiten.Image) {
 
 type GameLoading struct {
 	diskimage    atr.SectorReader
-	onGameLoaded func(*data.GameData)
+	onGameLoaded func(*lib.GameData)
 	loadingDone  chan error
-	gameData     *data.GameData
+	gameData     *lib.GameData
 
 	turnsLoading int
 	loadingRect  *ebiten.Image
 }
 
-func NewGameLoading(diskimage atr.SectorReader, onGameLoaded func(*data.GameData)) *GameLoading {
+func NewGameLoading(diskimage atr.SectorReader, onGameLoaded func(*lib.GameData)) *GameLoading {
 	return &GameLoading{
 		diskimage:    diskimage,
 		onGameLoaded: onGameLoaded}
@@ -133,7 +134,7 @@ func (l *GameLoading) Update() error {
 	return nil
 }
 func (l *GameLoading) Draw(screen *ebiten.Image) {
-	screen.Fill(data.RGBPalette[15])
+	screen.Fill(lib.RGBPalette[15])
 	if l.loadingRect == nil {
 		l.loadingRect = ebiten.NewImage(100, 1)
 	}
@@ -148,7 +149,7 @@ func (l *GameLoading) Draw(screen *ebiten.Image) {
 }
 
 func (l *GameLoading) loadGameData() error {
-	gameData, err := data.LoadGameData(l.diskimage)
+	gameData, err := lib.LoadGameData(l.diskimage)
 	if err != nil {
 		return err
 	}
@@ -159,14 +160,14 @@ func (l *GameLoading) loadGameData() error {
 type ScenarioLoading struct {
 	diskimage        atr.SectorReader
 	filePrefix       string
-	onScenarioLoaded func(*data.ScenarioData)
+	onScenarioLoaded func(*lib.ScenarioData)
 	loadingDone      chan error
-	scenarioData     *data.ScenarioData
+	scenarioData     *lib.ScenarioData
 
 	loadingText *Button
 }
 
-func NewScenarioLoading(diskimage atr.SectorReader, scenario data.Scenario, font *data.Font, onScenarioLoaded func(*data.ScenarioData)) *ScenarioLoading {
+func NewScenarioLoading(diskimage atr.SectorReader, scenario lib.Scenario, font *lib.Font, onScenarioLoaded func(*lib.ScenarioData)) *ScenarioLoading {
 	return &ScenarioLoading{
 		diskimage:        diskimage,
 		filePrefix:       scenario.FilePrefix,
@@ -193,11 +194,11 @@ func (l *ScenarioLoading) Update() error {
 
 }
 func (l *ScenarioLoading) Draw(screen *ebiten.Image) {
-	screen.Fill(data.RGBPalette[15])
+	screen.Fill(lib.RGBPalette[15])
 	l.loadingText.Draw(screen)
 }
 func (l *ScenarioLoading) loadScenarioData() (err error) {
-	scenarioData, err := data.LoadScenarioData(l.diskimage, l.filePrefix)
+	scenarioData, err := lib.LoadScenarioData(l.diskimage, l.filePrefix)
 	if err != nil {
 		return err
 	}

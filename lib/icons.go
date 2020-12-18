@@ -1,4 +1,4 @@
-package data
+package lib
 
 import "bytes"
 import "fmt"
@@ -46,6 +46,15 @@ var ArrowIcons = []IconType{
 	Arrows5,
 	Arrows6,
 	Arrows7}
+
+var CircleIcons = []IconType{
+	Circles5,
+	Circles4,
+	Circles3,
+	Circles2,
+	Circles1,
+	Circles0,
+	LightningBolt}
 
 type Icons struct {
 	// cursor, lightning bolt, 6 x concentric cicles, supply track, fighting unit,

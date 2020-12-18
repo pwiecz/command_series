@@ -1,4 +1,4 @@
-package data
+package lib
 
 type MessageSync struct {
 	update chan interface{}

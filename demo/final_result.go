@@ -5,7 +5,7 @@ import "image"
 import "github.com/hajimehoshi/ebiten"
 import "github.com/hajimehoshi/ebiten/inpututil"
 
-import "github.com/pwiecz/command_series/data"
+import "github.com/pwiecz/command_series/lib"
 
 type FinalResult struct {
 	onRestartGame func()
@@ -17,7 +17,7 @@ var resultStrings = []string{"TOTAL DEFEAT", "DECISIVE DEFEAT", "TACTICAL DEFEAT
 var difficultyStrings = []string{"VERY DIFFICULT", "DIFFICULT", "FAIR", "EASY", "VERY EASY"}
 var rankStrings = []string{"PRIVATE", "SERGEANT", "LIEUTENANT", "CAPTAIN", "MAJOR", "LIEUTENANT-COLONEL", "COLONEL", "BRIGADIER-GENERAL", "MAJOR-GENERAL", "LIEUTENANT-GENERAL", "FIELD MARSHAL", "SUPREME COMMANDER"}
 
-func NewFinalResult(result, difficulty, rank int, font *data.Font, onRestartGame func()) *FinalResult {
+func NewFinalResult(result, difficulty, rank int, font *lib.Font, onRestartGame func()) *FinalResult {
 	text := []*Button{
 		NewButton("PRESS ENTER", 184, 40, image.Pt(200, 8), font),
 		NewButton("FOR NEW GAME", 216, 64, image.Pt(200, 8), font),
@@ -37,7 +37,7 @@ func (s *FinalResult) Update() error {
 }
 
 func (s *FinalResult) Draw(screen *ebiten.Image) {
-	screen.Fill(data.RGBPalette[15])
+	screen.Fill(lib.RGBPalette[15])
 	for _, text := range s.text {
 		text.Draw(screen)
 	}

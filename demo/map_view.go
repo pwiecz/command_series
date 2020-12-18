@@ -2,11 +2,12 @@ package main
 
 import "image"
 import "image/color"
-import "github.com/pwiecz/command_series/data"
 import "github.com/hajimehoshi/ebiten"
 
+import "github.com/pwiecz/command_series/lib"
+
 type MapView struct {
-	terrainMap             *data.Map
+	terrainMap             *lib.Map
 	minX, minY, maxX, maxY int // map bounds to draw in map coordinates
 	cursorX, cursorY       int
 
@@ -42,7 +43,7 @@ type MapView struct {
 	iconDx, iconDy    float64
 }
 
-func NewMapView(terrainMap *data.Map,
+func NewMapView(terrainMap *lib.Map,
 	minX, minY, maxX, maxY int,
 	tiles *[48]*image.Paletted,
 	unitSymbols *[16]*image.Paletted,
@@ -116,8 +117,8 @@ func (v *MapView) GetCursorPosition() (int, int) {
 	return v.cursorX, v.cursorY
 }
 func (v *MapView) SetCursorPosition(x, y int) {
-	v.cursorX = data.Clamp(x, v.minX, v.maxX)
-	v.cursorY = data.Clamp(y, v.minY, v.maxY)
+	v.cursorX = lib.Clamp(x, v.minX, v.maxX)
+	v.cursorY = lib.Clamp(y, v.minY, v.maxY)
 	v.makeCursorVisible()
 }
 func (v *MapView) makeCursorVisible() {
@@ -175,16 +176,16 @@ func (v *MapView) getBackgroundForegroundColors(colorScheme byte) []color.Color 
 		}
 		colors = make([]color.Color, 2)
 		// just guessing here
-		colors[0] = &data.RGBPalette[palette[2]]
+		colors[0] = &lib.RGBPalette[palette[2]]
 		switch colorScheme {
 		case 0:
-			colors[1] = &data.RGBPalette[palette[3]] // or 7
+			colors[1] = &lib.RGBPalette[palette[3]] // or 7
 		case 1:
-			colors[1] = &data.RGBPalette[palette[6]]
+			colors[1] = &lib.RGBPalette[palette[6]]
 		case 2:
-			colors[1] = &data.RGBPalette[palette[0]]
+			colors[1] = &lib.RGBPalette[palette[0]]
 		case 3:
-			colors[1] = &data.RGBPalette[palette[4]]
+			colors[1] = &lib.RGBPalette[palette[4]]
 		}
 		v.colorSchemes[v.isNight][colorScheme] = colors
 	}
@@ -228,7 +229,7 @@ func (v *MapView) GetSpriteFromTileNum(tileNum byte) *ebiten.Image {
 		return v.getUnitSymbolImage(tileNum/64, tileNum%16)
 	}
 }
-func (v *MapView) GetSpriteFromIcon(icon data.IconType) *ebiten.Image {
+func (v *MapView) GetSpriteFromIcon(icon lib.IconType) *ebiten.Image {
 	ebitenIcon := v.ebitenIcons[icon]
 	if ebitenIcon == nil {
 		iconImage := v.icons[icon]
@@ -295,7 +296,7 @@ func (v *MapView) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
 	v.isDirty = false
 	screen.DrawImage(v.subImage, options)
 	if v.cursorImage == nil {
-		cursorSprite := v.GetSpriteFromIcon(data.Cursor)
+		cursorSprite := v.GetSpriteFromIcon(lib.Cursor)
 		cursorBounds := cursorSprite.Bounds()
 		v.cursorImage = ebiten.NewImage(cursorBounds.Dx()*2, cursorBounds.Dy())
 		var opts ebiten.DrawImageOptions
@@ -312,7 +313,7 @@ func (v *MapView) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
 	}
 	return
 }
-func (v *MapView) ShowIcon(icon data.IconType, x, y int, dx, dy float64) {
+func (v *MapView) ShowIcon(icon lib.IconType, x, y int, dx, dy float64) {
 	v.shownIcons = append(v.shownIcons[:0], v.GetSpriteFromIcon(icon))
 	v.iconAnimationStep = 0
 	v.iconX = x
@@ -320,7 +321,7 @@ func (v *MapView) ShowIcon(icon data.IconType, x, y int, dx, dy float64) {
 	v.iconDx = dx
 	v.iconDy = dy
 }
-func (v *MapView) ShowAnimatedIcon(icons []data.IconType, x, y int, dx, dy float64) {
+func (v *MapView) ShowAnimatedIcon(icons []lib.IconType, x, y int, dx, dy float64) {
 	v.shownIcons = v.shownIcons[:0]
 	for _, icon := range icons {
 		v.shownIcons = append(v.shownIcons, v.GetSpriteFromIcon(icon))
