@@ -81,8 +81,6 @@ func (s *VariantSelection) Update() error {
 	for i, button := range s.buttons {
 		if button.Update() || (i < 10 && inpututil.IsKeyJustReleased(numToKey(i+1))) {
 			s.onVariantSelected(i)
-			//			s.mainGame.selectedVariant = i
-			//			s.mainGame.subGame = NewVariantLoading(s.mainGame)
 			return nil
 		}
 	}

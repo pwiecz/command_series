@@ -10,7 +10,7 @@ import "github.com/hajimehoshi/ebiten/inpututil"
 
 import "github.com/pwiecz/command_series/lib"
 
-type ShowMap struct {
+type MainScreen struct {
 	scenarioData *lib.ScenarioData
 	gameData     *lib.GameData
 	options      lib.Options
@@ -46,7 +46,7 @@ type ShowMap struct {
 	gameOver bool
 }
 
-func NewShowMap(g *Game, options lib.Options, audioPlayer *AudioPlayer, onGameOver func(int, int, int)) *ShowMap {
+func NewMainScreen(g *Game, options lib.Options, audioPlayer *AudioPlayer, onGameOver func(int, int, int)) *MainScreen {
 	scenario := &g.gameData.Scenarios[g.selectedScenario]
 	for x := scenario.MinX - 1; x <= scenario.MaxX+1; x++ {
 		g.gameData.Map.SetTile(x, scenario.MinY-1, 12)
@@ -56,7 +56,7 @@ func NewShowMap(g *Game, options lib.Options, audioPlayer *AudioPlayer, onGameOv
 		g.gameData.Map.SetTile(scenario.MinX-1, y, 10)
 		g.gameData.Map.SetTile(scenario.MaxX+1, y, 12)
 	}
-	s := &ShowMap{
+	s := &MainScreen{
 		gameData:      g.gameData,
 		scenarioData:  g.scenarioData,
 		options:       options,
@@ -89,7 +89,7 @@ func NewShowMap(g *Game, options lib.Options, audioPlayer *AudioPlayer, onGameOv
 	return s
 }
 
-func (s *ShowMap) Update() error {
+func (s *MainScreen) Update() error {
 	if s.overviewMap != nil {
 		for k := ebiten.Key(0); k <= ebiten.KeyMax; k++ {
 			if k == ebiten.KeyAlt || k == ebiten.KeyControl || k == ebiten.KeyShift || k == ebiten.KeySuper {
@@ -357,7 +357,7 @@ loop:
 	return nil
 }
 
-func (s *ShowMap) showMessageFromUnit(message lib.MessageFromUnit) {
+func (s *MainScreen) showMessageFromUnit(message lib.MessageFromUnit) {
 	s.messageBox.Clear()
 	s.messageBox.Print("MESSAGE FROM ...", 2, 0, true)
 	unit := message.Unit()
@@ -376,10 +376,10 @@ func (s *ShowMap) showMessageFromUnit(message lib.MessageFromUnit) {
 	s.idleTicksLeft = s.options.Speed.DelayTicks() + 15
 	s.lastMessageFromUnit = message
 }
-func (s *ShowMap) areUnitCoordsVisible(x, y int) bool {
+func (s *MainScreen) areUnitCoordsVisible(x, y int) bool {
 	return s.mapView.AreMapCoordsVisible(x/2, y)
 }
-func (s *ShowMap) tryGiveOrderAtMapCoords(x, y int, order lib.OrderType) {
+func (s *MainScreen) tryGiveOrderAtMapCoords(x, y int, order lib.OrderType) {
 	s.messageBox.Clear()
 	if unit, ok := s.gameState.FindUnitAtMapCoords(x, y); ok && unit.Side == s.playerSide {
 		s.giveOrder(unit, order)
@@ -388,7 +388,7 @@ func (s *ShowMap) tryGiveOrderAtMapCoords(x, y int, order lib.OrderType) {
 		s.messageBox.Print("NO FRIENDLY UNIT.", 2, 0, false)
 	}
 }
-func (s *ShowMap) giveOrder(unit lib.Unit, order lib.OrderType) {
+func (s *MainScreen) giveOrder(unit lib.Unit, order lib.OrderType) {
 	unit.Order = order
 	unit.HasLocalCommand = false
 	switch order {
@@ -406,7 +406,7 @@ func (s *ShowMap) giveOrder(unit lib.Unit, order lib.OrderType) {
 	}
 	s.scenarioData.Units[unit.Side][unit.Index] = unit
 }
-func (s *ShowMap) trySetObjective(x, y int) {
+func (s *MainScreen) trySetObjective(x, y int) {
 	if s.orderedUnit == nil {
 		s.messageBox.Clear()
 		s.messageBox.Print("GIVE ORDERS FIRST!", 2, 0, false)
@@ -416,7 +416,7 @@ func (s *ShowMap) trySetObjective(x, y int) {
 	s.setObjective(s.scenarioData.Units[s.orderedUnit.Side][s.orderedUnit.Index], unitX, y)
 
 }
-func (s *ShowMap) setObjective(unit lib.Unit, x, y int) {
+func (s *MainScreen) setObjective(unit lib.Unit, x, y int) {
 	unit.ObjectiveX, unit.ObjectiveY = x, y
 	unit.HasLocalCommand = false
 	s.messageBox.Clear()
@@ -430,7 +430,7 @@ func (s *ShowMap) setObjective(unit lib.Unit, x, y int) {
 	s.scenarioData.Units[unit.Side][unit.Index] = unit
 	s.orderedUnit = nil
 }
-func (s *ShowMap) showUnitInfo() {
+func (s *MainScreen) showUnitInfo() {
 	if s.areUnitsHidden {
 		return
 	}
@@ -519,7 +519,7 @@ func numberToGeneralRating(num int) string {
 	ratings := []string{"FAIR", "GOOD", "EXCELLNT"}
 	return ratings[(num-10)/2]
 }
-func (s *ShowMap) showGeneralInfo() {
+func (s *MainScreen) showGeneralInfo() {
 	if s.areUnitsHidden {
 		return
 	}
@@ -544,7 +544,7 @@ func (s *ShowMap) showGeneralInfo() {
 	s.messageBox.Print("MOVEMENT", 2, 3, true)
 	s.messageBox.Print(numberToGeneralRating(general.Movement), 11, 3, false)
 }
-func (s *ShowMap) showCityInfo() {
+func (s *MainScreen) showCityInfo() {
 	s.messageBox.Clear()
 	cursorX, cursorY := s.mapView.GetCursorPosition()
 	city, ok := s.gameState.FindCityAtMapCoords(cursorX, cursorY)
@@ -555,7 +555,7 @@ func (s *ShowMap) showCityInfo() {
 	s.messageBox.Print(city.Name, 2, 0, false)
 	s.messageBox.Print(fmt.Sprintf("%d VICTORY POINTS, %s", city.VictoryPoints, s.scenarioData.Data.Sides[city.Owner]), 2, 1, false)
 }
-func (s *ShowMap) showStatusReport() {
+func (s *MainScreen) showStatusReport() {
 	s.messageBox.Clear()
 	if s.gameData.Game != lib.Conflict {
 		s.messageBox.Print("STATUS REPORT", 2, 0, true)
@@ -598,7 +598,7 @@ func (s *ShowMap) showStatusReport() {
 	winningSideStr := s.scenarioData.Data.Sides[winningSide]
 	s.messageBox.Print(fmt.Sprintf("%s %s ADVANTAGE.", advantageStrs[advantage], winningSideStr), 2, 4, false)
 }
-func (s *ShowMap) hideUnits() {
+func (s *MainScreen) hideUnits() {
 	if s.areUnitsHidden {
 		s.gameState.ShowAllVisibleUnits()
 	} else {
@@ -606,19 +606,19 @@ func (s *ShowMap) hideUnits() {
 	}
 	s.areUnitsHidden = !s.areUnitsHidden
 }
-func (s *ShowMap) showOverviewMap() {
+func (s *MainScreen) showOverviewMap() {
 	if !s.areUnitsHidden {
 		s.hideUnits()
 	}
 	s.overviewMap = NewOverviewMap(&s.gameData.Map, &s.scenarioData.Units, &s.gameData.Generic, &s.scenarioData.Data, s.gameState.IsUnitVisible)
 }
-func (s *ShowMap) showFlashback() {
+func (s *MainScreen) showFlashback() {
 	if !s.areUnitsHidden {
 		s.hideUnits()
 	}
 	s.flashback = NewFlashback(s.mapView, s.messageBox, &s.gameData.Map, s.gameState.FlashbackUnits())
 }
-func (s *ShowMap) showLastMessageUnit() {
+func (s *MainScreen) showLastMessageUnit() {
 	if s.lastMessageFromUnit == nil {
 		return
 	}
@@ -626,13 +626,13 @@ func (s *ShowMap) showLastMessageUnit() {
 	s.mapView.SetCursorPosition(messageUnit.X/2, messageUnit.Y)
 	s.mapView.ShowIcon(s.lastMessageFromUnit.Icon(), messageUnit.X/2, messageUnit.Y, 0, -5)
 }
-func (s *ShowMap) increaseGameSpeed() {
+func (s *MainScreen) increaseGameSpeed() {
 	s.changeGameSpeed(true)
 }
-func (s *ShowMap) decreaseGameSpeed() {
+func (s *MainScreen) decreaseGameSpeed() {
 	s.changeGameSpeed(false)
 }
-func (s *ShowMap) changeGameSpeed(faster bool) {
+func (s *MainScreen) changeGameSpeed(faster bool) {
 	if faster {
 		s.options.Speed = s.options.Speed.Faster()
 	} else {
@@ -642,7 +642,7 @@ func (s *ShowMap) changeGameSpeed(faster bool) {
 	s.messageBox.Print("SPEED: "+s.options.Speed.String(), 2, 0, false)
 }
 
-func (s *ShowMap) dateTimeString() string {
+func (s *MainScreen) dateTimeString() string {
 	meridianString := "AM"
 	if s.gameState.Hour() >= 12 {
 		meridianString = "PM"
@@ -654,11 +654,11 @@ func (s *ShowMap) dateTimeString() string {
 	return fmt.Sprintf("%d:%02d %s %s, %d %d  %s", hour, s.gameState.Minute(), meridianString, s.gameState.Month(), s.gameState.Day()+1, s.gameState.Year(), s.gameState.Weather())
 }
 
-func (s *ShowMap) screenCoordsToUnitCoords(screenX, screenY int) (x, y int) {
+func (s *MainScreen) screenCoordsToUnitCoords(screenX, screenY int) (x, y int) {
 	return s.mapView.ToUnitCoords((screenX-8)/2, screenY-72)
 }
 
-func (s *ShowMap) Draw(screen *ebiten.Image) {
+func (s *MainScreen) Draw(screen *ebiten.Image) {
 	if s.overviewMap != nil {
 		screen.Fill(lib.RGBPalette[8])
 		opts := ebiten.DrawImageOptions{}

@@ -64,7 +64,7 @@ func (g *Game) onVariantSelected(selectedVariant int) {
 }
 func (g *Game) onOptionsSelected(options lib.Options) {
 	g.options = options
-	g.subGame = NewShowMap(g, g.options, g.audioPlayer, g.onGameOver)
+	g.subGame = NewMainScreen(g, g.options, g.audioPlayer, g.onGameOver)
 }
 func (g *Game) onGameOver(result, balance, rank int) {
 	g.subGame = NewFinalResult(result, balance, rank, g.gameData.Sprites.IntroFont, g.onRestartGame)
