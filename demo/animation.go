@@ -127,6 +127,7 @@ func (a *IconsAnimation) Draw(screen *ebiten.Image, options *ebiten.DrawImageOpt
 	iconIndex := a.elapsed / 3
 	if iconIndex < len(a.icons) {
 		sprite := a.mapView.GetSpriteFromIcon(a.icons[iconIndex])
+		a.mapView.HideIcon()
 		a.mapView.DrawSpriteAt(sprite, a.x, a.y, screen, options)
 	} else {
 		a.mapView.ShowIcon(a.icons[len(a.icons)-1], a.x, a.y)

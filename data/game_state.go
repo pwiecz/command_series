@@ -343,8 +343,8 @@ nextUnit:
 				unit.MenCount = s.map0[unit.Side][sx+dx][sy+dy]
 				unit.EquipCount = (unit.MenCount + s.map3[unit.Side][sx+dx][sy+dy]) / 2
 				v16 := s.map0[1-unit.Side][sx+dx][sy+dy] / 2
-				for i := 1; i <= 8; i++ {
-					ddx, ddy := s.generic.SmallMapOffsets(i)
+				for i := 0; i <= 7; i++ {
+					ddx, ddy := s.generic.SmallMapOffsets(i + 1)
 					if !InRange(sx+dx+ddx, 0, 16) || !InRange(sy+dy+ddy, 0, 16) {
 						continue
 					}
