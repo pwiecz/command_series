@@ -39,6 +39,7 @@ type MapView struct {
 	iconAnimationStep int
 	shownIcons        []*ebiten.Image
 	iconX, iconY      int
+	iconDx, iconDy    float64
 }
 
 func NewMapView(terrainMap *data.Map,
@@ -217,10 +218,6 @@ func (v *MapView) DrawSpriteBetween(sprite *ebiten.Image, mapX0, mapY0, mapX1, m
 	x, y := float64(x0)+float64(x1-x0)*alpha, float64(y0)+float64(y1-y0)*alpha
 	v.drawSpriteAtCoords(sprite, x, y, screen, options)
 }
-func (v *MapView) DrawSpriteAt(sprite *ebiten.Image, mapX, mapY int, screen *ebiten.Image, options *ebiten.DrawImageOptions) {
-	x, y := v.MapCoordsToScreenCoords(mapX, mapY)
-	v.drawSpriteAtCoords(sprite, float64(x), float64(y), screen, options)
-}
 
 func (v *MapView) GetSpriteFromTileNum(tileNum byte) *ebiten.Image {
 	if tileNum%64 < 48 {
@@ -310,18 +307,20 @@ func (v *MapView) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
 	if len(v.shownIcons) > 0 && v.AreMapCoordsVisible(v.iconX, v.iconY) {
 		iconX, iconY := v.MapCoordsToScreenCoords(v.iconX, v.iconY)
 		icon := v.shownIcons[(v.iconAnimationStep/4)%len(v.shownIcons)]
-		v.drawSpriteAtCoords(icon, float64(iconX), float64(iconY-5), screen, options)
+		v.drawSpriteAtCoords(icon, float64(iconX)+v.iconDx, float64(iconY)+v.iconDy, screen, options)
 		v.iconAnimationStep++
 	}
 	return
 }
-func (v *MapView) ShowIcon(icon data.IconType, x, y int) {
+func (v *MapView) ShowIcon(icon data.IconType, x, y int, dx, dy float64) {
 	v.shownIcons = append(v.shownIcons[:0], v.GetSpriteFromIcon(icon))
 	v.iconAnimationStep = 0
 	v.iconX = x
 	v.iconY = y
+	v.iconDx = dx
+	v.iconDy = dy
 }
-func (v *MapView) ShowAnimatedIcon(icons []data.IconType, x, y int) {
+func (v *MapView) ShowAnimatedIcon(icons []data.IconType, x, y int, dx, dy float64) {
 	v.shownIcons = v.shownIcons[:0]
 	for _, icon := range icons {
 		v.shownIcons = append(v.shownIcons, v.GetSpriteFromIcon(icon))
@@ -329,6 +328,8 @@ func (v *MapView) ShowAnimatedIcon(icons []data.IconType, x, y int) {
 	v.iconAnimationStep = 0
 	v.iconX = x
 	v.iconY = y
+	v.iconDx = dx
+	v.iconDy = dy
 }
 func (v *MapView) HideIcon() {
 	if len(v.shownIcons) > 0 {

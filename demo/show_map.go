@@ -368,7 +368,7 @@ func (s *ShowMap) showMessageFromUnit(message data.MessageFromUnit) {
 		s.messageBox.Print(line, 2, 2+i, false)
 	}
 	if s.mapView.AreMapCoordsVisible(unit.X/2, unit.Y) {
-		s.mapView.ShowIcon(message.Icon(), unit.X/2, unit.Y)
+		s.mapView.ShowIcon(message.Icon(), unit.X/2, unit.Y, 0, -5)
 	} else {
 		s.mapView.HideIcon()
 	}
@@ -441,7 +441,7 @@ func (s *ShowMap) showUnitInfo() {
 	}
 	s.messageBox.Clear()
 	if unit.Side == s.playerSide && unit.ObjectiveX > 0 && s.areUnitCoordsVisible(unit.ObjectiveX, unit.ObjectiveY) {
-		s.mapView.ShowAnimatedIcon(data.ArrowIcons, unit.ObjectiveX/2, unit.ObjectiveY)
+		s.mapView.ShowAnimatedIcon(data.ArrowIcons, unit.ObjectiveX/2, unit.ObjectiveY, 0, -5)
 	} else {
 		s.mapView.HideIcon()
 	}
@@ -624,7 +624,7 @@ func (s *ShowMap) showLastMessageUnit() {
 	}
 	messageUnit := s.lastMessageFromUnit.Unit()
 	s.mapView.SetCursorPosition(messageUnit.X/2, messageUnit.Y)
-	s.mapView.ShowIcon(s.lastMessageFromUnit.Icon(), messageUnit.X/2, messageUnit.Y)
+	s.mapView.ShowIcon(s.lastMessageFromUnit.Icon(), messageUnit.X/2, messageUnit.Y, 0, -5)
 }
 func (s *ShowMap) increaseGameSpeed() {
 	s.changeGameSpeed(true)
