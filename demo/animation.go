@@ -120,15 +120,15 @@ func NewIconsAnimation(mapView *MapView, icons []lib.IconType, x, y int) Animati
 }
 func (a *IconsAnimation) Update() {
 	a.elapsed++
-}
-func (a *IconsAnimation) Done() bool {
-	return a.elapsed > len(a.icons)*3
-}
-func (a *IconsAnimation) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
 	iconIndex := a.elapsed / 3
-	if iconIndex < len(a.icons) {
+	if iconIndex < len(a.icons)-1 {
 		a.mapView.ShowIcon(a.icons[iconIndex], a.x, a.y, -1, -5)
 	} else {
 		a.mapView.ShowIcon(a.icons[len(a.icons)-1], a.x, a.y, -1, -5)
 	}
+}
+func (a *IconsAnimation) Done() bool {
+	return a.elapsed/3 >= len(a.icons)-1
+}
+func (a *IconsAnimation) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
 }
