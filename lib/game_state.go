@@ -698,7 +698,7 @@ l24:
 					Abs(unit.X-unit2.X)/2+Abs(unit.Y-unit2.Y) <= attackRange {
 					unit.ObjectiveX = unit2.X
 					unit.ObjectiveY = unit2.Y
-					unit.Order = unit.Order | 2
+					unit.Order = Attack
 					unit.Formation = s.scenarioData.Data176[0][2]
 				}
 			}
