@@ -1,6 +1,7 @@
 package main
 
 import "fmt"
+import "math/rand"
 import "github.com/hajimehoshi/ebiten"
 import "github.com/hajimehoshi/oto"
 
@@ -14,6 +15,7 @@ type SubGame interface {
 type Game struct {
 	subGame          SubGame
 	diskimage        atr.SectorReader
+	rand             *rand.Rand
 	gameData         *lib.GameData
 	selectedScenario int
 	scenarioData     *lib.ScenarioData
@@ -24,7 +26,7 @@ type Game struct {
 	audioPlayer *AudioPlayer
 }
 
-func NewGame(filename string) (*Game, error) {
+func NewGame(filename string, rand *rand.Rand) (*Game, error) {
 	diskimage, err := atr.NewAtrSectorReader(filename)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot open atr image file %s (%v)", filename, err)
@@ -35,6 +37,7 @@ func NewGame(filename string) (*Game, error) {
 	}
 	game := &Game{
 		diskimage:        diskimage,
+		rand:             rand,
 		selectedScenario: -1,
 		selectedVariant:  -1,
 		otoContext:       otoContext,
@@ -64,7 +67,7 @@ func (g *Game) onVariantSelected(selectedVariant int) {
 }
 func (g *Game) onOptionsSelected(options lib.Options) {
 	g.options = options
-	g.subGame = NewMainScreen(g, g.options, g.audioPlayer, g.onGameOver)
+	g.subGame = NewMainScreen(g, g.options, g.audioPlayer, g.rand, g.onGameOver)
 }
 func (g *Game) onGameOver(result, balance, rank int) {
 	g.subGame = NewFinalResult(result, balance, rank, g.gameData.Sprites.IntroFont, g.onRestartGame)

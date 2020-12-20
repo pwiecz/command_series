@@ -46,7 +46,7 @@ type MainScreen struct {
 	gameOver bool
 }
 
-func NewMainScreen(g *Game, options lib.Options, audioPlayer *AudioPlayer, onGameOver func(int, int, int)) *MainScreen {
+func NewMainScreen(g *Game, options lib.Options, audioPlayer *AudioPlayer, rand *rand.Rand, onGameOver func(int, int, int)) *MainScreen {
 	scenario := &g.gameData.Scenarios[g.selectedScenario]
 	for x := scenario.MinX - 1; x <= scenario.MaxX+1; x++ {
 		g.gameData.Map.SetTile(x, scenario.MinY-1, 12)
@@ -69,8 +69,7 @@ func NewMainScreen(g *Game, options lib.Options, audioPlayer *AudioPlayer, onGam
 	} else {
 		s.playerSide = 1
 	}
-	rnd := rand.New(rand.NewSource(1))
-	s.gameState = lib.NewGameState(rnd, g.gameData, g.scenarioData, g.selectedScenario, g.selectedVariant, s.playerSide, s.options, s.sync)
+	s.gameState = lib.NewGameState(rand, g.gameData, g.scenarioData, g.selectedScenario, g.selectedVariant, s.playerSide, s.options, s.sync)
 	s.mapView = NewMapView(
 		&g.gameData.Map, scenario.MinX, scenario.MinY, scenario.MaxX, scenario.MaxY,
 		&g.gameData.Sprites.TerrainTiles,
