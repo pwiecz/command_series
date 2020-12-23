@@ -315,7 +315,7 @@ nextUnit:
 			}
 		}
 		{
-			generalMask := s.generals[unit.Side][unit.GeneralIndex].Data0
+			generalMask := unit.General.Data0
 			arg1 = -17536 // 48000
 			//var bestI int
 			var bestDx, bestDy int
@@ -368,7 +368,7 @@ nextUnit:
 					} else {
 						v48 = -Clamp((v52+1)*8/(unit.MenCount+1)-8, 0, 16)
 					}
-					v48 += s.generals[unit.Side][unit.GeneralIndex].Data1High + s.scenarioData.Data0High[unit.Type]
+					v48 += unit.General.Data1High + s.scenarioData.Data0High[unit.Type]
 					var v55 int
 					if unit.EquipCount > v16 {
 						v55 = Clamp((unit.EquipCount+1)*8/(v16+1)-7, 0, 16)
@@ -432,7 +432,7 @@ nextUnit:
 							}
 							v50 += v
 						}
-						if v55+s.generals[unit.Side][unit.GeneralIndex].Data2High+s.scenarioData.Data0Low[unit.Type] < -9 {
+						if v55+unit.General.Data2High+s.scenarioData.Data0Low[unit.Type] < -9 {
 							if j == i {
 								unit.Fatigue = unit.Fatigue + 256
 							}
@@ -655,7 +655,7 @@ l24:
 					}
 				}
 				if s.scenarioData.UnitScores[unit.Type]&248 > 0 ||
-					unit.Fatigue+s.generals[unit.Side][unit.GeneralIndex].Data2High*4 > 96 {
+					unit.Fatigue+unit.General.Data2High*4 > 96 {
 					v = r + s.magicCoeff(s.hexes.Arr96[:], nx, ny, unit.Side)
 				}
 			}
@@ -782,7 +782,7 @@ l21:
 				moveSpeed = moveSpeed * s.scenarioData.Data200Low[unit.Type] / 8
 			}
 			moveSpeed *= (512 - unit.Fatigue) / 32
-			moveSpeed = moveSpeed * s.generals[unit.Side][unit.GeneralIndex].Movement / 16
+			moveSpeed = moveSpeed * unit.General.Movement / 16
 			if unit.SupplyLevel == 0 {
 				moveSpeed /= 2
 			}
@@ -958,7 +958,7 @@ l21:
 				tankCoeff = tankCoeff * (4 - weather) / 4
 			}
 			attackerScore = (menCoeff + tankCoeff) * unit.Morale / 256 * (255 - unit.Fatigue) / 128
-			attackerScore = attackerScore * s.generals[unit.Side][unit.GeneralIndex].Attack / 16
+			attackerScore = attackerScore * unit.General.Attack / 16
 			attackerScore = attackerScore * s.magicCoeff(s.hexes.Arr144[:], unit.X, unit.Y, unit.Side) / 8
 			attackerScore++
 		}
@@ -973,7 +973,7 @@ l21:
 			menCoeff := s.scenarioData.TerrainMenDefence[tt2] * s.scenarioData.FormationMenDefence[unit2.Formation] * unit2.MenCount / 32
 			equipCoeff := s.scenarioData.TerrainTankAttack[tt2] * s.scenarioData.FormationTankDefence[unit2.Formation] * s.scenarioData.Data16Low[unit2.Type] / 2 * unit2.EquipCount / 64
 			defenderScore = (menCoeff + equipCoeff) * unit2.Morale / 256 * (240 - unit2.Fatigue/2) / 128
-			defenderScore = defenderScore * s.generals[1-unit.Side][unit2.GeneralIndex].Defence / 16
+			defenderScore = defenderScore * unit2.General.Defence / 16
 			if unit2.SupplyLevel == 0 {
 				defenderScore = defenderScore * s.scenarioData.Data167 / 8
 			}
