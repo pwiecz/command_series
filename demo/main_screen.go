@@ -360,7 +360,7 @@ func (s *MainScreen) showMessageFromUnit(message lib.MessageFromUnit) {
 	s.messageBox.Clear()
 	s.messageBox.Print("MESSAGE FROM ...", 2, 0, true)
 	unit := message.Unit()
-	unitName := fmt.Sprintf("%s:", unit.String())
+	unitName := fmt.Sprintf("%s:", unit.FullName())
 	s.messageBox.Print(unitName, 2, 1, false)
 	lines := strings.Split("\""+message.String()+"\"", "\n")
 	for i, line := range lines {
@@ -420,7 +420,7 @@ func (s *MainScreen) setObjective(unit lib.Unit, x, y int) {
 	unit.HasLocalCommand = false
 	s.messageBox.Clear()
 	s.messageBox.Print("WHO ", 2, 0, true)
-	s.messageBox.Print(unit.String(), 7, 0, false)
+	s.messageBox.Print(unit.FullName(), 7, 0, false)
 	s.messageBox.Print("OBJECTIVE HERE.", 2, 1, false)
 	distance := lib.Function15_distanceToObjective(unit)
 	if distance > 0 {
@@ -455,7 +455,7 @@ func (s *MainScreen) showUnitInfo() {
 		nextRow++
 	}
 	s.messageBox.Print("WHO ", 2, nextRow, true)
-	s.messageBox.Print(unit.String(), 7, nextRow, false)
+	s.messageBox.Print(unit.FullName(), 7, nextRow, false)
 	nextRow++
 
 	s.messageBox.Print("    ", 2, nextRow, true)

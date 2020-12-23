@@ -48,11 +48,12 @@ type Unit struct {
 	Type                 int
 	TypeName             string
 	ColorPalette         int
+	nameIndex            int
 	Name                 string
 	TargetFormation      int
 	OrderBit4            bool
 	Order                OrderType
-	GeneralIndex         int
+	generalIndex         int
 	General              General
 	SupplyLevel          int
 	Morale               int
@@ -68,7 +69,7 @@ type Unit struct {
 	Index int
 }
 
-func (u Unit) String() string {
+func (u Unit) FullName() string {
 	return u.Name + " " + u.TypeName
 }
 func (u *Unit) ClearState() {
@@ -132,17 +133,18 @@ func ParseUnit(data [16]byte, unitTypeNames []string, unitNames []string, genera
 	unit.SupplyUnit = int((data[5] / 16) & 7)
 	unit.FormationTopBit = data[5]&128 != 0
 	unit.VariantBitmap = data[6]
+	unit.Fatigue = int(data[6])
 	unit.Type = int(data[7] & 15)
 	if unit.Type >= len(unitTypeNames) {
 		return Unit{}, fmt.Errorf("Invalid unit type number: %d", unit.Type)
 	}
 	unit.TypeName = unitTypeNames[unit.Type]
 	unit.ColorPalette = int(data[7] / 16)
-	nameIndex := int(data[8] & 127)
+	unit.nameIndex = int(data[8] & 127)
 	// E.g. one Sidi unit have name index equal to the number of names.
 	// It's a supply depot outside of map bounds, so maybe it's done on purpose.
-	if nameIndex < len(unitNames) {
-		unit.Name = unitNames[nameIndex]
+	if unit.nameIndex < len(unitNames) {
+		unit.Name = unitNames[unit.nameIndex]
 	}
 
 	unit.TargetFormation = int(data[9] & 7)
@@ -161,17 +163,22 @@ func ParseUnit(data [16]byte, unitTypeNames []string, unitNames []string, genera
 	if order&0b11000000 != 0 {
 		panic(order)
 	}
-	generalIndex := int(data[10])
-	if generalIndex >= len(generals) {
+	unit.generalIndex = int(data[10])
+	if unit.generalIndex >= len(generals) {
 		// One of El-Alamein units have invalid general index set in available
 		// disk images.
-		fmt.Printf("Too large general index. Expected <%d, got %d\n", len(generals), generalIndex)
-		generalIndex = 0
+		fmt.Printf("Too large general index. Expected <%d, got %d\n", len(generals), unit.generalIndex)
+		unit.generalIndex = 0
 	}
-	unit.GeneralIndex = generalIndex
-	unit.General = generals[generalIndex]
-	unit.HalfDaysUntilAppear = int(data[11])
-	unit.InvAppearProbability = int(data[12])
+	unit.General = generals[unit.generalIndex]
+	if !unit.IsInGame {
+		unit.HalfDaysUntilAppear = int(data[11])
+		unit.InvAppearProbability = int(data[12])
+	} else {
+		unit.ObjectiveX = int(data[11])
+		unit.ObjectiveY = int(data[12])
+	}
+	unit.Terrain = data[13]
 	unit.SupplyLevel = int(data[14])
 	unit.Morale = int(data[15])
 	return unit, nil
@@ -201,4 +208,79 @@ func ParseUnits(data io.Reader, unitTypeNames []string, unitNames [2][]string, g
 		}
 	}
 	return units, nil
+}
+
+func EncodeUnits(units [2][]Unit, writer io.Writer) error {
+	for _, sideUnits := range units {
+		for _, unit := range sideUnits {
+			if err := EncodeUnit(unit, writer); err != nil {
+				return err
+			}
+		}
+
+		for i := len(sideUnits); i < 64; i++ {
+			if _, err := writer.Write(make([]byte, 16)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func EncodeUnit(unit Unit, writer io.Writer) error {
+	var data [16]byte
+	if unit.InContactWithEnemy {
+		data[0] |= 1
+	}
+	if unit.IsUnderAttack {
+		data[0] |= 2
+	}
+	if unit.State2 {
+		data[0] |= 4
+	}
+	if !unit.HasSupplyLine {
+		data[0] |= 8
+	}
+	if unit.State4 {
+		data[0] |= 16
+	}
+	if unit.HasLocalCommand {
+		data[0] |= 32
+	}
+	if unit.SeenByEnemy {
+		data[0] |= 64
+	}
+	if unit.IsInGame {
+		data[0] |= 128
+	}
+	data[1] = byte(unit.X)
+	data[2] = byte(unit.Y)
+	data[3] = byte(unit.MenCount)
+	data[4] = byte(unit.EquipCount)
+	data[5] = byte(unit.Formation) + byte(unit.SupplyUnit<<4)
+	if unit.FormationTopBit {
+		data[5] |= 128
+	}
+	data[6] = byte(unit.Fatigue)
+	data[7] = byte(unit.Type) + byte(unit.ColorPalette<<4)
+	data[8] = byte(unit.nameIndex)
+	data[9] = byte(unit.TargetFormation) + byte(unit.Order<<4)
+	if unit.OrderBit4 {
+		data[9] |= 8
+	}
+	data[10] = byte(unit.generalIndex)
+	if unit.IsInGame {
+		data[11] = byte(unit.ObjectiveX)
+		data[12] = byte(unit.ObjectiveY)
+	} else {
+		data[11] = byte(unit.HalfDaysUntilAppear)
+		data[12] = byte(unit.InvAppearProbability)
+	}
+	data[13] = unit.Terrain
+	data[14] = byte(unit.SupplyLevel)
+	data[15] = byte(unit.Morale)
+	if _, err := writer.Write(data[:]); err != nil {
+		return err
+	}
+	return nil
 }

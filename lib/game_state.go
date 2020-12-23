@@ -90,7 +90,8 @@ func NewGameState(rand *rand.Rand, gameData *GameData, scenarioData *ScenarioDat
 				unit.ClearState()
 				unit.HalfDaysUntilAppear = 0
 			}
-			unit.VariantBitmap = 0 // not really needed
+			// The same slot is shared between VariantBitmap and Fatigue.
+			unit.Fatigue = 0
 			if side == 0 && options.GameBalance > 2 {
 				unit.Morale = (3 + options.GameBalance) * unit.Morale / 5
 			} else if side == 1 && options.GameBalance < 2 {
