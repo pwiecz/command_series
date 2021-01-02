@@ -1,37 +1,21 @@
 package lib
 
 import "math/rand"
-import "path"
-import "os/user"
 import "testing"
 
-import "github.com/pwiecz/command_series/atr"
-
-func CreateTestGameState(filename string, scenarioNum, variantNum int, options Options, messageSync *MessageSync, t *testing.T) *GameState {
+func createTestGameState(filename string, scenarioNum, variantNum int, options Options, messageSync *MessageSync, t *testing.T) *GameState {
 	rand := rand.New(rand.NewSource(1))
-	currentUser, err := user.Current()
+	gameData, scenarioData, err := readTestData(filename, scenarioNum)
 	if err != nil {
-		t.Fatal("Cannot get current user info", err)
+		t.Fatal("Error reading game data,", err)
 	}
-	atrFile := path.Join(currentUser.HomeDir, "command_series", filename)
-	diskimage, err := atr.NewAtrSectorReader(atrFile)
-	if err != nil {
-		t.Fatalf("Cannot read diskimage %s, %v", atrFile, err)
-	}
-	gameData, err := LoadGameData(diskimage)
-	if err != nil {
-		t.Fatal("Error loading game data,", err)
-	}
-	scenarioData, err := LoadScenarioData(diskimage, gameData.Scenarios[scenarioNum].FilePrefix)
-	if err != nil {
-		t.Fatalf("Error loading data for scenario %d, %v", scenarioNum, err)
-	}
+
 	return NewGameState(rand, gameData, scenarioData, scenarioNum, variantNum, 0, &options, messageSync)
 }
 
 func TestRegression_Basic(t *testing.T) {
 	messageSync := NewMessageSync()
-	gameState := CreateTestGameState("crusade.atr", 0, 0, DefaultOptions(), messageSync, t)
+	gameState := createTestGameState("crusade.atr", 0, 0, DefaultOptions(), messageSync, t)
 	go func() {
 		if !messageSync.Wait() {
 			return
@@ -78,7 +62,7 @@ func TestRegression_Side1Player(t *testing.T) {
 	options := DefaultOptions()
 	options.AlliedCommander = Computer
 	options.GermanCommander = Player
-	gameState := CreateTestGameState("crusade.atr", 0, 0, options, messageSync, t)
+	gameState := createTestGameState("crusade.atr", 0, 0, options, messageSync, t)
 	go func() {
 		if !messageSync.Wait() {
 			return
@@ -124,7 +108,7 @@ func TestRegression_TwoPlayers(t *testing.T) {
 	messageSync := NewMessageSync()
 	options := DefaultOptions()
 	options.GermanCommander = Player
-	gameState := CreateTestGameState("decision.atr", 2, 1, options, messageSync, t)
+	gameState := createTestGameState("decision.atr", 2, 1, options, messageSync, t)
 	go func() {
 		if !messageSync.Wait() {
 			return

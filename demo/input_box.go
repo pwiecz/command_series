@@ -53,17 +53,25 @@ func (i *InputBox) Update() {
 			i.shownText = i.shownText[:i.cursorPosition] + i.shownText[i.cursorPosition+1:]
 		}
 	} else if len(i.shownText) < i.size {
-		for k := ebiten.Key(0); k < ebiten.KeyMax; k++ {
-			// hacky...
-			if inpututil.IsKeyJustPressed(k) && len(k.String()) == 1 {
-				i.shownText = i.shownText[:i.cursorPosition] + k.String() + i.shownText[i.cursorPosition:]
-				i.cursorPosition++
-				break
+		if inpututil.IsKeyJustPressed(ebiten.KeyMinus) {
+			i.insertStringAtCursor("-")
+		} else {
+			for k := ebiten.Key(0); k < ebiten.KeyMax; k++ {
+				// hacky...
+				if inpututil.IsKeyJustPressed(k) && len(k.String()) == 1 {
+					i.insertStringAtCursor(k.String())
+					break
+				}
 			}
 		}
 	}
 }
 
+func (i *InputBox) insertStringAtCursor(s string) {
+	i.shownText = i.shownText[:i.cursorPosition] + s + i.shownText[i.cursorPosition:]
+	i.cursorPosition++
+
+}
 func (i *InputBox) Draw(screen *ebiten.Image) {
 	fontSize := i.font.Size()
 	opts := &ebiten.DrawImageOptions{}

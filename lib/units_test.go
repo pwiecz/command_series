@@ -1,35 +1,18 @@
 package lib
 
 import "bytes"
-import "path"
-import "os/user"
 import "reflect"
 import "testing"
 
-import "github.com/pwiecz/command_series/atr"
-
 func TestParseEncodeParseUnits(t *testing.T) {
-	currentUser, err := user.Current()
+	_, scenarioData, err := readTestData("crusade.atr", 0)
 	if err != nil {
-		t.Fatal("Cannot get current user info", err)
-	}
-	atrFile := path.Join(currentUser.HomeDir, "command_series", "crusade.atr")
-	diskimage, err := atr.NewAtrSectorReader(atrFile)
-	if err != nil {
-		t.Fatalf("Cannot read diskimage %s, %v", atrFile, err)
-	}
-	gameData, err := LoadGameData(diskimage)
-	if err != nil {
-		t.Fatal("Error loading game data,", err)
-	}
-	scenarioData, err := LoadScenarioData(diskimage, gameData.Scenarios[0].FilePrefix)
-	if err != nil {
-		t.Fatal("Error loading data for scenario 0", err)
+		t.Fatal("Error reading game data,", err)
 	}
 
 	var buf bytes.Buffer
 	if err := scenarioData.Units.Write(&buf); err != nil {
-		t.Fatal("Error encoding buffer,", err)
+		t.Fatal("Error encoding units,", err)
 	}
 	units, err := ParseUnits(&buf, scenarioData.Data.UnitTypes, scenarioData.Data.UnitNames, scenarioData.Generals)
 	if err != nil {
