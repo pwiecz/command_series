@@ -1,6 +1,7 @@
 package lib
 
 import "bytes"
+import "encoding/binary"
 import "fmt"
 import "io"
 
@@ -68,6 +69,7 @@ type Unit struct {
 
 	Index int
 }
+type Units [2][]Unit
 
 func (u Unit) FullName() string {
 	return u.Name + " " + u.TypeName
@@ -90,17 +92,19 @@ type FlashbackUnit struct {
 	Type         int
 	Terrain      byte
 }
+type FlashbackUnits []FlashbackUnit
+type FlashbackHistory []FlashbackUnits
 
-func ReadUnits(diskimage atr.SectorReader, filename string, game Game, unitTypeNames []string, unitNames [2][]string, generals [2][]General) ([2][]Unit, error) {
+func ReadUnits(diskimage atr.SectorReader, filename string, game Game, unitTypeNames []string, unitNames [2][]string, generals Generals) (Units, error) {
 	fileData, err := atr.ReadFile(diskimage, filename)
 	if err != nil {
-		return [2][]Unit{}, fmt.Errorf("Cannot read units file %s (%v)", filename, err)
+		return Units{}, fmt.Errorf("Cannot read units file %s (%v)", filename, err)
 	}
 	var reader io.Reader
 	if game == Conflict {
 		decoded, err := UnpackFile(bytes.NewReader(fileData))
 		if err != nil {
-			return [2][]Unit{}, err
+			return Units{}, err
 		}
 		reader = bytes.NewReader(decoded)
 	} else {
@@ -109,7 +113,7 @@ func ReadUnits(diskimage atr.SectorReader, filename string, game Game, unitTypeN
 	}
 	units, err := ParseUnits(reader, unitTypeNames, unitNames, generals)
 	if err != nil {
-		return [2][]Unit{}, fmt.Errorf("Cannot parse units file %s (%v)", filename, err)
+		return Units{}, fmt.Errorf("Cannot parse units file %s (%v)", filename, err)
 	}
 	return units, nil
 }
@@ -184,21 +188,21 @@ func ParseUnit(data [16]byte, unitTypeNames []string, unitNames []string, genera
 	return unit, nil
 }
 
-func ParseUnits(data io.Reader, unitTypeNames []string, unitNames [2][]string, generals [2][]General) ([2][]Unit, error) {
-	var units [2][]Unit
+func ParseUnits(data io.Reader, unitTypeNames []string, unitNames [2][]string, generals [2][]General) (Units, error) {
+	var units Units
 	for i := 0; i < 128; i++ {
 		var unitData [16]byte
 		numRead, err := io.ReadFull(data, unitData[:])
 		if numRead < 16 {
 			if i != 127 || numRead != 15 {
-				return [2][]Unit{}, fmt.Errorf("Too short unit %d data, %d bytes", i, numRead)
+				return Units{}, fmt.Errorf("Too short unit %d data, %d bytes", i, numRead)
 			}
 			unitData[15] = 100
 		}
 		side := i / 64
 		unit, err := ParseUnit(unitData, unitTypeNames, unitNames[side], generals[side])
 		if err != nil {
-			return [2][]Unit{}, fmt.Errorf("Error parsing unit %d (%v)", i, err)
+			return Units{}, fmt.Errorf("Error parsing unit %d (%v)", i, err)
 		}
 		unit.Side = side
 		unit.Index = len(units[i/64])
@@ -210,10 +214,10 @@ func ParseUnits(data io.Reader, unitTypeNames []string, unitNames [2][]string, g
 	return units, nil
 }
 
-func EncodeUnits(units [2][]Unit, writer io.Writer) error {
-	for _, sideUnits := range units {
+func (u *Units) Write(writer io.Writer) error {
+	for _, sideUnits := range u {
 		for _, unit := range sideUnits {
-			if err := EncodeUnit(unit, writer); err != nil {
+			if err := unit.Write(writer); err != nil {
 				return err
 			}
 		}
@@ -227,60 +231,130 @@ func EncodeUnits(units [2][]Unit, writer io.Writer) error {
 	return nil
 }
 
-func EncodeUnit(unit Unit, writer io.Writer) error {
+func (u *Unit) Write(writer io.Writer) error {
 	var data [16]byte
-	if unit.InContactWithEnemy {
+	if u.InContactWithEnemy {
 		data[0] |= 1
 	}
-	if unit.IsUnderAttack {
+	if u.IsUnderAttack {
 		data[0] |= 2
 	}
-	if unit.State2 {
+	if u.State2 {
 		data[0] |= 4
 	}
-	if !unit.HasSupplyLine {
+	if !u.HasSupplyLine {
 		data[0] |= 8
 	}
-	if unit.State4 {
+	if u.State4 {
 		data[0] |= 16
 	}
-	if unit.HasLocalCommand {
+	if u.HasLocalCommand {
 		data[0] |= 32
 	}
-	if unit.SeenByEnemy {
+	if u.SeenByEnemy {
 		data[0] |= 64
 	}
-	if unit.IsInGame {
+	if u.IsInGame {
 		data[0] |= 128
 	}
-	data[1] = byte(unit.X)
-	data[2] = byte(unit.Y)
-	data[3] = byte(unit.MenCount)
-	data[4] = byte(unit.EquipCount)
-	data[5] = byte(unit.Formation) + byte(unit.SupplyUnit<<4)
-	if unit.FormationTopBit {
+	data[1] = byte(u.X)
+	data[2] = byte(u.Y)
+	data[3] = byte(u.MenCount)
+	data[4] = byte(u.EquipCount)
+	data[5] = byte(u.Formation) + byte(u.SupplyUnit<<4)
+	if u.FormationTopBit {
 		data[5] |= 128
 	}
-	data[6] = byte(unit.Fatigue)
-	data[7] = byte(unit.Type) + byte(unit.ColorPalette<<4)
-	data[8] = byte(unit.nameIndex)
-	data[9] = byte(unit.TargetFormation) + byte(unit.Order<<4)
-	if unit.OrderBit4 {
+	data[6] = byte(u.Fatigue)
+	data[7] = byte(u.Type) + byte(u.ColorPalette<<4)
+	data[8] = byte(u.nameIndex)
+	data[9] = byte(u.TargetFormation) + byte(u.Order<<4)
+	if u.OrderBit4 {
 		data[9] |= 8
 	}
-	data[10] = byte(unit.generalIndex)
-	if unit.IsInGame {
-		data[11] = byte(unit.ObjectiveX)
-		data[12] = byte(unit.ObjectiveY)
+	data[10] = byte(u.generalIndex)
+	if u.IsInGame {
+		data[11] = byte(u.ObjectiveX)
+		data[12] = byte(u.ObjectiveY)
 	} else {
-		data[11] = byte(unit.HalfDaysUntilAppear)
-		data[12] = byte(unit.InvAppearProbability)
+		data[11] = byte(u.HalfDaysUntilAppear)
+		data[12] = byte(u.InvAppearProbability)
 	}
-	data[13] = unit.Terrain
-	data[14] = byte(unit.SupplyLevel)
-	data[15] = byte(unit.Morale)
+	data[13] = u.Terrain
+	data[14] = byte(u.SupplyLevel)
+	data[15] = byte(u.Morale)
 	if _, err := writer.Write(data[:]); err != nil {
 		return err
 	}
+	return nil
+}
+
+func (u FlashbackUnits) Write(writer io.Writer) error {
+	size := uint64(len(u))
+	if err := binary.Write(writer, binary.LittleEndian, size); err != nil {
+		return err
+	}
+	var data [4]byte
+	for _, unit := range u {
+		data[0] = byte(unit.X)
+		data[1] = byte(unit.Y)
+		data[2] = byte(unit.Type) + byte(unit.ColorPalette<<4)
+		data[3] = unit.Terrain
+		if _, err := writer.Write(data[:]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (u *FlashbackUnits) Read(reader io.Reader) error {
+	var size uint64
+	if err := binary.Read(reader, binary.LittleEndian, &size); err != nil {
+		return err
+	}
+	units := make([]FlashbackUnit, 0, size)
+	var data [4]byte
+	for i := 0; i < int(size); i++ {
+		if _, err := io.ReadFull(reader, data[:]); err != nil {
+			return err
+		}
+		units = append(units, FlashbackUnit{
+			X:            int(data[0]),
+			Y:            int(data[1]),
+			Type:         int(data[2] & 15),
+			ColorPalette: int(data[2] / 16),
+			Terrain:      data[3]})
+	}
+	*u = FlashbackUnits(units)
+	return nil
+}
+
+func (h FlashbackHistory) Write(writer io.Writer) error {
+	size := uint64(len(h))
+	if err := binary.Write(writer, binary.LittleEndian, size); err != nil {
+		return err
+	}
+	for _, units := range h {
+		if err := units.Write(writer); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (h *FlashbackHistory) Read(reader io.Reader) error {
+	var size uint64
+	if err := binary.Read(reader, binary.LittleEndian, &size); err != nil {
+		return err
+	}
+	history := make([]FlashbackUnits, 0, size)
+	for i := 0; i < int(size); i++ {
+		units := FlashbackUnits{}
+		if err := units.Read(reader); err != nil {
+			return err
+		}
+		history = append(history, units)
+	}
+	*h = FlashbackHistory(history)
 	return nil
 }

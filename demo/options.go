@@ -12,8 +12,8 @@ type OptionSelection struct {
 	font           *lib.Font
 	balanceStrings []string
 
-	onOptionsSelected func(lib.Options)
-	options           lib.Options
+	onOptionsSelected func(*lib.Options)
+	options           *lib.Options
 
 	labels             []*Button
 	side0Button        *Button
@@ -33,11 +33,12 @@ var conflictSidesStrings = [2]string{"Free World", "Communist"}
 var balanceStrings = [5]string{"++GERMAN", "+GERMAN", "FAIR", "+ALLIED", "++ALLIED"}
 var conflictBalanceStrings = [5]string{"++COMMUNIST", "+COMMUNIST", "EVEN", "+FREEWORLD", "++FREEWORLD"}
 
-func NewOptionSelection(game lib.Game, font *lib.Font, onOptionsSelected func(lib.Options)) *OptionSelection {
+func NewOptionSelection(game lib.Game, font *lib.Font, onOptionsSelected func(*lib.Options)) *OptionSelection {
+	options := lib.DefaultOptions()
 	s := &OptionSelection{
 		font:              font,
 		onOptionsSelected: onOptionsSelected,
-		options:           lib.DefaultOptions()}
+		options:           &options}
 
 	var side0Command, side1Command string
 	switch game {

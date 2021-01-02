@@ -276,46 +276,39 @@ func ParseData(data []byte) (Data, error) {
 	return scenario, nil
 }
 
-func inRange(v, min, max byte) bool {
-	if v < min || v >= max {
-		return false
-	}
-	return true
-}
-
-func (s *Data) UpdateData(offset, value byte) {
+func (s *Data) UpdateData(offset byte, value byte) {
 	switch {
-	case inRange(offset, 0, 16):
+	case InRange(int(offset), 0, 16):
 		s.Data0Low[offset] = int(int8(value*16)) / 16
 		s.Data0High[offset] = int(int8(value&240)) / 16
-	case inRange(offset, 16, 32):
+	case InRange(int(offset), 16, 32):
 		s.Data16Low[offset-16] = int(value & 15)
 		s.Data16High[offset-16] = int(value / 16)
-	case inRange(offset, 32, 48):
+	case InRange(int(offset), 32, 48):
 		s.Data32[offset-32] = int(value)
-	case inRange(offset, 48, 64):
+	case InRange(int(offset), 48, 64):
 		s.UnitScores[offset-48] = int(value)
-	case inRange(offset, 64, 80):
+	case InRange(int(offset), 64, 80):
 		s.RecoveryRate[offset-64] = int(value)
-	case inRange(offset, 80, 96):
+	case InRange(int(offset), 80, 96):
 		s.UnitMask[offset-80] = value
 		s.UnitUsesSupplies[offset-80] = value&8 == 0
 		s.UnitCanMove[offset-80] = value&64 == 0
-	case inRange(offset, 96, 104):
+	case InRange(int(offset), 96, 104):
 		s.TerrainMenAttack[offset-96] = int(value)
-	case inRange(offset, 104, 112):
+	case InRange(int(offset), 104, 112):
 		s.TerrainTankAttack[offset-104] = int(value)
-	case inRange(offset, 112, 120):
+	case InRange(int(offset), 112, 120):
 		s.TerrainMenDefence[offset-112] = int(value)
-	case inRange(offset, 120, 128):
+	case InRange(int(offset), 120, 128):
 		s.TerrainTankDefence[offset-120] = int(value)
-	case inRange(offset, 128, 136):
+	case InRange(int(offset), 128, 136):
 		s.FormationMenAttack[offset-128] = int(value)
-	case inRange(offset, 136, 144):
+	case InRange(int(offset), 136, 144):
 		s.FormationTankAttack[offset-136] = int(value)
-	case inRange(offset, 144, 152):
+	case InRange(int(offset), 144, 152):
 		s.FormationMenDefence[offset-144] = int(value)
-	case inRange(offset, 152, 160):
+	case InRange(int(offset), 152, 160):
 		s.FormationTankDefence[offset-152] = int(value)
 	case offset == 160:
 		s.MinSupplyType = int(value)
@@ -347,14 +340,14 @@ func (s *Data) UpdateData(offset, value byte) {
 		s.Data174 = int(value)
 	case offset == 175:
 		s.Data175 = int(value)
-	case inRange(offset, 176, 190):
+	case InRange(int(offset), 176, 190):
 		s.Data176[(offset-176)/4][(offset-176)%4] = int(value)
-	case inRange(offset, 192, 200):
+	case InRange(int(offset), 192, 200):
 		s.Data192[offset-192] = int(value)
-	case inRange(offset, 200, 216):
+	case InRange(int(offset), 200, 216):
 		s.Data200Low[offset-200] = int(value & 7)
 		s.UnitResupplyPerType[offset-200] = int((value & 240) >> 1)
-	case inRange(offset, 216, 232):
+	case InRange(int(offset), 216, 232):
 		s.Data216[offset-216] = int(value)
 	case offset == 232:
 		s.ResupplyRate[0] = int(value)
@@ -368,11 +361,81 @@ func (s *Data) UpdateData(offset, value byte) {
 		s.EquipReplacementRate[0] = int(value)
 	case offset == 237:
 		s.EquipReplacementRate[1] = int(value)
+	case InRange(int(offset), 248, 250):
+		s.SideColor[offset-248] = int(value)
 	case offset == 252:
 		s.Data252[0] = int(value)
 	case offset == 253:
 		s.Data252[1] = int(value)
+	case offset >= 255:
+		s.MoveSpeedPerTerrainTypeAndUnit[(offset-255)/16][(offset-255)%16] = int(value)
 	default:
-		panic(fmt.Errorf("Unhandled update offset %d", int(offset)))
 	}
+}
+
+func (d *Data) ReadFirst255Bytes(reader io.Reader) error {
+	var data [255]byte
+	if _, err := io.ReadFull(reader, data[:]); err != nil {
+		return err
+	}
+	for i, v := range data {
+		d.UpdateData(byte(i), v)
+	}
+	return nil
+}
+
+func (d *Data) WriteFirst255Bytes(writer io.Writer) error {
+	var data [255]byte
+	for i := 0; i < 16; i++ {
+		data[i] = byte(d.Data0Low[i])&15 + (byte(d.Data0High[i]) << 4)
+		data[16+i] = byte(d.Data16Low[i])&15 + (byte(d.Data16High[i]) << 4)
+		data[32+i] = byte(d.Data32[i])
+		data[48+i] = byte(d.UnitScores[i])
+		data[64+i] = byte(d.RecoveryRate[i])
+		data[80+i] = byte(d.UnitMask[i])
+		data[200+i] = byte(d.Data200Low[i] + d.UnitResupplyPerType[i]*2)
+		data[216+i] = byte(d.Data216[i])
+	}
+	for i := 0; i < 8; i++ {
+		data[96+i] = byte(d.TerrainMenAttack[i])
+		data[104+i] = byte(d.TerrainTankAttack[i])
+		data[112+i] = byte(d.TerrainMenDefence[i])
+		data[120+i] = byte(d.TerrainTankDefence[i])
+		data[128+i] = byte(d.FormationMenAttack[i])
+		data[136+i] = byte(d.FormationTankAttack[i])
+		data[144+i] = byte(d.FormationMenDefence[i])
+		data[152+i] = byte(d.FormationTankDefence[i])
+		data[192+i] = byte(d.Data192[i])
+	}
+	data[160] = byte(d.MinSupplyType)
+	data[161] = byte(d.HexSizeInMiles)
+	data[162] = byte(d.Data162)
+	data[163] = byte(d.Data163)
+	data[164] = byte(d.MaxResupplyAmount)
+	data[165] = byte(d.MaxSupplyTransportCost)
+	data[166] = byte(d.AvgDailySupplyUse)
+	data[167] = byte(d.Data167)
+	data[168] = byte(d.MinutesPerTick)
+	data[169] = byte(d.UnitUpdatesPerTimeIncrement)
+	data[170] = byte(d.MenMultiplier)
+	data[171] = byte(d.TanksMultiplier)
+	data[173] = byte(d.Data173)
+	data[174] = byte(d.Data174)
+	data[175] = byte(d.Data175)
+	for order := 0; order < 4; order++ {
+		for i := 0; i < 4; i++ {
+			data[176+order*4+i] = byte(d.Data176[order][i])
+		}
+	}
+	for i := 0; i < 2; i++ {
+		data[232+i] = byte(d.ResupplyRate[i])
+		data[234+i] = byte(d.MenReplacementRate[i])
+		data[236+i] = byte(d.EquipReplacementRate[i])
+		data[248+i] = byte(d.SideColor[i])
+		data[252+i] = byte(d.Data252[i])
+	}
+	if _, err := writer.Write(data[:]); err != nil {
+		return err
+	}
+	return nil
 }

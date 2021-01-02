@@ -15,8 +15,10 @@ type City struct {
 	Name          string
 }
 
+type Cities []City
+
 type Terrain struct {
-	Cities []City
+	Cities Cities
 	// Coefficients for 4x4-tile squares on the map (a 16x16 map of coefficients).
 	// n-th (0-based) coefficient, if a coefficient for with top left corner:
 	// (4*(n%16), 4*n/16).
@@ -89,4 +91,39 @@ func ParseTerrain(data io.Reader) (Terrain, error) {
 		terrain.Coeffs[i%16][i/16] = int(v)
 	}
 	return terrain, nil
+}
+
+func (c *Cities) ReadOwnerAndVictoryPoints(data io.Reader) error {
+	var buf [1]byte
+	if _, err := io.ReadFull(data, buf[:]); err != nil {
+		return err
+	}
+	numCities := int(buf[0])
+	if numCities != len(*c) {
+		return fmt.Errorf("Mismatched number of cities, %d vs %d", numCities, len(*c))
+	}
+	for i := 0; i < numCities; i++ {
+		if _, err := io.ReadFull(data, buf[:]); err != nil {
+			return err
+		}
+		(*c)[i].Owner = int((buf[0] & 64) >> 6)
+		(*c)[i].VictoryPoints = int(buf[0] & 63)
+	}
+	return nil
+}
+
+func (c Cities) WriteOwnerAndVictoryPoints(writer io.Writer) error {
+	if len(c) > 255 {
+		return fmt.Errorf("Too many cities to encode %d", len(c))
+	}
+	if _, err := writer.Write([]byte{byte(len(c))}); err != nil {
+		return err
+	}
+	for _, city := range c {
+		b := byte(city.Owner<<6) + byte(city.VictoryPoints)
+		if _, err := writer.Write([]byte{b}); err != nil {
+			return err
+		}
+	}
+	return nil
 }

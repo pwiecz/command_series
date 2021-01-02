@@ -17,26 +17,28 @@ type General struct {
 	Name      string
 }
 
-func ReadGenerals(diskimage atr.SectorReader, filename string) ([2][]General, error) {
+type Generals [2][]General
+
+func ReadGenerals(diskimage atr.SectorReader, filename string) (Generals, error) {
 	fileData, err := atr.ReadFile(diskimage, filename)
 	if err != nil {
-		return [2][]General{}, fmt.Errorf("Cannot read generals file %s (%v)", filename, err)
+		return Generals{}, fmt.Errorf("Cannot read generals file %s (%v)", filename, err)
 	}
 	generals, err := ParseGenerals(bytes.NewReader(fileData))
 	if err != nil {
-		return [2][]General{}, fmt.Errorf("Cannot parse generals file %s (%v)", filename, err)
+		return Generals{}, fmt.Errorf("Cannot parse generals file %s (%v)", filename, err)
 	}
 	return generals, nil
 }
 
-func ParseGenerals(data io.Reader) ([2][]General, error) {
-	var generals [2][]General
+func ParseGenerals(data io.Reader) (Generals, error) {
+	var generals Generals
 	for i := 0; i < 16; i++ {
 		var general General
 		var generalData [4]byte
 		_, err := io.ReadFull(data, generalData[:])
 		if err != nil {
-			return generals, err
+			return Generals{}, err
 		}
 		general.Data0 = int(generalData[0])
 		general.Attack = int(generalData[1] & 15)

@@ -1,7 +1,11 @@
 package main
 
-import "fmt"
+import "bufio"
+import "encoding/binary"
 import "image"
+import "fmt"
+import "os"
+import "path/filepath"
 import "strings"
 import "math/rand"
 
@@ -11,11 +15,13 @@ import "github.com/hajimehoshi/ebiten/inpututil"
 import "github.com/pwiecz/command_series/lib"
 
 type MainScreen struct {
-	scenarioData *lib.ScenarioData
-	gameData     *lib.GameData
-	options      lib.Options
-	audioPlayer  *AudioPlayer
-	onGameOver   func(int, int, int)
+	selectedScenario int
+	selectedVariant  int
+	scenarioData     *lib.ScenarioData
+	gameData         *lib.GameData
+	options          *lib.Options
+	audioPlayer      *AudioPlayer
+	onGameOver       func(int, int, int)
 
 	mapView       *MapView
 	topRect       *Rectangle
@@ -40,13 +46,14 @@ type MainScreen struct {
 	started bool
 
 	overviewMap *OverviewMap
+	inputBox    *InputBox
 
 	lastMessageFromUnit lib.MessageFromUnit
 
 	gameOver bool
 }
 
-func NewMainScreen(g *Game, options lib.Options, audioPlayer *AudioPlayer, rand *rand.Rand, onGameOver func(int, int, int)) *MainScreen {
+func NewMainScreen(g *Game, options *lib.Options, audioPlayer *AudioPlayer, rand *rand.Rand, onGameOver func(int, int, int)) *MainScreen {
 	scenario := &g.gameData.Scenarios[g.selectedScenario]
 	for x := scenario.MinX - 1; x <= scenario.MaxX+1; x++ {
 		g.gameData.Map.SetTile(x, scenario.MinY-1, 12)
@@ -57,13 +64,15 @@ func NewMainScreen(g *Game, options lib.Options, audioPlayer *AudioPlayer, rand 
 		g.gameData.Map.SetTile(scenario.MaxX+1, y, 12)
 	}
 	s := &MainScreen{
-		gameData:      g.gameData,
-		scenarioData:  g.scenarioData,
-		options:       options,
-		audioPlayer:   audioPlayer,
-		commandBuffer: NewCommandBuffer(20),
-		sync:          lib.NewMessageSync(),
-		onGameOver:    onGameOver}
+		selectedScenario: g.selectedScenario,
+		selectedVariant:  g.selectedVariant,
+		gameData:         g.gameData,
+		scenarioData:     g.scenarioData,
+		options:          options,
+		audioPlayer:      audioPlayer,
+		commandBuffer:    NewCommandBuffer(20),
+		sync:             lib.NewMessageSync(),
+		onGameOver:       onGameOver}
 	if options.AlliedCommander == lib.Player {
 		s.playerSide = 0
 	} else {
@@ -115,6 +124,10 @@ func (s *MainScreen) Update() error {
 				s.hideUnits()
 			}
 		}
+		return nil
+	}
+	if s.inputBox != nil {
+		s.inputBox.Update()
 		return nil
 	}
 	if !s.started && !s.areUnitsHidden {
@@ -259,6 +272,10 @@ func (s *MainScreen) Update() error {
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 				curX, curY := s.mapView.GetCursorPosition()
 				s.mapView.SetCursorPosition(curX-2, curY)
+			case Save:
+				s.saveGame()
+			case Load:
+				s.loadGame()
 			}
 		default:
 		}
@@ -615,7 +632,7 @@ func (s *MainScreen) showFlashback() {
 	if !s.areUnitsHidden {
 		s.hideUnits()
 	}
-	s.flashback = NewFlashback(s.mapView, s.messageBox, &s.gameData.Map, s.gameState.FlashbackUnits())
+	s.flashback = NewFlashback(s.mapView, s.messageBox, &s.gameData.Map, s.gameState.Flashback())
 }
 func (s *MainScreen) showLastMessageUnit() {
 	if s.lastMessageFromUnit == nil {
@@ -655,6 +672,128 @@ func (s *MainScreen) dateTimeString() string {
 
 func (s *MainScreen) screenCoordsToUnitCoords(screenX, screenY int) (x, y int) {
 	return s.mapView.ToUnitCoords((screenX-8)/2, screenY-72)
+}
+
+func (s *MainScreen) saveGame() {
+	s.messageBox.Clear()
+	s.messageBox.Print("(PRESS RETURN TO CANCEL)", 2, 1, false)
+	s.messageBox.Print("SAVE SCENARIO NAME: ?", 2, 2, false)
+	s.inputBox = NewInputBox(23*8., 22+2*8., 16, s.gameData.Sprites.GameFont, func(filename string) { s.saveGameToFile(filename) })
+}
+func (s *MainScreen) saveGameToFile(filename string) {
+	s.inputBox = nil
+	if len(filename) == 0 {
+		s.messageBox.Clear()
+		return
+	}
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		s.messageBox.Print("DISK ERROR: 1", 2, 4, false)
+		return
+	}
+	saveDir := filepath.Join(homeDir, ".command_series")
+	if err := os.MkdirAll(saveDir, 0755); err != nil {
+		s.messageBox.Print("DISK ERROR: 2", 2, 4, false)
+		return
+	}
+	file, err := os.Create(filepath.Join(saveDir, filename+".sav"))
+	if err != nil {
+		s.messageBox.Print("DISK ERROR: 3", 2, 4, false)
+		return
+	}
+	defer file.Close()
+	scenarioFilePrefix := s.gameData.Scenarios[s.selectedScenario].FilePrefix
+	if _, err := file.Write([]byte(scenarioFilePrefix)); err != nil {
+		s.messageBox.Print("DISK ERROR: 4", 2, 4, false)
+		return
+	}
+	if _, err := file.Write([]byte{0}); err != nil {
+		s.messageBox.Print("DISK ERROR: 5", 2, 4, false)
+		return
+	}
+	if err := binary.Write(file, binary.LittleEndian, uint8(s.selectedScenario)); err != nil {
+		s.messageBox.Print("DISK ERROR: 6", 2, 4, false)
+		return
+	}
+	if err := binary.Write(file, binary.LittleEndian, uint8(s.selectedVariant)); err != nil {
+		s.messageBox.Print("DISK ERROR: 7", 2, 4, false)
+		return
+	}
+	if err := s.options.Write(file); err != nil {
+		s.messageBox.Print("DISK ERROR: 8", 2, 4, false)
+		return
+	}
+	if err := s.gameState.Save(file); err != nil {
+		s.messageBox.Print("DISK ERROR: 10", 2, 4, false)
+		return
+	}
+	s.messageBox.Print("COMPLETED", 2, 4, false)
+}
+func (s *MainScreen) loadGame() {
+	s.messageBox.Clear()
+	s.messageBox.Print("(PRESS RETURN TO CANCEL)", 2, 1, false)
+	s.messageBox.Print("LOAD SCENARIO NAME: ?", 2, 2, false)
+	s.inputBox = NewInputBox(23*8., 22+2*8., 16, s.gameData.Sprites.GameFont, func(filename string) { s.loadGameFromFile(filename) })
+}
+
+func (s *MainScreen) loadGameFromFile(filename string) {
+	s.inputBox = nil
+	if len(filename) == 0 {
+		s.messageBox.Clear()
+		return
+	}
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		s.messageBox.Print("DISK ERROR: 1", 2, 4, false)
+		return
+	}
+	saveDir := filepath.Join(homeDir, ".command_series")
+	file, err := os.Open(filepath.Join(saveDir, filename+".sav"))
+	if err != nil {
+		s.messageBox.Print("DISK ERROR: 2", 2, 4, false)
+		return
+	}
+	defer file.Close()
+	reader := bufio.NewReader(file)
+	prefix, err := reader.ReadString(0)
+	if err != nil {
+		s.messageBox.Print("DISK ERROR: 3", 2, 4, false)
+		return
+	}
+	var selectedScenario, selectedVariant uint8
+	if err := binary.Read(reader, binary.LittleEndian, &selectedScenario); err != nil {
+		s.messageBox.Print("DISK ERROR: 4", 2, 4, false)
+		return
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &selectedVariant); err != nil {
+		s.messageBox.Print("DISK ERROR: 5", 2, 5, false)
+		return
+	}
+	// strip the 0 delimiter from the end of the prefix
+	prefix = prefix[:len(prefix)-1]
+	scenarioFound := false
+	for i, scenario := range s.gameData.Scenarios {
+		if scenario.FilePrefix == prefix {
+			if i == int(selectedScenario) {
+				scenarioFound = true
+			}
+			break
+		}
+	}
+	if !scenarioFound || int(selectedScenario) != s.selectedScenario {
+		s.messageBox.Print("WARNING:", 2, 4, true)
+		s.messageBox.Print(" SCENARIO MISMATCH", 12, 4, false)
+		return
+	}
+	if err := s.options.Read(reader); err != nil {
+		s.messageBox.Print("DISK ERROR: 6", 2, 4, false)
+		return
+	}
+	if err := s.gameState.Load(reader); err != nil {
+		s.messageBox.Print("DISK ERROR: 7", 2, 4, false)
+		return
+	}
+	s.messageBox.Print("COMPLETED", 2, 4, false)
 }
 
 func (s *MainScreen) Draw(screen *ebiten.Image) {
@@ -705,4 +844,10 @@ func (s *MainScreen) Draw(screen *ebiten.Image) {
 	s.statusBar.Draw(screen, &opts)
 	opts.GeoM.Translate(0, 8)
 	s.separatorRect.Draw(screen, &opts)
+
+	if s.inputBox != nil {
+		s.inputBox.SetTextColor(playerBaseColor)
+		s.inputBox.SetBackgroundColor(playerBaseColor + 12)
+		s.inputBox.Draw(screen)
+	}
 }

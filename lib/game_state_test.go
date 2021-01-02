@@ -26,7 +26,7 @@ func CreateTestGameState(filename string, scenarioNum, variantNum int, options O
 	if err != nil {
 		t.Fatalf("Error loading data for scenario %d, %v", scenarioNum, err)
 	}
-	return NewGameState(rand, gameData, scenarioData, scenarioNum, variantNum, 0, options, messageSync)
+	return NewGameState(rand, gameData, scenarioData, scenarioNum, variantNum, 0, &options, messageSync)
 }
 
 func TestRegression_Basic(t *testing.T) {

@@ -12,12 +12,12 @@ type Flashback struct {
 	mapView    *MapView
 	messageBox *MessageBox
 	terrainMap *lib.Map
-	flashback  [][]lib.FlashbackUnit
+	flashback  lib.FlashbackHistory
 	day        int
 	shownDay   int
 }
 
-func NewFlashback(mapView *MapView, messageBox *MessageBox, terrainMap *lib.Map, flashback [][]lib.FlashbackUnit) *Flashback {
+func NewFlashback(mapView *MapView, messageBox *MessageBox, terrainMap *lib.Map, flashback lib.FlashbackHistory) *Flashback {
 	messageBox.Clear()
 	messageBox.Print("FLASHBACK: DAY 1", 2, 0, false)
 	messageBox.Print(" F2 ", 2, 1, true)

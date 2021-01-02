@@ -14,10 +14,10 @@ type GameData struct {
 }
 type ScenarioData struct {
 	Variants []Variant
-	Generals [2][]General
+	Generals Generals
 	Terrain  Terrain
 	Data     Data
-	Units    [2][]Unit
+	Units    Units
 }
 
 func LoadGameData(diskImage atr.SectorReader) (*GameData, error) {

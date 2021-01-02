@@ -9,12 +9,12 @@ type OverviewMap struct {
 	terrainMap    *lib.Map
 	generic       *lib.Generic
 	scenarioData  *lib.Data
-	units         *[2][]lib.Unit
+	units         *lib.Units
 	isUnitVisible func(lib.Unit) bool
 	cycle         int
 }
 
-func NewOverviewMap(terrainMap *lib.Map, units *[2][]lib.Unit, generic *lib.Generic, scenarioData *lib.Data, isUnitVisible func(lib.Unit) bool) *OverviewMap {
+func NewOverviewMap(terrainMap *lib.Map, units *lib.Units, generic *lib.Generic, scenarioData *lib.Data, isUnitVisible func(lib.Unit) bool) *OverviewMap {
 	return &OverviewMap{
 		terrainMap:    terrainMap,
 		units:         units,

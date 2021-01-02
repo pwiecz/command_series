@@ -33,6 +33,8 @@ const (
 	Attack
 	Move
 	SetObjective
+	Save
+	Load
 )
 
 type CommandBuffer struct {
@@ -107,6 +109,10 @@ func (b *CommandBuffer) triggeredCommand() (Command, bool) {
 		return ScrollLeft, true
 	} else if inpututil.KeyPressDuration(ebiten.KeyLeft)%12 == 1 {
 		return ScrollLeftFast, true
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyS) {
+		return Save, true
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyL) {
+		return Load, true
 	}
 	return 0, false
 }

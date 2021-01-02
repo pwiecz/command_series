@@ -2,6 +2,7 @@ package main
 
 import "fmt"
 import "math/rand"
+
 import "github.com/hajimehoshi/ebiten"
 import "github.com/hajimehoshi/oto"
 
@@ -20,7 +21,7 @@ type Game struct {
 	selectedScenario int
 	scenarioData     *lib.ScenarioData
 	selectedVariant  int
-	options          lib.Options
+	options          *lib.Options
 
 	otoContext  *oto.Context
 	audioPlayer *AudioPlayer
@@ -62,10 +63,17 @@ func (g *Game) onScenarioLoaded(scenarioData *lib.ScenarioData) {
 	g.subGame = NewVariantSelection(g.scenarioData.Variants, g.gameData.Sprites.IntroFont, g.onVariantSelected)
 }
 func (g *Game) onVariantSelected(selectedVariant int) {
+	if g.gameData.Game == lib.Conflict {
+		if g.selectedScenario == 2 && selectedVariant == 4 {
+			selectedVariant = 1 + g.rand.Intn(3)
+		} else if g.selectedScenario == 3 && selectedVariant == 7 {
+			selectedVariant = 1 + g.rand.Intn(6)
+		}
+	}
 	g.selectedVariant = selectedVariant
 	g.subGame = NewOptionSelection(g.gameData.Game, g.gameData.Sprites.IntroFont, g.onOptionsSelected)
 }
-func (g *Game) onOptionsSelected(options lib.Options) {
+func (g *Game) onOptionsSelected(options *lib.Options) {
 	g.options = options
 	g.subGame = NewMainScreen(g, g.options, g.audioPlayer, g.rand, g.onGameOver)
 }

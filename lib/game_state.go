@@ -1,6 +1,8 @@
 package lib
 
+import "encoding/binary"
 import "fmt"
+import "io"
 import "math/rand"
 
 type GameState struct {
@@ -10,10 +12,10 @@ type GameState struct {
 
 	minute       int
 	hour         int
-	daysElapsed  int
 	day          int /* 0-based */
 	month        int /* 0-based */
 	year         int
+	daysElapsed  int
 	weather      int
 	isNight      bool
 	supplyLevels [2]int
@@ -28,10 +30,10 @@ type GameState struct {
 	tanksLost                 [2]int // 29927 + 4 + side*2
 	citiesHeld                [2]int // 29927 + 13 + side*2
 	criticalLocationsCaptured [2]int // 29927 + 21 + side*2
-	flashback                 [][]FlashbackUnit
+	flashback                 FlashbackHistory
 
 	map0 [2][16][16]int // Location of troops
-	map1 [2][16][16]int // Location of important objectts (supply units, air wings, important cities...)
+	map1 [2][16][16]int // Location of important objects (supply units, air wings, important cities...)
 	map3 [2][16][16]int
 	// Aggregated versions of map0, map1 to 4 times lower resolution.
 	map2_0, map2_1 [2][4][4]int // 0x400 - two byte values
@@ -39,20 +41,21 @@ type GameState struct {
 	// Side of the most recently updated unit. Used for detecting moment when we switch analysing sides.
 	update int
 
-	scenarioData *Data
-	terrain      *Terrain
-	terrainMap   *Map
-	generic      *Generic
-	hexes        *Hexes
-	units        [2][]Unit
-	generals     [2][]General
-	variant      *Variant
-	options      Options
+	scenarioData    *Data
+	terrain         *Terrain
+	terrainMap      *Map
+	generic         *Generic
+	hexes           *Hexes
+	units           *Units
+	generals        *Generals
+	variants        []Variant
+	selectedVariant int
+	options         *Options
 
 	sync *MessageSync
 }
 
-func NewGameState(rand *rand.Rand, gameData *GameData, scenarioData *ScenarioData, scenarioNum, variantNum int, playerSide int, options Options, sync *MessageSync) *GameState {
+func NewGameState(rand *rand.Rand, gameData *GameData, scenarioData *ScenarioData, scenarioNum, variantNum int, playerSide int, options *Options, sync *MessageSync) *GameState {
 	scenario := &gameData.Scenarios[scenarioNum]
 	variant := &scenarioData.Variants[variantNum]
 	sunriseOffset := Abs(6-scenario.StartMonth) / 2
@@ -70,15 +73,16 @@ func NewGameState(rand *rand.Rand, gameData *GameData, scenarioData *ScenarioDat
 	s.lastUpdatedUnit = 127
 	s.citiesHeld = variant.CitiesHeld
 	s.scenarioData = &scenarioData.Data
-	s.units = scenarioData.Units
+	s.units = &scenarioData.Units
 	s.terrain = &scenarioData.Terrain
 	s.terrainMap = &gameData.Map
 	s.generic = &gameData.Generic
 	s.hexes = &gameData.Hexes
-	s.generals = scenarioData.Generals
-	s.variant = variant
+	s.generals = &scenarioData.Generals
+	s.variants = scenarioData.Variants
+	s.selectedVariant = variantNum
 	s.playerSide = playerSide
-	s.commanderMask = calculateCommanderMask(options)
+	s.commanderMask = calculateCommanderMask(*options)
 	s.options = options
 	s.sync = sync
 
@@ -127,6 +131,122 @@ func (s *GameState) Init() bool {
 		return false
 	}
 	return true
+}
+
+type saveData struct {
+	minute, hour, day, month uint8
+	year                     uint16
+	daysElapsed              uint8
+	weather                  uint8
+	isNight                  bool
+
+	playerSide    uint8
+	commanderMask uint8
+
+	supplyLevels, menLost, tanksLost, citiesHeld [2]uint16
+	criticalLocationsCaptured                    [2]uint8
+
+	selectedVariant uint8
+}
+
+func (s *GameState) Save(writer io.Writer) error {
+	if err := s.units.Write(writer); err != nil {
+		return err
+	}
+	if err := s.terrain.Cities.WriteOwnerAndVictoryPoints(writer); err != nil {
+		return err
+	}
+	if err := s.scenarioData.WriteFirst255Bytes(writer); err != nil {
+		return err
+	}
+	var saveData saveData
+	saveData.minute = uint8(s.minute)
+	saveData.hour = uint8(s.hour)
+	saveData.day = uint8(s.day)
+	saveData.month = uint8(s.month)
+	saveData.year = uint16(s.year)
+	saveData.daysElapsed = uint8(s.daysElapsed)
+	saveData.weather = uint8(s.weather)
+	saveData.isNight = s.isNight
+	saveData.playerSide = uint8(s.playerSide)
+	saveData.commanderMask = uint8(s.commanderMask)
+	saveData.supplyLevels = [2]uint16{uint16(s.supplyLevels[0]), uint16(s.supplyLevels[1])}
+	saveData.menLost = [2]uint16{uint16(s.menLost[0]), uint16(s.menLost[1])}
+	saveData.tanksLost = [2]uint16{uint16(s.tanksLost[0]), uint16(s.menLost[1])}
+	saveData.citiesHeld = [2]uint16{uint16(s.citiesHeld[0]), uint16(s.citiesHeld[1])}
+	saveData.criticalLocationsCaptured = [2]uint8{
+		uint8(s.criticalLocationsCaptured[0]),
+		uint8(s.criticalLocationsCaptured[1])}
+	saveData.selectedVariant = uint8(s.selectedVariant)
+	if err := binary.Write(writer, binary.LittleEndian, saveData); err != nil {
+		return err
+	}
+	if err := s.flashback.Write(writer); err != nil {
+		return err
+	}
+	// array of saved game state numbers (first 19 single byte values mirrored to v10_ array)
+	//   mapped to memory 29927-28 + i:
+	// 0, 1, 2, 3, 4: minute, hour, day, month, year
+	// 5: weather
+	// 6: variant.Data3
+	// 7: game speed
+	// 8: "commander mask"
+	// 9: 2^variant
+	// 10: variant length in days
+	// 11,12: critical locations to capture per side
+	// 13: elapsed days
+	// 14: game balance
+	// 15: scenario * 16 + variant
+	// 16, 18: MinX / MinY
+	// 17, 19: MaxX / MaxY
+	// --
+	// 28,29,30,31: two byte values - men lost per side
+	// 32,33,34,35: two byte values - tanks lost per side
+	// 41,42,43,44: two byte values - cities held per side
+	// 45,46,47,48: two byte values - supply levels per side
+	// 49, 51: critical locations captured per side
+	// TODO: serialize all those numbers
+	return nil
+}
+func (s *GameState) Load(reader io.Reader) error {
+	units, err := ParseUnits(reader, s.scenarioData.UnitTypes, s.scenarioData.UnitNames, *s.generals)
+	if err != nil {
+		return err
+	}
+	s.HideAllUnits()
+	*s.units = units
+	if err := s.terrain.Cities.ReadOwnerAndVictoryPoints(reader); err != nil {
+		return err
+	}
+	if err := s.scenarioData.ReadFirst255Bytes(reader); err != nil {
+		return err
+	}
+	var saveData saveData
+	if err := binary.Read(reader, binary.LittleEndian, saveData); err != nil {
+		return err
+	}
+	s.minute = int(saveData.minute)
+	s.hour = int(saveData.hour)
+	s.day = int(saveData.day)
+	s.month = int(saveData.month)
+	s.year = int(saveData.year)
+	s.daysElapsed = int(saveData.daysElapsed)
+	s.weather = int(saveData.weather)
+	s.isNight = saveData.isNight
+	s.playerSide = int(saveData.playerSide)
+	s.commanderMask = int(saveData.commanderMask)
+	s.supplyLevels = [2]int{int(saveData.supplyLevels[0]), int(saveData.supplyLevels[1])}
+	s.menLost = [2]int{int(saveData.menLost[0]), int(saveData.menLost[1])}
+	s.tanksLost = [2]int{int(saveData.tanksLost[0]), int(saveData.tanksLost[1])}
+	s.citiesHeld = [2]int{int(saveData.citiesHeld[0]), int(saveData.citiesHeld[1])}
+	s.criticalLocationsCaptured = [2]int{
+		int(saveData.criticalLocationsCaptured[0]),
+		int(saveData.criticalLocationsCaptured[1])}
+	s.selectedVariant = int(saveData.selectedVariant)
+	if err := s.flashback.Read(reader); err != nil {
+		return err
+	}
+	return nil
 }
 func (s *GameState) SwitchSides() {
 	s.playerSide = 1 - s.playerSide
@@ -1727,7 +1847,7 @@ func (s *GameState) FindBestMoveFromTowards(unitX0, unitY0, unitX1, unitY1, unit
 
 func (s *GameState) everyDay() bool {
 	s.daysElapsed++
-	var flashback []FlashbackUnit
+	var flashback FlashbackUnits
 	numActiveUnits := 0
 	for _, sideUnits := range s.units {
 		for _, unit := range sideUnits {
@@ -1758,7 +1878,7 @@ func (s *GameState) everyDay() bool {
 		}
 	}
 	s.sync.SendUpdate(DailyUpdate{
-		DaysRemaining: s.variant.LengthInDays - s.daysElapsed + 1,
+		DaysRemaining: s.variants[s.selectedVariant].LengthInDays - s.daysElapsed + 1,
 		SupplyLevel:   Clamp(s.supplyLevels[s.playerSide]/256, 0, 2)})
 	s.update = 3
 	return true
@@ -1785,7 +1905,7 @@ func monthLength(month, year int) int {
 	panic(fmt.Errorf("Unexpected month number %d", month))
 }
 func (s *GameState) WinningSideAndAdvantage() (winningSide int, advantage int) {
-	side0Score := (1 + s.menLost[1] + s.tanksLost[1]) * s.variant.Data3 / 8
+	side0Score := (1 + s.menLost[1] + s.tanksLost[1]) * s.variants[s.selectedVariant].Data3 / 8
 	side1Score := 1 + s.menLost[0] + s.tanksLost[0]
 	if s.game != Conflict {
 		side0Score += s.citiesHeld[0] * 3
@@ -1810,6 +1930,7 @@ func (s *GameState) WinningSideAndAdvantage() (winningSide int, advantage int) {
 }
 
 func (s *GameState) FinalResults() (int, int, int) {
+	variant := s.variants[s.selectedVariant]
 	winningSide, advantage := s.WinningSideAndAdvantage()
 	var absoluteAdvantage int // a number from [1..10]
 	if winningSide == 0 {
@@ -1833,10 +1954,10 @@ func (s *GameState) FinalResults() (int, int, int) {
 	}
 
 	criticalLocationBalance := s.criticalLocationsCaptured[0] - s.criticalLocationsCaptured[1]
-	if criticalLocationBalance >= s.variant.CriticalLocations[0] {
+	if criticalLocationBalance >= variant.CriticalLocations[0] {
 		v74 = 1 + 9*(1-v73)
 	}
-	if -criticalLocationBalance >= s.variant.CriticalLocations[1] {
+	if -criticalLocationBalance >= variant.CriticalLocations[1] {
 		v74 = 1 + 9*v73
 	}
 	var difficulty int
@@ -1849,14 +1970,15 @@ func (s *GameState) FinalResults() (int, int, int) {
 	return v74 - 1, difficulty, rank - 1
 }
 func (s *GameState) isGameOver() bool {
-	if s.daysElapsed >= s.variant.LengthInDays {
+	variant := s.variants[s.selectedVariant]
+	if s.daysElapsed >= variant.LengthInDays {
 		return true
 	}
 	criticalLocationBalance := s.criticalLocationsCaptured[0] - s.criticalLocationsCaptured[1]
-	if criticalLocationBalance >= s.variant.CriticalLocations[0] {
+	if criticalLocationBalance >= variant.CriticalLocations[0] {
 		return true
 	}
-	if -criticalLocationBalance >= s.variant.CriticalLocations[1] {
+	if -criticalLocationBalance >= variant.CriticalLocations[1] {
 		return true
 	}
 	return false
@@ -1892,6 +2014,6 @@ func (s *GameState) TanksLost(side int) int {
 func (s *GameState) CitiesHeld(side int) int {
 	return s.citiesHeld[side]
 }
-func (s *GameState) FlashbackUnits() [][]FlashbackUnit {
+func (s *GameState) Flashback() FlashbackHistory {
 	return s.flashback
 }

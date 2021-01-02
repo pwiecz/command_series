@@ -1,10 +1,13 @@
 package lib
 
+import "encoding/binary"
 import "fmt"
+import "io"
 
-type IntelligenceType struct{ i int }
+type Intelligence struct{ i int }
 
-func (i IntelligenceType) String() string {
+func (i Intelligence) Int() int { return i.i }
+func (i Intelligence) String() string {
 	switch i {
 	case Full:
 		return "FULL"
@@ -13,17 +16,17 @@ func (i IntelligenceType) String() string {
 	}
 	panic(fmt.Errorf("Unknown intelligence type: %d", i.i))
 }
-func (i IntelligenceType) Other() IntelligenceType {
-	return IntelligenceType{1 - i.i}
+func (i Intelligence) Other() Intelligence {
+	return Intelligence{1 - i.i}
 }
 
-var Full = IntelligenceType{0}
-var Limited = IntelligenceType{1}
+var Full = Intelligence{0}
+var Limited = Intelligence{1}
 
-type CommanderType struct{ c int }
+type Commander struct{ c int }
 
-func (c CommanderType) Int() int { return c.c }
-func (c CommanderType) String() string {
+func (c Commander) Int() int { return c.c }
+func (c Commander) String() string {
 	switch c {
 	case Player:
 		return "PLAYER"
@@ -32,16 +35,16 @@ func (c CommanderType) String() string {
 	}
 	panic(fmt.Errorf("Unknown commander type: %d", c.c))
 }
-func (c CommanderType) Other() CommanderType {
-	return CommanderType{1 - c.c}
+func (c Commander) Other() Commander {
+	return Commander{1 - c.c}
 }
 
-var Player = CommanderType{0}
-var Computer = CommanderType{1}
+var Player = Commander{0}
+var Computer = Commander{1}
 
-type UnitDisplayType int
+type UnitDisplay int
 
-func (u UnitDisplayType) String() string {
+func (u UnitDisplay) String() string {
 	switch u {
 	case ShowAsSymbols:
 		return "SYMBOLS"
@@ -52,13 +55,13 @@ func (u UnitDisplayType) String() string {
 }
 
 const (
-	ShowAsSymbols UnitDisplayType = 0
-	ShowAsIcons   UnitDisplayType = 1
+	ShowAsSymbols UnitDisplay = 0
+	ShowAsIcons   UnitDisplay = 1
 )
 
-type SpeedType int
+type Speed int
 
-func (s SpeedType) String() string {
+func (s Speed) String() string {
 	switch s {
 	case Fast:
 		return "FAST"
@@ -69,10 +72,10 @@ func (s SpeedType) String() string {
 	}
 	panic(fmt.Errorf("Unknown speed: %d", int(s)))
 }
-func (s SpeedType) DelayTicks() int {
+func (s Speed) DelayTicks() int {
 	return 60 * int(s)
 }
-func (s SpeedType) Faster() SpeedType {
+func (s Speed) Faster() Speed {
 	switch s {
 	case Fast:
 		return Fast
@@ -83,7 +86,7 @@ func (s SpeedType) Faster() SpeedType {
 	}
 	panic(fmt.Errorf("Unknown speed: %d", int(s)))
 }
-func (s SpeedType) Slower() SpeedType {
+func (s Speed) Slower() Speed {
 	switch s {
 	case Fast:
 		return Medium
@@ -96,18 +99,18 @@ func (s SpeedType) Slower() SpeedType {
 }
 
 const (
-	Fast   SpeedType = 1
-	Medium SpeedType = 2
-	Slow   SpeedType = 3
+	Fast   Speed = 1
+	Medium Speed = 2
+	Slow   Speed = 3
 )
 
 type Options struct {
-	AlliedCommander CommanderType // [0..1]
-	GermanCommander CommanderType // [0..1]
-	Intelligence    IntelligenceType
-	UnitDisplay     UnitDisplayType // [0..1]
-	GameBalance     int             // [0..4]
-	Speed           SpeedType       // [1..3]
+	AlliedCommander Commander // [0..1]
+	GermanCommander Commander // [0..1]
+	Intelligence    Intelligence
+	UnitDisplay     UnitDisplay // [0..1]
+	GameBalance     int         // [0..4]
+	Speed           Speed       // [1..3]
 }
 
 func DefaultOptions() Options {
@@ -120,3 +123,53 @@ func DefaultOptions() Options {
 		Speed:           Medium}
 }
 
+func (o Options) Write(writer io.Writer) error {
+	if err := binary.Write(writer, binary.LittleEndian, uint8(o.AlliedCommander.Int())); err != nil {
+		return err
+	}
+	if err := binary.Write(writer, binary.LittleEndian, uint8(o.GermanCommander.Int())); err != nil {
+		return err
+	}
+	if err := binary.Write(writer, binary.LittleEndian, uint8(o.Intelligence.Int())); err != nil {
+		return err
+	}
+	if err := binary.Write(writer, binary.LittleEndian, uint8(o.UnitDisplay)); err != nil {
+		return err
+	}
+	if err := binary.Write(writer, binary.LittleEndian, uint8(o.GameBalance)); err != nil {
+		return err
+	}
+	if err := binary.Write(writer, binary.LittleEndian, uint8(o.Speed)); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (o *Options) Read(reader io.Reader) error {
+	var alliedCommander, germanCommander, intelligence, unitDisplay, gameBalance, speed uint8
+	if err := binary.Read(reader, binary.LittleEndian, &alliedCommander); err != nil {
+		return err
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &germanCommander); err != nil {
+		return err
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &intelligence); err != nil {
+		return err
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &unitDisplay); err != nil {
+		return err
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &gameBalance); err != nil {
+		return err
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &speed); err != nil {
+		return err
+	}
+	o.AlliedCommander = Commander{int(alliedCommander)}
+	o.GermanCommander = Commander{int(germanCommander)}
+	o.Intelligence = Intelligence{int(intelligence)}
+	o.UnitDisplay = UnitDisplay(unitDisplay)
+	o.GameBalance = int(gameBalance)
+	o.Speed = Speed(speed)
+	return nil
+}
