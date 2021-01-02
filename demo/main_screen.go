@@ -3,6 +3,7 @@ package main
 import "bufio"
 import "encoding/binary"
 import "image"
+import "io"
 import "fmt"
 import "os"
 import "path/filepath"
@@ -792,6 +793,9 @@ func (s *MainScreen) loadGameFromFile(filename string) {
 	if err := s.gameState.Load(reader); err != nil {
 		s.messageBox.Print("DISK ERROR: 7", 2, 4, false)
 		return
+	}
+	if _, err := reader.ReadByte(); err != io.EOF {
+		s.messageBox.Print("DISK ERROR: 8", 2, 4, false)
 	}
 	s.messageBox.Print("COMPLETED", 2, 4, false)
 }

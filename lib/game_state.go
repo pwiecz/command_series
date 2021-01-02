@@ -134,19 +134,29 @@ func (s *GameState) Init() bool {
 }
 
 type saveData struct {
-	minute, hour, day, month uint8
-	year                     uint16
-	daysElapsed              uint8
-	weather                  uint8
-	isNight                  bool
+	Minute, Hour, Day, Month uint8
+	Year                     uint16
+	DaysElapsed              uint8
+	Weather                  uint8
+	IsNight                  bool
 
-	playerSide    uint8
-	commanderMask uint8
+	PlayerSide    uint8
+	CommanderMask uint8
 
-	supplyLevels, menLost, tanksLost, citiesHeld [2]uint16
-	criticalLocationsCaptured                    [2]uint8
+	SupplyLevels, MenLost, TanksLost, CitiesHeld [2]uint16
+	CriticalLocationsCaptured                    [2]uint8
 
-	selectedVariant uint8
+	SelectedVariant uint8
+
+	UnitsUpdated                     uint8
+	NumUnitsToUpdatePerTimeIncrement uint8
+	LastUpdatedUnit                  uint8
+	Update                           uint8
+
+	Map0           [2][16][16]int16
+	Map1           [2][16][16]int16
+	Map3           [2][16][16]int16
+	Map2_0, Map2_1 [2][4][4]int16
 }
 
 func (s *GameState) Save(writer io.Writer) error {
@@ -160,24 +170,45 @@ func (s *GameState) Save(writer io.Writer) error {
 		return err
 	}
 	var saveData saveData
-	saveData.minute = uint8(s.minute)
-	saveData.hour = uint8(s.hour)
-	saveData.day = uint8(s.day)
-	saveData.month = uint8(s.month)
-	saveData.year = uint16(s.year)
-	saveData.daysElapsed = uint8(s.daysElapsed)
-	saveData.weather = uint8(s.weather)
-	saveData.isNight = s.isNight
-	saveData.playerSide = uint8(s.playerSide)
-	saveData.commanderMask = uint8(s.commanderMask)
-	saveData.supplyLevels = [2]uint16{uint16(s.supplyLevels[0]), uint16(s.supplyLevels[1])}
-	saveData.menLost = [2]uint16{uint16(s.menLost[0]), uint16(s.menLost[1])}
-	saveData.tanksLost = [2]uint16{uint16(s.tanksLost[0]), uint16(s.menLost[1])}
-	saveData.citiesHeld = [2]uint16{uint16(s.citiesHeld[0]), uint16(s.citiesHeld[1])}
-	saveData.criticalLocationsCaptured = [2]uint8{
+	saveData.Minute = uint8(s.minute)
+	saveData.Hour = uint8(s.hour)
+	saveData.Day = uint8(s.day)
+	saveData.Month = uint8(s.month)
+	saveData.Year = uint16(s.year)
+	saveData.DaysElapsed = uint8(s.daysElapsed)
+	saveData.Weather = uint8(s.weather)
+	saveData.IsNight = s.isNight
+	saveData.PlayerSide = uint8(s.playerSide)
+	saveData.CommanderMask = uint8(s.commanderMask)
+	saveData.SupplyLevels = [2]uint16{uint16(s.supplyLevels[0]), uint16(s.supplyLevels[1])}
+	saveData.MenLost = [2]uint16{uint16(s.menLost[0]), uint16(s.menLost[1])}
+	saveData.TanksLost = [2]uint16{uint16(s.tanksLost[0]), uint16(s.menLost[1])}
+	saveData.CitiesHeld = [2]uint16{uint16(s.citiesHeld[0]), uint16(s.citiesHeld[1])}
+	saveData.CriticalLocationsCaptured = [2]uint8{
 		uint8(s.criticalLocationsCaptured[0]),
 		uint8(s.criticalLocationsCaptured[1])}
-	saveData.selectedVariant = uint8(s.selectedVariant)
+	saveData.SelectedVariant = uint8(s.selectedVariant)
+	saveData.UnitsUpdated = uint8(s.unitsUpdated)
+	saveData.NumUnitsToUpdatePerTimeIncrement = uint8(s.numUnitsToUpdatePerTimeIncrement)
+	saveData.LastUpdatedUnit = uint8(s.lastUpdatedUnit)
+	saveData.Update = uint8(s.update)
+
+	for i := 0; i < 2; i++ {
+		for x := 0; x < 16; x++ {
+			for y := 0; y < 16; y++ {
+				saveData.Map0[i][x][y] = int16(s.map0[i][x][y])
+				saveData.Map1[i][x][y] = int16(s.map1[i][x][y])
+				saveData.Map3[i][x][y] = int16(s.map3[i][x][y])
+			}
+		}
+		for x := 0; x < 4; x++ {
+			for y := 0; y < 4; y++ {
+				saveData.Map2_0[i][x][y] = int16(s.map2_0[i][x][y])
+				saveData.Map2_1[i][x][y] = int16(s.map2_1[i][x][y])
+			}
+		}
+	}
+
 	if err := binary.Write(writer, binary.LittleEndian, saveData); err != nil {
 		return err
 	}
@@ -205,7 +236,6 @@ func (s *GameState) Save(writer io.Writer) error {
 	// 41,42,43,44: two byte values - cities held per side
 	// 45,46,47,48: two byte values - supply levels per side
 	// 49, 51: critical locations captured per side
-	// TODO: serialize all those numbers
 	return nil
 }
 func (s *GameState) Load(reader io.Reader) error {
@@ -222,30 +252,53 @@ func (s *GameState) Load(reader io.Reader) error {
 		return err
 	}
 	var saveData saveData
-	if err := binary.Read(reader, binary.LittleEndian, saveData); err != nil {
+	if err := binary.Read(reader, binary.LittleEndian, &saveData); err != nil {
 		return err
 	}
-	s.minute = int(saveData.minute)
-	s.hour = int(saveData.hour)
-	s.day = int(saveData.day)
-	s.month = int(saveData.month)
-	s.year = int(saveData.year)
-	s.daysElapsed = int(saveData.daysElapsed)
-	s.weather = int(saveData.weather)
-	s.isNight = saveData.isNight
-	s.playerSide = int(saveData.playerSide)
-	s.commanderMask = int(saveData.commanderMask)
-	s.supplyLevels = [2]int{int(saveData.supplyLevels[0]), int(saveData.supplyLevels[1])}
-	s.menLost = [2]int{int(saveData.menLost[0]), int(saveData.menLost[1])}
-	s.tanksLost = [2]int{int(saveData.tanksLost[0]), int(saveData.tanksLost[1])}
-	s.citiesHeld = [2]int{int(saveData.citiesHeld[0]), int(saveData.citiesHeld[1])}
+	s.minute = int(saveData.Minute)
+	s.hour = int(saveData.Hour)
+	s.day = int(saveData.Day)
+	s.month = int(saveData.Month)
+	s.year = int(saveData.Year)
+	s.daysElapsed = int(saveData.DaysElapsed)
+	s.weather = int(saveData.Weather)
+	s.isNight = saveData.IsNight
+	s.playerSide = int(saveData.PlayerSide)
+	s.commanderMask = int(saveData.CommanderMask)
+	s.supplyLevels = [2]int{int(saveData.SupplyLevels[0]), int(saveData.SupplyLevels[1])}
+	s.menLost = [2]int{int(saveData.MenLost[0]), int(saveData.MenLost[1])}
+	s.tanksLost = [2]int{int(saveData.TanksLost[0]), int(saveData.TanksLost[1])}
+	s.citiesHeld = [2]int{int(saveData.CitiesHeld[0]), int(saveData.CitiesHeld[1])}
 	s.criticalLocationsCaptured = [2]int{
-		int(saveData.criticalLocationsCaptured[0]),
-		int(saveData.criticalLocationsCaptured[1])}
-	s.selectedVariant = int(saveData.selectedVariant)
+		int(saveData.CriticalLocationsCaptured[0]),
+		int(saveData.CriticalLocationsCaptured[1])}
+	s.selectedVariant = int(saveData.SelectedVariant)
+	s.unitsUpdated = int(saveData.UnitsUpdated)
+	s.numUnitsToUpdatePerTimeIncrement = int(saveData.NumUnitsToUpdatePerTimeIncrement)
+	s.lastUpdatedUnit = int(saveData.LastUpdatedUnit)
+	s.update = int(saveData.Update)
+
+	for i := 0; i < 2; i++ {
+		for x := 0; x < 16; x++ {
+			for y := 0; y < 16; y++ {
+				s.map0[i][x][y] = int(saveData.Map0[i][x][y])
+				s.map1[i][x][y] = int(saveData.Map1[i][x][y])
+				s.map3[i][x][y] = int(saveData.Map3[i][x][y])
+			}
+		}
+		for x := 0; x < 4; x++ {
+			for y := 0; y < 4; y++ {
+				s.map2_0[i][x][y] = int(saveData.Map2_0[i][x][y])
+				s.map2_1[i][x][y] = int(saveData.Map2_1[i][x][y])
+			}
+		}
+	}
 	if err := s.flashback.Read(reader); err != nil {
 		return err
 	}
+
+	s.ShowAllVisibleUnits()
+
 	return nil
 }
 func (s *GameState) SwitchSides() {
