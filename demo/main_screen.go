@@ -107,7 +107,7 @@ func (s *MainScreen) Update() error {
 			if inpututil.IsKeyJustPressed(k) {
 				s.overviewMap = nil
 				if s.areUnitsHidden {
-					s.hideUnits()
+					s.toggleHideUnits()
 				}
 				break
 			}
@@ -122,7 +122,7 @@ func (s *MainScreen) Update() error {
 			s.flashback = nil
 			s.messageBox.Clear()
 			if s.areUnitsHidden {
-				s.hideUnits()
+				s.toggleHideUnits()
 			}
 		}
 		return nil
@@ -192,7 +192,7 @@ func (s *MainScreen) Update() error {
 				s.showCityInfo()
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case HideUnits:
-				s.hideUnits()
+				s.toggleHideUnits()
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case ShowOverviewMap:
 				s.showOverviewMap()
@@ -220,7 +220,7 @@ func (s *MainScreen) Update() error {
 				s.messageBox.Print(s.scenarioData.Data.Sides[s.playerSide]+" PLAYER:", 2, 0, false)
 				s.messageBox.Print("PRESS \"T\" TO CONTINUE", 2, 1, false)
 				if !s.areUnitsHidden {
-					s.hideUnits()
+					s.toggleHideUnits()
 				}
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case Quit:
@@ -615,7 +615,7 @@ func (s *MainScreen) showStatusReport() {
 	winningSideStr := s.scenarioData.Data.Sides[winningSide]
 	s.messageBox.Print(fmt.Sprintf("%s %s ADVANTAGE.", advantageStrs[advantage], winningSideStr), 2, 4, false)
 }
-func (s *MainScreen) hideUnits() {
+func (s *MainScreen) toggleHideUnits() {
 	if s.areUnitsHidden {
 		s.gameState.ShowAllVisibleUnits()
 	} else {
@@ -625,13 +625,13 @@ func (s *MainScreen) hideUnits() {
 }
 func (s *MainScreen) showOverviewMap() {
 	if !s.areUnitsHidden {
-		s.hideUnits()
+		s.toggleHideUnits()
 	}
 	s.overviewMap = NewOverviewMap(&s.gameData.Map, &s.scenarioData.Units, &s.gameData.Generic, &s.scenarioData.Data, s.gameState.IsUnitVisible)
 }
 func (s *MainScreen) showFlashback() {
 	if !s.areUnitsHidden {
-		s.hideUnits()
+		s.toggleHideUnits()
 	}
 	s.flashback = NewFlashback(s.mapView, s.messageBox, &s.gameData.Map, s.gameState.Flashback())
 }
@@ -687,6 +687,7 @@ func (s *MainScreen) saveGameToFile(filename string) {
 		s.messageBox.Clear()
 		return
 	}
+	s.messageBox.Print(filename, 23, 2, false)
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		s.messageBox.Print("DISK ERROR: 1", 2, 4, false)
@@ -743,6 +744,7 @@ func (s *MainScreen) loadGameFromFile(filename string) {
 		s.messageBox.Clear()
 		return
 	}
+	s.messageBox.Print(filename, 23, 2, false)
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		s.messageBox.Print("DISK ERROR: 1", 2, 4, false)
@@ -751,7 +753,7 @@ func (s *MainScreen) loadGameFromFile(filename string) {
 	saveDir := filepath.Join(homeDir, ".command_series")
 	file, err := os.Open(filepath.Join(saveDir, filename+".sav"))
 	if err != nil {
-		s.messageBox.Print("DISK ERROR: 2", 2, 4, false)
+		s.messageBox.Print("CANNOT OPEN SAVEFILE", 2, 4, false)
 		return
 	}
 	defer file.Close()
@@ -790,6 +792,9 @@ func (s *MainScreen) loadGameFromFile(filename string) {
 		s.messageBox.Print("DISK ERROR: 6", 2, 4, false)
 		return
 	}
+	if !s.areUnitsHidden {
+		s.toggleHideUnits()
+	}
 	if err := s.gameState.Load(reader); err != nil {
 		s.messageBox.Print("DISK ERROR: 7", 2, 4, false)
 		return
@@ -797,7 +802,9 @@ func (s *MainScreen) loadGameFromFile(filename string) {
 	if _, err := reader.ReadByte(); err != io.EOF {
 		s.messageBox.Print("DISK ERROR: 8", 2, 4, false)
 	}
-	s.messageBox.Print("COMPLETED", 2, 4, false)
+	s.messageBox.Print("COMPLETED", 2, 3, false)
+	s.messageBox.Print("PRESS \"T\" TO CONTINUE", 2, 4, false)
+
 }
 
 func (s *MainScreen) Draw(screen *ebiten.Image) {

@@ -243,7 +243,6 @@ func (s *GameState) Load(reader io.Reader) error {
 	if err != nil {
 		return err
 	}
-	s.HideAllUnits()
 	*s.units = units
 	if err := s.terrain.Cities.ReadOwnerAndVictoryPoints(reader); err != nil {
 		return err
@@ -296,8 +295,6 @@ func (s *GameState) Load(reader io.Reader) error {
 	if err := s.flashback.Read(reader); err != nil {
 		return err
 	}
-
-	s.ShowAllVisibleUnits()
 
 	return nil
 }
