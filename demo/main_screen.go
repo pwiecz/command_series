@@ -48,6 +48,7 @@ type MainScreen struct {
 
 	overviewMap *OverviewMap
 	inputBox    *InputBox
+	listBox *ListBox
 
 	lastMessageFromUnit lib.MessageFromUnit
 
@@ -87,9 +88,9 @@ func NewMainScreen(g *Game, options *lib.Options, audioPlayer *AudioPlayer, rand
 		&g.gameData.Icons.Sprites, &g.scenarioData.Data.DaytimePalette, &g.scenarioData.Data.NightPalette,
 		image.Pt(160, 19*8))
 	s.mapView.SetCursorPosition(scenario.MinX+10, scenario.MinY+9)
-	s.messageBox = NewMessageBox(image.Pt(336, 40), g.gameData.Sprites.GameFont)
+	s.messageBox = NewMessageBox(0, 22, 336, 40, g.gameData.Sprites.GameFont)
 	s.messageBox.Print("PREPARE FOR BATTLE!", 12, 1, false)
-	s.statusBar = NewMessageBox(image.Pt(376, 8), g.gameData.Sprites.GameFont)
+	s.statusBar = NewMessageBox(0, 62, 376, 8, g.gameData.Sprites.GameFont)
 	s.statusBar.SetTextColor(16)
 	s.statusBar.SetRowBackground(0, 30)
 
@@ -129,6 +130,10 @@ func (s *MainScreen) Update() error {
 	}
 	if s.inputBox != nil {
 		s.inputBox.Update()
+		return nil
+	}
+	if s.listBox != nil {
+		s.listBox.Update()
 		return nil
 	}
 	if !s.started && !s.areUnitsHidden {
@@ -274,8 +279,14 @@ func (s *MainScreen) Update() error {
 				curX, curY := s.mapView.GetCursorPosition()
 				s.mapView.SetCursorPosition(curX-2, curY)
 			case Save:
+				if s.gameOver {
+					break
+				}
 				s.saveGame()
 			case Load:
+				if s.gameOver {
+					break
+				}
 				s.loadGame()
 			}
 		default:
@@ -677,9 +688,9 @@ func (s *MainScreen) screenCoordsToUnitCoords(screenX, screenY int) (x, y int) {
 
 func (s *MainScreen) saveGame() {
 	s.messageBox.Clear()
-	s.messageBox.Print("(PRESS RETURN TO CANCEL)", 2, 1, false)
+	s.messageBox.Print("(PRESS ESCAPE TO CANCEL)", 2, 1, false)
 	s.messageBox.Print("SAVE SCENARIO NAME: ?", 2, 2, false)
-	s.inputBox = NewInputBox(23*8., 22+2*8., 16, s.gameData.Sprites.GameFont, func(filename string) { s.saveGameToFile(filename) })
+	s.inputBox = NewInputBox(23*8., 22+2*8., 8, s.gameData.Sprites.GameFont, func(filename string) { s.saveGameToFile(filename) })
 }
 func (s *MainScreen) saveGameToFile(filename string) {
 	s.inputBox = nil
@@ -688,17 +699,12 @@ func (s *MainScreen) saveGameToFile(filename string) {
 		return
 	}
 	s.messageBox.Print(filename, 23, 2, false)
-	homeDir, err := os.UserHomeDir()
+	dir, err := saveDir(s.gameData.Scenarios[s.selectedScenario].FilePrefix)
 	if err != nil {
 		s.messageBox.Print("DISK ERROR: 1", 2, 4, false)
 		return
 	}
-	saveDir := filepath.Join(homeDir, ".command_series")
-	if err := os.MkdirAll(saveDir, 0755); err != nil {
-		s.messageBox.Print("DISK ERROR: 2", 2, 4, false)
-		return
-	}
-	file, err := os.Create(filepath.Join(saveDir, filename+".sav"))
+	file, err := os.Create(filepath.Join(dir, filename+".sav"))
 	if err != nil {
 		s.messageBox.Print("DISK ERROR: 3", 2, 4, false)
 		return
@@ -733,25 +739,35 @@ func (s *MainScreen) saveGameToFile(filename string) {
 }
 func (s *MainScreen) loadGame() {
 	s.messageBox.Clear()
-	s.messageBox.Print("(PRESS RETURN TO CANCEL)", 2, 1, false)
+	saveFiles := listSaveFiles(s.gameData.Scenarios[s.selectedScenario].FilePrefix)
+	if len(saveFiles) == 0 {
+		s.messageBox.Print("NO SAVEFILES FOUND", 2, 1, false)
+		return
+	}
+	saveNames := make([]string, 0, len(saveFiles))
+	for _, filename := range saveFiles {
+		saveNames = append(saveNames, strings.TrimSuffix(filename, ".sav"))
+	}
+	s.messageBox.Print("(PRESS ESCAPE TO CANCEL)", 2, 1, false)
 	s.messageBox.Print("LOAD SCENARIO NAME: ?", 2, 2, false)
-	s.inputBox = NewInputBox(23*8., 22+2*8., 16, s.gameData.Sprites.GameFont, func(filename string) { s.loadGameFromFile(filename) })
+	listLen := len(saveNames)
+	if listLen > 8 { listLen = 8 }
+	s.listBox = NewListBox(23*8., 22+2*8, 8, listLen, saveNames, s.gameData.Sprites.GameFont, func(filename string) { s.loadGameFromFile(filename) })
 }
 
 func (s *MainScreen) loadGameFromFile(filename string) {
-	s.inputBox = nil
+	s.listBox = nil
 	if len(filename) == 0 {
 		s.messageBox.Clear()
 		return
 	}
 	s.messageBox.Print(filename, 23, 2, false)
-	homeDir, err := os.UserHomeDir()
+	dir, err := saveDir(s.gameData.Scenarios[s.selectedScenario].FilePrefix)
 	if err != nil {
 		s.messageBox.Print("DISK ERROR: 1", 2, 4, false)
 		return
 	}
-	saveDir := filepath.Join(homeDir, ".command_series")
-	file, err := os.Open(filepath.Join(saveDir, filename+".sav"))
+	file, err := os.Open(filepath.Join(dir, filename+".sav"))
 	if err != nil {
 		s.messageBox.Print("CANNOT OPEN SAVEFILE", 2, 4, false)
 		return
@@ -850,9 +866,9 @@ func (s *MainScreen) Draw(screen *ebiten.Image) {
 	s.messageBox.SetRowBackground(3, playerBaseColor+10)
 	s.messageBox.SetRowBackground(4, playerBaseColor+12)
 	s.messageBox.SetTextColor(playerBaseColor)
-	s.messageBox.Draw(screen, &opts)
+	s.messageBox.Draw(screen)
 	opts.GeoM.Translate(0, 40)
-	s.statusBar.Draw(screen, &opts)
+	s.statusBar.Draw(screen)
 	opts.GeoM.Translate(0, 8)
 	s.separatorRect.Draw(screen, &opts)
 
@@ -861,4 +877,10 @@ func (s *MainScreen) Draw(screen *ebiten.Image) {
 		s.inputBox.SetBackgroundColor(playerBaseColor + 12)
 		s.inputBox.Draw(screen)
 	}
+	if s.listBox != nil {
+		s.listBox.SetTextColor(playerBaseColor)
+		s.listBox.SetBackgroundColor(8)
+		s.listBox.Draw(screen)
+	}
+
 }

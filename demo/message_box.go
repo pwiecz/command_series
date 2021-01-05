@@ -1,131 +1,53 @@
 package main
 
-import "image"
 import "github.com/hajimehoshi/ebiten"
-
 import "github.com/pwiecz/command_series/lib"
 
-type coordsContent struct {
-	textColor, backgroundColor int
-	rune                       rune
-	inverted                   bool
-}
 type MessageBox struct {
-	messageImage                  *ebiten.Image
-	size                          image.Point
-	font                          *lib.Font
-	numRows, numColumns           int
-	rowBackgrounds                []int
-	textColor                     int
-	currentContent, targetContent [][]coordsContent
+	rows []*Label
 }
 
-func NewMessageBox(size image.Point, font *lib.Font) *MessageBox {
-	b := &MessageBox{
-		messageImage: ebiten.NewImage(size.X, size.Y),
-		size:         size,
-		font:         font}
+func NewMessageBox(x, y float64, width, height int, font *lib.Font) *MessageBox {
+	b := &MessageBox{}
 	fontSize := font.Size()
-	b.numRows = (size.Y + fontSize.Y - 1) / fontSize.Y
-	b.numColumns = (size.X + fontSize.X - 1) / fontSize.X
-	b.rowBackgrounds = make([]int, b.numRows)
-	b.textColor = 15
-	b.currentContent = make([][]coordsContent, b.numRows)
-	b.targetContent = make([][]coordsContent, b.numRows)
-	for y := 0; y < b.numRows; y++ {
-		b.currentContent[y] = make([]coordsContent, b.numColumns)
-		b.targetContent[y] = make([]coordsContent, b.numColumns)
-		for x := 0; x < b.numColumns; x++ {
-			b.targetContent[y][x].rune = ' '
-			b.targetContent[y][x].textColor = b.textColor
-			b.targetContent[y][x].backgroundColor = b.rowBackgrounds[y]
-		}
+	numRows := (height + fontSize.Y - 1) / fontSize.Y
+	for i := 0; i < numRows; i++ {
+		b.rows = append(b.rows, NewLabel(x, y+float64(fontSize.Y*i), width, fontSize.Y, font))
 	}
 	return b
 }
 
 func (b *MessageBox) SetRowBackground(y, color int) {
-	if y >= b.numRows {
+	if y >= len(b.rows) {
 		return
 	}
-	row := b.targetContent[y]
-	for x := 0; x < b.numColumns; x++ {
-		row[x].backgroundColor = color
-	}
-	b.rowBackgrounds[y] = color
+	b.rows[y].SetBackgroundColor(color)
 }
 func (b *MessageBox) SetTextColor(color int) {
-	for y := 0; y < b.numRows; y++ {
-		row := b.targetContent[y]
-		for x := 0; x < b.numColumns; x++ {
-			row[x].textColor = color
-		}
+	for _, row := range b.rows {
+		row.SetTextColor(color)
 	}
-	b.textColor = color
 }
 func (b *MessageBox) Clear() {
-	for y := 0; y < b.numRows; y++ {
+	for y := 0; y < len(b.rows); y++ {
 		b.ClearRow(y)
 	}
 }
 func (b *MessageBox) ClearRow(y int) {
-	if y >= b.numRows {
+	if y >= len(b.rows) {
 		return
 	}
-	backgroundColor := b.rowBackgrounds[y]
-	row := b.targetContent[y]
-	for x := 0; x < b.numColumns; x++ {
-		row[x].backgroundColor = backgroundColor
-		row[x].textColor = b.textColor
-		row[x].rune = ' '
-		row[x].inverted = false
-	}
+	b.rows[y].Clear()
 }
 func (b *MessageBox) Print(str string, x, y int, inverted bool) {
-	if y >= b.numRows {
+	if y >= len(b.rows) {
 		return
 	}
-	row := b.targetContent[y]
-	background := b.rowBackgrounds[y]
-	for _, r := range str {
-		if x >= b.numColumns {
-			return
-		}
-		row[x].textColor = b.textColor
-		row[x].backgroundColor = background
-		row[x].rune = r
-		row[x].inverted = inverted
-		x++
-	}
+	b.rows[y].SetText(str, x, inverted)
 }
 
-func (b *MessageBox) Draw(screen *ebiten.Image, opts *ebiten.DrawImageOptions) {
-	if b.messageImage == nil {
-		b.messageImage = ebiten.NewImage(b.size.X, b.size.Y)
+func (b *MessageBox) Draw(screen *ebiten.Image) {
+	for _, row := range b.rows {
+		row.Draw(screen)
 	}
-	fontSize := b.font.Size()
-	y0 := 0
-	for y := 0; y < b.numRows; y++ {
-		x0 := 0
-		for x := 0; x < b.numColumns; x++ {
-			if b.currentContent[y][x] != b.targetContent[y][x] {
-				glyph := b.font.Glyph(b.targetContent[y][x].rune)
-				if !b.targetContent[y][x].inverted {
-					glyph.Palette[0] = lib.RGBPalette[b.targetContent[y][x].backgroundColor]
-					glyph.Palette[1] = lib.RGBPalette[b.targetContent[y][x].textColor]
-				} else {
-					glyph.Palette[0] = lib.RGBPalette[b.targetContent[y][x].textColor]
-					glyph.Palette[1] = lib.RGBPalette[b.targetContent[y][x].backgroundColor]
-				}
-				glyphImg := ebiten.NewImageFromImage(glyph)
-				var opts ebiten.DrawImageOptions
-				opts.GeoM.Translate(float64(x0), float64(y0))
-				b.messageImage.DrawImage(glyphImg, &opts)
-				b.currentContent[y][x] = b.targetContent[y][x]
-			}
-			x0 += fontSize.X
-		}
-		y0 += fontSize.Y
-	}
-	screen.DrawImage(b.messageImage, opts)
 }

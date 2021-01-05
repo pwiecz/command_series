@@ -6,92 +6,92 @@ import "github.com/hajimehoshi/ebiten/inpututil"
 import "github.com/pwiecz/command_series/lib"
 
 type InputBox struct {
-	x, y            float64
-	size            int
-	textColor       int
-	backgroundColor int
-	font            *lib.Font
-	image           *ebiten.Image
-	shownText       string
-	cursorPosition  int
-	onEnter         func(string)
+	label          *Label
+	width          int
+	text           string
+	cursorPosition int
+	onEnter        func(string)
 }
 
-func NewInputBox(x, y float64, size int, font *lib.Font, onEnter func(string)) *InputBox {
+func NewInputBox(x, y float64, width int, font *lib.Font, onEnter func(string)) *InputBox {
+	fontSize := font.Size()
 	return &InputBox{
-		x:       x,
-		y:       y,
-		size:    size,
-		font:    font,
+		label:   NewLabel(x, y, (width+1)*fontSize.X, fontSize.Y, font),
+		width:   width,
 		onEnter: onEnter}
 }
 
+func (i *InputBox) SetText(text string) {
+	i.text = text
+	i.cursorPosition = len(i.text)
+}
 func (i *InputBox) SetTextColor(textColor int) {
-	i.textColor = textColor
+	i.label.SetTextColor(textColor)
 }
 func (i *InputBox) SetBackgroundColor(backgroundColor int) {
-	i.backgroundColor = backgroundColor
+	i.label.SetBackgroundColor(backgroundColor)
 }
+
 func (i *InputBox) Update() {
+	modified := false
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
-		i.onEnter(i.shownText)
+		i.onEnter(i.text)
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+		i.onEnter("")
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyLeft) {
 		if i.cursorPosition > 0 {
 			i.cursorPosition--
+			modified = true
 		}
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyRight) {
-		if i.cursorPosition < len(i.shownText) {
+		if i.cursorPosition < len(i.text) {
 			i.cursorPosition++
+			modified = true
 		}
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyHome) {
+		i.cursorPosition = 0
+		modified = true
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyEnd) {
+		i.cursorPosition = len(i.text)
+		modified = true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) {
 		if i.cursorPosition > 0 {
-			i.shownText = i.shownText[:i.cursorPosition-1] + i.shownText[i.cursorPosition:]
+			i.text = i.text[:i.cursorPosition-1] + i.text[i.cursorPosition:]
 			i.cursorPosition--
+			modified = true
 		}
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyDelete) {
-		if i.cursorPosition < len(i.shownText) {
-			i.shownText = i.shownText[:i.cursorPosition] + i.shownText[i.cursorPosition+1:]
+		if i.cursorPosition < len(i.text) {
+			i.text = i.text[:i.cursorPosition] + i.text[i.cursorPosition+1:]
+			modified = true
 		}
-	} else if len(i.shownText) < i.size {
+	} else if len(i.text) < i.width {
 		if inpututil.IsKeyJustPressed(ebiten.KeyMinus) {
 			i.insertStringAtCursor("-")
+			modified = true
 		} else {
 			for k := ebiten.Key(0); k < ebiten.KeyMax; k++ {
 				// hacky...
 				if inpututil.IsKeyJustPressed(k) && len(k.String()) == 1 {
 					i.insertStringAtCursor(k.String())
+					modified = true
 					break
 				}
 			}
 		}
 	}
+	if modified {
+		i.label.Clear()
+		i.label.SetText(i.text, 0, false)
+		i.label.SetCharInverted(i.cursorPosition, true)
+	}
 }
 
 func (i *InputBox) insertStringAtCursor(s string) {
-	i.shownText = i.shownText[:i.cursorPosition] + s + i.shownText[i.cursorPosition:]
+	i.text = i.text[:i.cursorPosition] + s + i.text[i.cursorPosition:]
 	i.cursorPosition++
 
 }
 func (i *InputBox) Draw(screen *ebiten.Image) {
-	fontSize := i.font.Size()
-	opts := &ebiten.DrawImageOptions{}
-	opts.GeoM.Translate(i.x, i.y)
-	for ix, r := range i.shownText {
-		glyph := i.font.Glyph(r)
-		if ix != i.cursorPosition {
-			glyph.Palette[0] = lib.RGBPalette[i.backgroundColor]
-			glyph.Palette[1] = lib.RGBPalette[i.textColor]
-		} else {
-			glyph.Palette[0] = lib.RGBPalette[i.textColor]
-			glyph.Palette[1] = lib.RGBPalette[i.backgroundColor]
-		}
-		screen.DrawImage(ebiten.NewImageFromImage(glyph), opts)
-		opts.GeoM.Translate(float64(fontSize.X), 0)
-	}
-	if i.cursorPosition >= len(i.shownText) {
-		glyph := i.font.Glyph(' ')
-		glyph.Palette[0] = lib.RGBPalette[i.textColor]
-		glyph.Palette[1] = lib.RGBPalette[i.backgroundColor]
-		screen.DrawImage(ebiten.NewImageFromImage(glyph), opts)
-	}
+	i.label.Draw(screen)
 }
