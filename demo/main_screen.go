@@ -2,7 +2,6 @@ package main
 
 import "bufio"
 import "encoding/binary"
-import "image"
 import "io"
 import "fmt"
 import "os"
@@ -48,7 +47,7 @@ type MainScreen struct {
 
 	overviewMap *OverviewMap
 	inputBox    *InputBox
-	listBox *ListBox
+	listBox     *ListBox
 
 	lastMessageFromUnit lib.MessageFromUnit
 
@@ -82,11 +81,11 @@ func NewMainScreen(g *Game, options *lib.Options, audioPlayer *AudioPlayer, rand
 	}
 	s.gameState = lib.NewGameState(rand, g.gameData, g.scenarioData, g.selectedScenario, g.selectedVariant, s.playerSide, s.options, s.sync)
 	s.mapView = NewMapView(
+		160, 19*8,
 		&g.gameData.Map, scenario.MinX, scenario.MinY, scenario.MaxX, scenario.MaxY,
 		&g.gameData.Sprites.TerrainTiles,
 		&g.gameData.Sprites.UnitSymbolSprites, &g.gameData.Sprites.UnitIconSprites,
-		&g.gameData.Icons.Sprites, &g.scenarioData.Data.DaytimePalette, &g.scenarioData.Data.NightPalette,
-		image.Pt(160, 19*8))
+		&g.gameData.Icons.Sprites, &g.scenarioData.Data.DaytimePalette, &g.scenarioData.Data.NightPalette)
 	s.mapView.SetCursorPosition(scenario.MinX+10, scenario.MinY+9)
 	s.messageBox = NewMessageBox(0, 22, 336, 40, g.gameData.Sprites.GameFont)
 	s.messageBox.Print("PREPARE FOR BATTLE!", 12, 1, false)
@@ -94,8 +93,8 @@ func NewMainScreen(g *Game, options *lib.Options, audioPlayer *AudioPlayer, rand
 	s.statusBar.SetTextColor(16)
 	s.statusBar.SetRowBackground(0, 30)
 
-	s.topRect = NewRectangle(image.Pt(336, 22))
-	s.separatorRect = NewRectangle(image.Pt(336, 2))
+	s.topRect = NewRectangle(0, 0, 336, 22)
+	s.separatorRect = NewRectangle(0, 70, 336, 2)
 	return s
 }
 
@@ -751,7 +750,9 @@ func (s *MainScreen) loadGame() {
 	s.messageBox.Print("(PRESS ESCAPE TO CANCEL)", 2, 1, false)
 	s.messageBox.Print("LOAD SCENARIO NAME: ?", 2, 2, false)
 	listLen := len(saveNames)
-	if listLen > 8 { listLen = 8 }
+	if listLen > 8 {
+		listLen = 8
+	}
 	s.listBox = NewListBox(23*8., 22+2*8, 8, listLen, saveNames, s.gameData.Sprites.GameFont, func(filename string) { s.loadGameFromFile(filename) })
 }
 
@@ -840,7 +841,7 @@ func (s *MainScreen) Draw(screen *ebiten.Image) {
 		s.separatorRect.SetColor(int(s.scenarioData.Data.NightPalette[0]))
 	}
 	s.mapView.SetIsNight(s.gameState.IsNight())
-	s.mapView.SetUseIcons(s.options.UnitDisplay == 1)
+	s.mapView.SetUnitDisplay(s.options.UnitDisplay)
 
 	opts := ebiten.DrawImageOptions{}
 	opts.GeoM.Scale(2, 1)
@@ -856,10 +857,8 @@ func (s *MainScreen) Draw(screen *ebiten.Image) {
 	}
 
 	playerBaseColor := s.scenarioData.Data.SideColor[s.playerSide] * 16
-	opts.GeoM.Reset()
 	s.topRect.SetColor(playerBaseColor + 10)
-	s.topRect.Draw(screen, &opts)
-	opts.GeoM.Translate(0, 22)
+	s.topRect.Draw(screen)
 	s.messageBox.SetRowBackground(0, playerBaseColor+12)
 	s.messageBox.SetRowBackground(1, playerBaseColor+10)
 	s.messageBox.SetRowBackground(2, playerBaseColor+12)
@@ -867,10 +866,8 @@ func (s *MainScreen) Draw(screen *ebiten.Image) {
 	s.messageBox.SetRowBackground(4, playerBaseColor+12)
 	s.messageBox.SetTextColor(playerBaseColor)
 	s.messageBox.Draw(screen)
-	opts.GeoM.Translate(0, 40)
 	s.statusBar.Draw(screen)
-	opts.GeoM.Translate(0, 8)
-	s.separatorRect.Draw(screen, &opts)
+	s.separatorRect.Draw(screen)
 
 	if s.inputBox != nil {
 		s.inputBox.SetTextColor(playerBaseColor)
@@ -879,7 +876,7 @@ func (s *MainScreen) Draw(screen *ebiten.Image) {
 	}
 	if s.listBox != nil {
 		s.listBox.SetTextColor(playerBaseColor)
-		s.listBox.SetBackgroundColor(8)
+		s.listBox.SetBackgroundColor(int(s.scenarioData.Data.DaytimePalette[2]))
 		s.listBox.Draw(screen)
 	}
 

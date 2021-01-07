@@ -1,7 +1,6 @@
 package main
 
 import "fmt"
-import "image"
 import "image/color"
 
 import "github.com/hajimehoshi/ebiten"
@@ -11,20 +10,23 @@ import "github.com/pwiecz/command_series/atr"
 import "github.com/pwiecz/command_series/lib"
 
 type ScenarioSelection struct {
-	labels             []*Button
+	labels             []*Label
 	buttons            []*Button
 	onScenarioSelected func(int)
 }
 
 func NewScenarioSelection(scenarios []lib.Scenario, font *lib.Font, onScenarioSelected func(int)) *ScenarioSelection {
-	labels := []*Button{
-		NewButton("SCENARIO SELECTION", 16, 32, image.Pt(300, 8), font),
-		NewButton(fmt.Sprintf("TYPE (1-%d)", len(scenarios)), 16, float64(56+len(scenarios)*8), image.Pt(300, 8), font)}
+	labels := []*Label{
+		NewLabel("SCENARIO SELECTION", 16, 32, 300, 8, font),
+		NewLabel(fmt.Sprintf("TYPE (1-%d)", len(scenarios)), 16, float64(56+len(scenarios)*8), 300, 8, font)}
+	for _, label := range labels {
+		label.SetBackgroundColor(15)
+	}
 	buttons := make([]*Button, len(scenarios))
 	x, y := 16.0, 48.0
 	fontSize := font.Size()
 	for i, scenario := range scenarios {
-		button := NewButton(fmt.Sprintf("%d. %s", i+1, scenario.Name), x, y, image.Pt(300, 8), font)
+		button := NewButton(fmt.Sprintf("%d. %s", i+1, scenario.Name), x, y, 300, 8, font)
 		buttons[i] = button
 		y += float64(fontSize.Y)
 	}
@@ -54,20 +56,23 @@ func (s *ScenarioSelection) Draw(screen *ebiten.Image) {
 }
 
 type VariantSelection struct {
-	labels            []*Button
+	labels            []*Label
 	buttons           []*Button
 	onVariantSelected func(int)
 }
 
 func NewVariantSelection(variants []lib.Variant, font *lib.Font, onVariantSelected func(int)) *VariantSelection {
-	labels := []*Button{
-		NewButton("VARIANT SELECTION", 16, 32, image.Pt(300, 8), font),
-		NewButton(fmt.Sprintf("TYPE (1-%d)", len(variants)), 16, float64(56+len(variants)*8), image.Pt(300, 8), font)}
+	labels := []*Label{
+		NewLabel("VARIANT SELECTION", 16, 32, 300, 8, font),
+		NewLabel(fmt.Sprintf("TYPE (1-%d)", len(variants)), 16, float64(56+len(variants)*8), 300, 8, font)}
+	for _, label := range labels {
+		label.SetBackgroundColor(15)
+	}
 	buttons := make([]*Button, len(variants))
 	x, y := 16.0, 48.0
 	fontSize := font.Size()
 	for i, variant := range variants {
-		button := NewButton(fmt.Sprintf("%d. %s", i+1, variant.Name), x, y, image.Pt(300, 8), font)
+		button := NewButton(fmt.Sprintf("%d. %s", i+1, variant.Name), x, y, 300, 8, font)
 		buttons[i] = button
 		y += float64(fontSize.Y)
 	}
@@ -161,16 +166,17 @@ type ScenarioLoading struct {
 	onScenarioLoaded func(*lib.ScenarioData)
 	loadingDone      chan error
 	scenarioData     *lib.ScenarioData
-
-	loadingText *Button
+	loadingText      *Label
 }
 
 func NewScenarioLoading(diskimage atr.SectorReader, scenario lib.Scenario, font *lib.Font, onScenarioLoaded func(*lib.ScenarioData)) *ScenarioLoading {
-	return &ScenarioLoading{
+	l := &ScenarioLoading{
 		diskimage:        diskimage,
 		filePrefix:       scenario.FilePrefix,
-		loadingText:      NewButton("... LOADING ...", 0, 0, image.Pt(120, 8), font),
+		loadingText:      NewLabel("... LOADING ...", 0, 0, 120, 8, font),
 		onScenarioLoaded: onScenarioLoaded}
+	l.loadingText.SetBackgroundColor(15)
+	return l
 }
 func (l *ScenarioLoading) Update() error {
 	if l.loadingDone == nil {

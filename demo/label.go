@@ -17,7 +17,8 @@ type Label struct {
 	cells, targetCells         []labelCell
 }
 
-func NewLabel(x, y float64, width, height int, font *lib.Font) *Label {
+func NewLabel(text string, x, y float64, width, height int, font *lib.Font) *Label {
+	numCells := (width + font.Size().X - 1) / font.Size().X
 	l := &Label{
 		x:               x,
 		y:               y,
@@ -25,12 +26,12 @@ func NewLabel(x, y float64, width, height int, font *lib.Font) *Label {
 		image:           ebiten.NewImage(width, height),
 		textColor:       15,
 		backgroundColor: 0,
-		dirty:           true}
-	fontSize := font.Size()
-	numCells := (width + fontSize.X - 1) / fontSize.X
-	l.cells = make([]labelCell, numCells)
-	for x := 0; x < numCells; x++ {
-		l.targetCells = append(l.targetCells, labelCell{rune: ' '})
+		dirty:           true,
+		cells:           make([]labelCell, numCells),
+		targetCells:     make([]labelCell, numCells)}
+	l.SetText(text, 0, false)
+	for x := len(text); x < numCells; x++ {
+		l.targetCells[x].rune = ' '
 
 	}
 	return l

@@ -1,6 +1,5 @@
 package main
 
-import "image"
 import "image/color"
 
 import "github.com/hajimehoshi/ebiten"
@@ -15,7 +14,7 @@ type OptionSelection struct {
 	onOptionsSelected func(*lib.Options)
 	options           *lib.Options
 
-	labels             []*Button
+	labels             []*Label
 	side0Button        *Button
 	side1Button        *Button
 	intelligenceButton *Button
@@ -52,24 +51,27 @@ func NewOptionSelection(game lib.Game, font *lib.Font, onOptionsSelected func(*l
 		side0Command = conflictSidesStrings[0] + " Command:"
 		side1Command = conflictSidesStrings[1] + " Command:"
 	}
-	s.labels = []*Button{
-		NewButton("OPTION SELECTION", 24, 32, image.Pt(300, 8), font),
-		NewButton(side0Command, 40, 48, image.Pt(300, 8), font),
-		NewButton(side1Command, 40, 56, image.Pt(300, 8), font),
-		NewButton("Intelligence:", 40, 64, image.Pt(300, 8), font),
-		NewButton("Unit Display:", 40, 72, image.Pt(300, 8), font),
-		NewButton("Play Balance:", 40, 80, image.Pt(300, 8), font),
-		NewButton("Speed:", 40, 88, image.Pt(300, 8), font),
-		NewButton("Select Options ...", 40, 128, image.Pt(300, 8), font),
-		NewButton("Then press ENTER.", 40, 136, image.Pt(300, 8), font)}
 
+	s.labels = []*Label{NewLabel("OPTION SELECTION", 24, 32, 300, 8, font)}
+	labelTexts := []string{side0Command, side1Command, "Intelligence:", "Unit Display:", "Play Balance:", "Speed:"}
 	maxLabelLength := 0
-	for _, label := range s.labels[1:] {
-		if len(label.Text) > maxLabelLength {
-			maxLabelLength = len(label.Text)
+	fontHeight := float64(font.Size().Y)
+	y := 48.0
+	for _, text := range labelTexts {
+		s.labels = append(s.labels, NewLabel(text, 40, y, 300, 8, font))
+		y += fontHeight
+		if len(text) > maxLabelLength {
+			maxLabelLength = len(text)
 		}
 	}
-	buttonPosition := float64(40 + (maxLabelLength+1)*8)
+	s.labels = append(s.labels,
+		NewLabel("Select Options ...", 40, 128, 300, 8, font),
+		NewLabel("Then press ENTER.", 40, 136, 300, 8, font))
+	for _, label := range s.labels {
+		label.SetBackgroundColor(15)
+	}
+
+	buttonX := float64(40 + (maxLabelLength+1)*8)
 
 	if game != lib.Conflict {
 		s.balanceStrings = balanceStrings[:]
@@ -77,31 +79,31 @@ func NewOptionSelection(game lib.Game, font *lib.Font, onOptionsSelected func(*l
 		s.balanceStrings = conflictBalanceStrings[:]
 	}
 
-	s.side0Button = NewButton(s.options.AlliedCommander.String(), buttonPosition, 48, image.Pt(300, 8), font)
-	s.side1Button = NewButton(s.options.GermanCommander.String(), buttonPosition, 56, image.Pt(300, 8), font)
-	s.intelligenceButton = NewButton(s.options.Intelligence.String(), buttonPosition, 64, image.Pt(300, 8), font)
-	s.unitDisplayButton = NewButton(s.options.UnitDisplay.String(), buttonPosition, 72, image.Pt(300, 8), font)
-	s.balanceButton = NewButton(s.balanceStrings[s.options.GameBalance], buttonPosition, 80, image.Pt(300, 8), font)
-	s.speedButton = NewButton(s.options.Speed.String(), buttonPosition, 88, image.Pt(300, 8), font)
+	s.side0Button = NewButton(s.options.AlliedCommander.String(), buttonX, 48, 300, 8, font)
+	s.side1Button = NewButton(s.options.GermanCommander.String(), buttonX, 56, 300, 8, font)
+	s.intelligenceButton = NewButton(s.options.Intelligence.String(), buttonX, 64, 300, 8, font)
+	s.unitDisplayButton = NewButton(s.options.UnitDisplay.String(), buttonX, 72, 300, 8, font)
+	s.balanceButton = NewButton(s.balanceStrings[s.options.GameBalance], buttonX, 80, 300, 8, font)
+	s.speedButton = NewButton(s.options.Speed.String(), buttonX, 88, 300, 8, font)
 
 	return s
 }
 
 func (s *OptionSelection) changeAlliedCommander() {
 	s.options.AlliedCommander = s.options.AlliedCommander.Other()
-	s.side0Button.Text = s.options.AlliedCommander.String()
+	s.side0Button.SetText(s.options.AlliedCommander.String())
 }
 func (s *OptionSelection) changeGermanCommander() {
 	s.options.GermanCommander = s.options.GermanCommander.Other()
-	s.side1Button.Text = s.options.GermanCommander.String()
+	s.side1Button.SetText(s.options.GermanCommander.String())
 }
 func (s *OptionSelection) changeIntelligence() {
 	s.options.Intelligence = s.options.Intelligence.Other()
-	s.intelligenceButton.Text = s.options.Intelligence.String()
+	s.intelligenceButton.SetText(s.options.Intelligence.String())
 }
 func (s *OptionSelection) changeUnitDisplay() {
 	s.options.UnitDisplay = 1 - s.options.UnitDisplay
-	s.unitDisplayButton.Text = s.options.UnitDisplay.String()
+	s.unitDisplayButton.SetText(s.options.UnitDisplay.String())
 }
 func (s *OptionSelection) changeGameBalance(forward bool) {
 	if forward {
@@ -109,7 +111,7 @@ func (s *OptionSelection) changeGameBalance(forward bool) {
 	} else {
 		s.options.GameBalance = (s.options.GameBalance + 4) % 5
 	}
-	s.balanceButton.Text = s.balanceStrings[s.options.GameBalance]
+	s.balanceButton.SetText(s.balanceStrings[s.options.GameBalance])
 }
 func (s *OptionSelection) changeGameSpeed(forward bool) {
 	if forward {
@@ -123,7 +125,7 @@ func (s *OptionSelection) changeGameSpeed(forward bool) {
 			s.options.Speed = 3
 		}
 	}
-	s.speedButton.Text = s.options.Speed.String()
+	s.speedButton.SetText(s.options.Speed.String())
 }
 func (s *OptionSelection) Update() error {
 	if s.side0Button.Update() {

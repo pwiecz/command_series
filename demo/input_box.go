@@ -16,15 +16,15 @@ type InputBox struct {
 func NewInputBox(x, y float64, width int, font *lib.Font, onEnter func(string)) *InputBox {
 	fontSize := font.Size()
 	return &InputBox{
-		label:   NewLabel(x, y, (width+1)*fontSize.X, fontSize.Y, font),
+		label:   NewLabel("", x, y, (width+1)*fontSize.X, fontSize.Y, font),
 		width:   width,
 		onEnter: onEnter}
 }
 
-func (i *InputBox) SetText(text string) {
-	i.text = text
-	i.cursorPosition = len(i.text)
-}
+//func (i *InputBox) SetText(text string) {
+//	i.text = text
+//	i.cursorPosition = len(i.text)
+//}
 func (i *InputBox) SetTextColor(textColor int) {
 	i.label.SetTextColor(textColor)
 }

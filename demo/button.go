@@ -7,43 +7,24 @@ import "github.com/hajimehoshi/ebiten/inpututil"
 import "github.com/pwiecz/command_series/lib"
 
 type Button struct {
-	Text      string
-	x, y      float64
-	rect      image.Rectangle
-	font      *lib.Font
-	image     *ebiten.Image
-	shownText string
+	label *Label
+	rect  image.Rectangle
 }
 
-func NewButton(text string, x, y float64, size image.Point, font *lib.Font) *Button {
-	var rect image.Rectangle
-	rect.Min.X, rect.Min.Y = int(x), int(y)
-	rect.Max.X, rect.Max.Y = int(x)+size.X, int(y)+size.Y
-	return &Button{
-		x: x, y: y,
-		rect: rect,
-		Text: text,
-		font: font}
+func NewButton(text string, x, y float64, width, height int, font *lib.Font) *Button {
+	b := &Button{
+		label: NewLabel(text, x, y, width, height, font),
+		rect:  image.Rect(int(x), int(y), int(x)+width, int(y)+height)}
+	b.label.SetBackgroundColor(15)
+	return b
 }
 
+func (b *Button) SetText(text string) {
+	b.label.Clear()
+	b.label.SetText(text, 0, false)
+}
 func (b *Button) Draw(dst *ebiten.Image) {
-	if b.image == nil || b.shownText != b.Text {
-		if b.image == nil {
-			b.image = ebiten.NewImage(b.rect.Dx(), b.rect.Dy())
-		}
-		b.image.Fill(lib.RGBPalette[15])
-		fontSize := b.font.Size()
-		var opts ebiten.DrawImageOptions
-		for _, r := range b.Text {
-			glyphImg := ebiten.NewImageFromImage(b.font.Glyph(r))
-			b.image.DrawImage(glyphImg, &opts)
-			opts.GeoM.Translate(float64(fontSize.X), 0)
-		}
-		b.shownText = b.Text
-	}
-	opts := &ebiten.DrawImageOptions{}
-	opts.GeoM.Translate(b.x, b.y)
-	dst.DrawImage(b.image, opts)
+	b.label.Draw(dst)
 }
 
 func (b *Button) Update() bool {

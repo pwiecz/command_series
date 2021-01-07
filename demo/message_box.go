@@ -12,7 +12,7 @@ func NewMessageBox(x, y float64, width, height int, font *lib.Font) *MessageBox 
 	fontSize := font.Size()
 	numRows := (height + fontSize.Y - 1) / fontSize.Y
 	for i := 0; i < numRows; i++ {
-		b.rows = append(b.rows, NewLabel(x, y+float64(fontSize.Y*i), width, fontSize.Y, font))
+		b.rows = append(b.rows, NewLabel("", x, y+float64(fontSize.Y*i), width, fontSize.Y, font))
 	}
 	return b
 }
