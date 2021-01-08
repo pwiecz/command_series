@@ -37,6 +37,8 @@ const (
 	Arrows7          IconType = 23
 )
 
+// Sequence of pairs of arrows pointing at the center of the tile.
+// To be displayed over the objective of a selected unit.
 var ArrowIcons = []IconType{
 	Arrows0,
 	Arrows1,
@@ -47,6 +49,8 @@ var ArrowIcons = []IconType{
 	Arrows6,
 	Arrows7}
 
+// Sequence of concentric circles ending with a light bolt.
+// To be displayed over the location of a skirmish.
 var CircleIcons = []IconType{
 	Circles5,
 	Circles4,
@@ -57,9 +61,6 @@ var CircleIcons = []IconType{
 	LightningBolt}
 
 type Icons struct {
-	// cursor, lightning bolt, 6 x concentric cicles, supply track, fighting unit,
-	// unit on knees, surrendering unit, exclamation mark, smiling face, running unit,
-	// question mark, 8 x pairs of arrows
 	Sprites [24]*image.Paletted
 }
 

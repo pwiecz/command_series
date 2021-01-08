@@ -6,7 +6,7 @@ Obtain an ATR image of Atari verison of one of the games and run `$ command_seri
 
 # Missing features
 * Bug fixes, many bug-fixes
-* Save/load
+* ~~Save/load~~
 * Music and sound
 * Intro and ending
 * Color cycling of cursor/icons, etc.

@@ -137,13 +137,7 @@ func ParseSprites(iconData, symbolData, introData io.Reader) (Sprites, error) {
 			continue
 		}
 		if i < 59 {
-			if err != nil {
-				return sprites, fmt.Errorf("Cannot convert sprite for char %c (%v)", char, err)
-			}
 			characters[char] = iconSprites[i]
-		}
-		if err != nil {
-			return sprites, fmt.Errorf("Cannot convert sprite for intro char %c (%v)", char, err)
 		}
 		introCharacters[char] = introSprites[i]
 	}

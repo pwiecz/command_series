@@ -208,9 +208,15 @@ func (s *MainScreen) Update() error {
 				s.showLastMessageUnit()
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case DecreaseSpeed:
+				if s.gameOver {
+					break
+				}
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 				s.decreaseGameSpeed()
 			case IncreaseSpeed:
+				if s.gameOver {
+					break
+				}
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 				s.increaseGameSpeed()
 			case SwitchUnitDisplay:
@@ -231,18 +237,33 @@ func (s *MainScreen) Update() error {
 				s.sync.Stop()
 				return fmt.Errorf("QUIT")
 			case Reserve:
+				if s.gameOver {
+					break
+				}
 				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, lib.Reserve)
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case Defend:
+				if s.gameOver {
+					break
+				}
 				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, lib.Defend)
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case Attack:
+				if s.gameOver {
+					break
+				}
 				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, lib.Attack)
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case Move:
+				if s.gameOver {
+					break
+				}
 				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, lib.Move)
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case SetObjective:
+				if s.gameOver {
+					break
+				}
 				s.trySetObjective(s.mapView.cursorX, s.mapView.cursorY)
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case ScrollDown:

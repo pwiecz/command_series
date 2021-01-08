@@ -430,6 +430,7 @@ nextUnit:
 	if s.update != unit.Side {
 		s.reinitSmallMapsAndSuch(unit.Side)
 	}
+	// If unit is commanded by the computer find the best order to execute by the unit.
 	{
 		// v57 := sign(sign_extend([29927 + 10 + unit.side])/16)*4
 		sx, sy := unit.X/8, unit.Y/4
