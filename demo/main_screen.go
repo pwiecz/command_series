@@ -724,6 +724,10 @@ func (s *MainScreen) saveGameToFile(filename string) {
 		s.messageBox.Print("DISK ERROR: 1", 2, 4, false)
 		return
 	}
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		s.messageBox.Print("DISK ERROR: 2", 2, 4, false)
+		return
+	}
 	file, err := os.Create(filepath.Join(dir, filename+".sav"))
 	if err != nil {
 		s.messageBox.Print("DISK ERROR: 3", 2, 4, false)
