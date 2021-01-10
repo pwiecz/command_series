@@ -1238,10 +1238,13 @@ l21:
 					}
 				}
 			}
-			unit2.X, unit2.Y = bestX, bestY // moved this up comparing to the original code
-			unit2.Terrain = s.terrainAt(unit2.X, unit2.Y)
-			if unit2.Terrain%64 >= 48 {
-				panic(fmt.Errorf("%v", unit2))
+			if bestX != unit2.X || bestY != unit2.Y {
+				unit2.X, unit2.Y = bestX, bestY // moved this up comparing to the original code
+
+				unit2.Terrain = s.terrainAt(bestX, bestY)
+				if unit2.Terrain%64 >= 48 {
+					panic(fmt.Errorf("%v %d %d", unit2, bestX, bestY))
+				}
 			}
 			if _, ok := message.(WeHaveBeenOverrun); !ok {
 				if s.game != Conflict {
@@ -1740,8 +1743,9 @@ func (s *GameState) ContainsUnit(x, y int) bool {
 		s.ContainsUnitOfSide(x, y, 1)
 }
 func (s *GameState) ContainsUnitOfSide(x, y, side int) bool {
-	for _, unit := range s.units[side] {
-		if unit.IsInGame && unit.X == x && unit.Y == y {
+	sideUnits := s.units[side]
+	for i := range sideUnits {
+		if sideUnits[i].IsInGame && sideUnits[i].X == x && sideUnits[i].Y == y {
 			return true
 		}
 	}
@@ -1761,18 +1765,19 @@ func (s *GameState) FindUnit(x, y int) (Unit, bool) {
 }
 func (s *GameState) FindUnitAtMapCoords(x, y int) (Unit, bool) {
 	for _, sideUnits := range s.units {
-		for _, unit := range sideUnits {
-			if unit.IsInGame && unit.X/2 == x && unit.Y == y {
-				return unit, true
+		for i := range sideUnits {
+			if sideUnits[i].IsInGame && sideUnits[i].X/2 == x && sideUnits[i].Y == y {
+				return sideUnits[i], true
 			}
 		}
 	}
 	return Unit{}, false
 }
 func (s *GameState) FindUnitOfSide(x, y, side int) (Unit, bool) {
-	for _, unit := range s.units[side] {
-		if unit.IsInGame && unit.X == x && unit.Y == y {
-			return unit, true
+	sideUnits := s.units[side]
+	for i := range sideUnits {
+		if sideUnits[i].IsInGame && sideUnits[i].X == x && sideUnits[i].Y == y {
+			return sideUnits[i], true
 		}
 	}
 	return Unit{}, false
