@@ -374,7 +374,7 @@ loop:
 		case lib.SupplyTruckMove:
 			if s.mapView.AreMapCoordsVisible(message.X0, message.Y0) || s.mapView.AreMapCoordsVisible(message.X1, message.Y1) {
 				s.animation = NewIconAnimation(s.mapView, lib.SupplyTruck,
-					message.X0, message.Y0, message.X1, message.Y1, 3)
+					message.X0, message.Y0, message.X1, message.Y1, 1)
 				break loop
 			}
 		case lib.WeatherForecast:
