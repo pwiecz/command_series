@@ -29,7 +29,7 @@ func NewListBox(x, y float64, width, height int, items []string, font *lib.Font,
 	if len(items) == 0 || height == 0 {
 		return l
 	}
-	for i := len(items[0]); i < width; i++ {
+	for i := 0; i < width; i++ {
 		l.rows[0].SetCharInverted(i, true)
 	}
 	return l
