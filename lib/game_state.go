@@ -759,7 +759,7 @@ l24:
 					v = s.scenarioData.TerrainTankAttack[tt]
 				}
 				if tt < 7 {
-					// temperarily hide the unit while we compute sth
+					// temporarily hide the unit while we compute sth
 					s.units[unit.Side][unit.Index].IsInGame = false
 					arg2 = temp2 - s.magicCoeff(s.hexes.Arr48[:], nx, ny, unit.Side)*2 + v
 					// unhide the unit
@@ -1352,13 +1352,13 @@ func (s *GameState) function29_showUnit(unit Unit) {
 	}
 }
 
-// arr is one of 48 element arrays in Hexes
+// arr is one of 48-element arrays in Hexes
 func (s *GameState) magicCoeff(arr []int, x, y, side int) int {
 	var bitmaps [5]byte
 	for i := 5; i >= 0; i-- {
-		bitmaps[0] <<= 2
-		bitmaps[1] <<= 2
-		bitmaps[4] <<= 2
+		bitmaps[0] <<= 1
+		bitmaps[1] <<= 1
+		bitmaps[4] <<= 1
 		nx := x + s.generic.Dx[i]
 		ny := y + s.generic.Dy[i]
 		if s.ContainsUnitOfSide(nx, ny, 1-side) {
@@ -1370,14 +1370,14 @@ func (s *GameState) magicCoeff(arr []int, x, y, side int) int {
 		}
 	}
 
-	bitmaps[3] = bitmaps[1]
 	bitmaps[2] = bitmaps[0]
+	bitmaps[3] = bitmaps[1]
 
-	bitmaps[1] = rotateRight6Bits(bitmaps[1])
 	bitmaps[0] = rotateRight6Bits(bitmaps[0])
+	bitmaps[1] = rotateRight6Bits(bitmaps[1])
 
-	bitmaps[3] |= rotateRight6Bits(bitmaps[1])
 	bitmaps[2] |= rotateRight6Bits(bitmaps[0])
+	bitmaps[3] |= rotateRight6Bits(bitmaps[1])
 
 	bitmaps[1] |= rotateRight6Bits(bitmaps[4])
 
