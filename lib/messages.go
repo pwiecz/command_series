@@ -23,6 +23,7 @@ func (a WeAreAttacking) String() string {
 	return fmt.Sprintf("WE ARE ATTACKING.\nENEMY IS IN %s FORMATION.\nOUR LOSSES ARE %s.",
 		a.formationNames[a.enemy.Formation], losses[Min(a.outcome/11, 3)])
 }
+func (a WeAreAttacking) EnemyMessage() WeAreUnderFire { return WeAreUnderFire{a.enemy}}
 
 type WeHaveMetStrongResistance struct { // MSG = 2
 	unit Unit
@@ -109,9 +110,6 @@ type WeAreUnderFire struct { // MSG = 11
 	unit Unit
 }
 
-func NewWeAreUnderFire(unit Unit) WeAreUnderFire {
-	return WeAreUnderFire{unit: unit}
-}
 func (u WeAreUnderFire) Unit() Unit     { return u.unit }
 func (u WeAreUnderFire) Icon() IconType { return ExclamationMark }
 func (u WeAreUnderFire) String() string {

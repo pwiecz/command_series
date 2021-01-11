@@ -35,6 +35,7 @@ const (
 	SetObjective
 	Save
 	Load
+	TurboMode
 )
 
 type CommandBuffer struct {
@@ -113,6 +114,8 @@ func (b *CommandBuffer) triggeredCommand() (Command, bool) {
 		return Save, true
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyL) {
 		return Load, true
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyF12) {
+		return TurboMode, true
 	}
 	return 0, false
 }

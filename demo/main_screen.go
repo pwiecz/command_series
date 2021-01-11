@@ -33,6 +33,7 @@ type MainScreen struct {
 	animation Animation
 
 	idleTicksLeft  int
+	turboMode      bool
 	isFrozen       bool
 	areUnitsHidden bool
 	playerSide     int
@@ -308,6 +309,8 @@ func (s *MainScreen) Update() error {
 					break
 				}
 				s.loadGame()
+			case TurboMode:
+				s.turboMode = !s.turboMode
 			}
 		default:
 		}
@@ -319,6 +322,9 @@ func (s *MainScreen) Update() error {
 	}
 	if s.isFrozen || s.areUnitsHidden || s.gameOver {
 		return nil
+	}
+	if s.turboMode {
+		s.idleTicksLeft = 0
 	}
 	if s.idleTicksLeft > 0 {
 		s.idleTicksLeft--
@@ -345,12 +351,14 @@ loop:
 				break loop
 			} else if s.gameData.Game == lib.Conflict {
 				if msg, ok := message.(lib.WeAreAttacking); ok {
-					s.showMessageFromUnit(lib.NewWeAreUnderFire(msg.Enemy()))
+					s.showMessageFromUnit(msg.EnemyMessage())
 					break loop
 				}
 			}
 		case lib.UnitAttack:
-			s.animation = NewIconsAnimation(s.mapView, lib.CircleIcons, message.X/2, message.Y)
+			if !s.turboMode {
+				s.animation = NewIconsAnimation(s.mapView, lib.CircleIcons, message.X/2, message.Y)
+			}
 			break loop
 		case lib.Reinforcements:
 			if message.Sides[s.playerSide] {
@@ -367,14 +375,18 @@ loop:
 			break loop
 		case lib.UnitMove:
 			if s.mapView.AreMapCoordsVisible(message.X0, message.Y0) || s.mapView.AreMapCoordsVisible(message.X1, message.Y1) {
-				s.animation = NewUnitAnimation(s.mapView /*s.audioPlayer*/, nil,
-					message.Unit, message.X0, message.Y0, message.X1, message.Y1, 30)
+				if !s.turboMode {
+					s.animation = NewUnitAnimation(s.mapView /*s.audioPlayer*/, nil,
+						message.Unit, message.X0, message.Y0, message.X1, message.Y1, 30)
+				}
 				break loop
 			}
 		case lib.SupplyTruckMove:
 			if s.mapView.AreMapCoordsVisible(message.X0, message.Y0) || s.mapView.AreMapCoordsVisible(message.X1, message.Y1) {
-				s.animation = NewIconAnimation(s.mapView, lib.SupplyTruck,
-					message.X0, message.Y0, message.X1, message.Y1, 1)
+				if !s.turboMode {
+					s.animation = NewIconAnimation(s.mapView, lib.SupplyTruck,
+						message.X0, message.Y0, message.X1, message.Y1, 1)
+				}
 				break loop
 			}
 		case lib.WeatherForecast:
@@ -408,7 +420,9 @@ loop:
 func (s *MainScreen) showMessageFromUnit(message lib.MessageFromUnit) {
 	s.messageBox.Clear()
 	s.messageBox.Print("MESSAGE FROM ...", 2, 0, true)
-	unit := message.Unit()
+	messageUnit := message.Unit()
+	// The unit might have moved after sending the message.
+	unit := s.scenarioData.Units[messageUnit.Side][messageUnit.Index]
 	unitName := fmt.Sprintf("%s:", unit.FullName())
 	s.messageBox.Print(unitName, 2, 1, false)
 	lines := strings.Split("\""+message.String()+"\"", "\n")
