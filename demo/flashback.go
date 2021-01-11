@@ -43,9 +43,21 @@ func (f *Flashback) Update() error {
 		if f.day > 0 {
 			f.day--
 		}
-	} else if inpututil.IsKeyJustPressed(ebiten.KeyF4) {
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyF4) || inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		f.hideUnitsFromDay(f.shownDay)
 		return errors.New("Exit")
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyDown) {
+		curX, curY := f.mapView.GetCursorPosition()
+		f.mapView.SetCursorPosition(curX, curY+1)
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyUp) {
+		curX, curY := f.mapView.GetCursorPosition()
+		f.mapView.SetCursorPosition(curX, curY-1)
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyRight) {
+		curX, curY := f.mapView.GetCursorPosition()
+		f.mapView.SetCursorPosition(curX+1, curY)
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyLeft) {
+		curX, curY := f.mapView.GetCursorPosition()
+		f.mapView.SetCursorPosition(curX-1, curY)
 	}
 	return nil
 }
@@ -70,7 +82,7 @@ func (f *Flashback) hideUnitsFromDay(day int) {
 		return
 	}
 	for _, unit := range f.flashback[day] {
-		if unit.Terrain%64>=48 {
+		if unit.Terrain%64 >= 48 {
 			panic(fmt.Errorf("%v", unit))
 		}
 		f.terrainMap.SetTile(unit.X/2, unit.Y, byte(unit.Terrain))
