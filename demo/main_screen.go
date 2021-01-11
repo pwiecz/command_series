@@ -235,7 +235,9 @@ func (s *MainScreen) Update() error {
 				}
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case Quit:
-				s.sync.Stop()
+				if !s.gameOver {
+					s.sync.Stop()
+				}
 				return fmt.Errorf("QUIT")
 			case Reserve:
 				if s.gameOver {
@@ -358,8 +360,8 @@ loop:
 		case lib.UnitAttack:
 			if !s.turboMode {
 				s.animation = NewIconsAnimation(s.mapView, lib.CircleIcons, message.X/2, message.Y)
+				break loop
 			}
-			break loop
 		case lib.Reinforcements:
 			if message.Sides[s.playerSide] {
 				s.messageBox.Clear()
@@ -382,12 +384,12 @@ loop:
 				break loop
 			}
 		case lib.SupplyTruckMove:
-			if s.mapView.AreMapCoordsVisible(message.X0, message.Y0) || s.mapView.AreMapCoordsVisible(message.X1, message.Y1) {
-				if !s.turboMode {
+			if !s.turboMode {
+				if s.mapView.AreMapCoordsVisible(message.X0, message.Y0) || s.mapView.AreMapCoordsVisible(message.X1, message.Y1) {
 					s.animation = NewIconAnimation(s.mapView, lib.SupplyTruck,
 						message.X0, message.Y0, message.X1, message.Y1, 1)
+					break loop
 				}
-				break loop
 			}
 		case lib.WeatherForecast:
 			s.messageBox.Clear()
