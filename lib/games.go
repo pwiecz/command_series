@@ -1,10 +1,12 @@
 package lib
 
-import "fmt"
-import "path/filepath"
-import "strings"
+import (
+	"fmt"
+	"path/filepath"
+	"strings"
 
-import "github.com/pwiecz/command_series/atr"
+	"github.com/pwiecz/command_series/atr"
+)
 
 type Game int
 

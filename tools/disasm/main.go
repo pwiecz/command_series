@@ -1,10 +1,12 @@
 package main
 
-import "bufio"
-import "fmt"
-import "os"
+import (
+	"bufio"
+	"fmt"
+	"os"
 
-import "github.com/pwiecz/command_series/tools/lib"
+	"github.com/pwiecz/command_series/tools/lib"
+)
 
 type scopeType int
 

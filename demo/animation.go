@@ -1,8 +1,9 @@
 package main
 
-import "github.com/hajimehoshi/ebiten"
-
-import "github.com/pwiecz/command_series/lib"
+import (
+	"github.com/hajimehoshi/ebiten"
+	"github.com/pwiecz/command_series/lib"
+)
 
 type Animation interface {
 	Update()

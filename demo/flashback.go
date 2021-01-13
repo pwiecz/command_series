@@ -1,12 +1,13 @@
 package main
 
-import "errors"
-import "fmt"
+import (
+	"errors"
+	"fmt"
 
-import "github.com/hajimehoshi/ebiten"
-import "github.com/hajimehoshi/ebiten/inpututil"
-
-import "github.com/pwiecz/command_series/lib"
+	"github.com/hajimehoshi/ebiten"
+	"github.com/hajimehoshi/ebiten/inpututil"
+	"github.com/pwiecz/command_series/lib"
+)
 
 type Flashback struct {
 	mapView    *MapView

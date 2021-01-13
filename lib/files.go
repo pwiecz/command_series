@@ -1,7 +1,9 @@
 package lib
 
-import "bufio"
-import "io"
+import (
+	"bufio"
+	"io"
+)
 
 func UnpackFile(data io.Reader) ([]byte, error) {
 	var header [5]byte

@@ -1,13 +1,14 @@
 package main
 
-import "fmt"
-import "image/color"
+import (
+	"fmt"
+	"image/color"
 
-import "github.com/hajimehoshi/ebiten"
-import "github.com/hajimehoshi/ebiten/inpututil"
-
-import "github.com/pwiecz/command_series/atr"
-import "github.com/pwiecz/command_series/lib"
+	"github.com/hajimehoshi/ebiten"
+	"github.com/hajimehoshi/ebiten/inpututil"
+	"github.com/pwiecz/command_series/atr"
+	"github.com/pwiecz/command_series/lib"
+)
 
 type ScenarioSelection struct {
 	labels             []*Label

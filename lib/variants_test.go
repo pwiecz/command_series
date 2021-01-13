@@ -1,7 +1,9 @@
 package lib
 
-import "bytes"
-import "testing"
+import (
+	"bytes"
+	"testing"
+)
 
 func TestParseEncodeParseVariant(t *testing.T) {
 	_, scenarioData, err := readTestData("crusade.atr", 0)

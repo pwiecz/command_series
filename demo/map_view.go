@@ -1,9 +1,11 @@
 package main
 
-import "image"
-import "github.com/hajimehoshi/ebiten"
+import (
+	"image"
 
-import "github.com/pwiecz/command_series/lib"
+	"github.com/hajimehoshi/ebiten"
+	"github.com/pwiecz/command_series/lib"
+)
 
 type MapView struct {
 	minX, minY, maxX, maxY int // map bounds to draw in map coordinates

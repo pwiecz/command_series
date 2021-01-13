@@ -1,7 +1,9 @@
 package main
 
-import "github.com/hajimehoshi/ebiten"
-import "github.com/hajimehoshi/ebiten/inpututil"
+import (
+	"github.com/hajimehoshi/ebiten"
+	"github.com/hajimehoshi/ebiten/inpututil"
+)
 
 type Command int
 

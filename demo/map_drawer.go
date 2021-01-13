@@ -1,10 +1,12 @@
 package main
 
-import "image"
-import "image/color"
-import "github.com/hajimehoshi/ebiten"
+import (
+	"image"
+	"image/color"
 
-import "github.com/pwiecz/command_series/lib"
+	"github.com/hajimehoshi/ebiten"
+	"github.com/pwiecz/command_series/lib"
+)
 
 type MapDrawer struct {
 	terrainMap             *lib.Map

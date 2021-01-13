@@ -1,12 +1,14 @@
 package lib
 
-import "bytes"
-import "fmt"
-import "image"
-import "image/color"
-import "io"
+import (
+	"bytes"
+	"fmt"
+	"image"
+	"image/color"
+	"io"
 
-import "github.com/pwiecz/command_series/atr"
+	"github.com/pwiecz/command_series/atr"
+)
 
 type Font struct {
 	fallback   *image.Paletted

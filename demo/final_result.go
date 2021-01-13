@@ -1,9 +1,10 @@
 package main
 
-import "github.com/hajimehoshi/ebiten"
-import "github.com/hajimehoshi/ebiten/inpututil"
-
-import "github.com/pwiecz/command_series/lib"
+import (
+	"github.com/hajimehoshi/ebiten"
+	"github.com/hajimehoshi/ebiten/inpututil"
+	"github.com/pwiecz/command_series/lib"
+)
 
 type FinalResult struct {
 	onRestartGame func()

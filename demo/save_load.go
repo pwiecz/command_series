@@ -1,9 +1,11 @@
 package main
 
-import "io/ioutil"
-import "os"
-import "path/filepath"
-import "strings"
+import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"strings"
+)
 
 func saveDir(scenario string) (string, error) {
 	homeDir, err := os.UserHomeDir()

@@ -1,18 +1,19 @@
 package main
 
-import "bufio"
-import "encoding/binary"
-import "io"
-import "fmt"
-import "os"
-import "path/filepath"
-import "strings"
-import "math/rand"
+import (
+	"bufio"
+	"encoding/binary"
+	"fmt"
+	"io"
+	"math/rand"
+	"os"
+	"path/filepath"
+	"strings"
 
-import "github.com/hajimehoshi/ebiten"
-import "github.com/hajimehoshi/ebiten/inpututil"
-
-import "github.com/pwiecz/command_series/lib"
+	"github.com/hajimehoshi/ebiten"
+	"github.com/hajimehoshi/ebiten/inpututil"
+	"github.com/pwiecz/command_series/lib"
+)
 
 type MainScreen struct {
 	selectedScenario int

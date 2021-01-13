@@ -1,7 +1,9 @@
 package lib
 
-import "fmt"
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 type Type int
 

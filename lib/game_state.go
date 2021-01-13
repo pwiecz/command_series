@@ -1,9 +1,11 @@
 package lib
 
-import "encoding/binary"
-import "fmt"
-import "io"
-import "math/rand"
+import (
+	"encoding/binary"
+	"fmt"
+	"io"
+	"math/rand"
+)
 
 type GameState struct {
 	rand *rand.Rand
@@ -716,7 +718,7 @@ l24:
 		menCoeff := s.scenarioData.TerrainMenAttack[terrainType] * unit.MenCount
 		equipCoeff := s.scenarioData.TerrainTankAttack[terrainType] * unit.EquipCount * s.scenarioData.Data16High[unit.Type] / 4
 		coeff := (menCoeff + equipCoeff) / 8 * (255 - unit.Fatigue) / 256 * (unit.Morale + s.scenarioData.Data0High[unit.Type]*16) / 128
-		temp2 := coeff * s.magicCoeff(s.hexes.Arr144[:], unit.X, unit.Y, unit.Side) / 8
+		temp2 := coeff * s.magicCoeff(&s.hexes.Arr144, unit.X, unit.Y, unit.Side) / 8
 		v := 0
 		if v9 > 0 && s.scenarioData.Data200Low[unit.Type] < 3 {
 			v = 12
@@ -745,7 +747,7 @@ l24:
 					d += 8
 				}
 				n := t / Clamp(d, 1, 32)
-				arg2 = n * s.magicCoeff(s.hexes.Arr144[:], unit2.X, unit2.Y, unit2.Side) / 8 * (255 - unit2.Fatigue) / 256 * unit2.Morale / 128
+				arg2 = n * s.magicCoeff(&s.hexes.Arr144, unit2.X, unit2.Y, unit2.Side) / 8 * (255 - unit2.Fatigue) / 256 * unit2.Morale / 128
 			} else {
 				t := s.terrainAt(nx, ny)
 				if i == 18 {
@@ -761,7 +763,7 @@ l24:
 				if tt < 7 {
 					// temporarily hide the unit while we compute sth
 					s.units[unit.Side][unit.Index].IsInGame = false
-					arg2 = temp2 - s.magicCoeff(s.hexes.Arr48[:], nx, ny, unit.Side)*2 + v
+					arg2 = temp2 - s.magicCoeff(&s.hexes.Arr48, nx, ny, unit.Side)*2 + v
 					// unhide the unit
 					s.units[unit.Side][unit.Index].IsInGame = true
 				}
@@ -819,7 +821,7 @@ l24:
 				nx := unit.X + s.generic.Dx[i]
 				ny := unit.Y + s.generic.Dy[i]
 				if s.game != Conflict {
-					v = r + s.magicCoeff(s.hexes.Arr0[:], nx, ny, unit.Side)
+					v = r + s.magicCoeff(&s.hexes.Arr0, nx, ny, unit.Side)
 				}
 				if city, ok := s.FindCity(nx, ny); ok {
 					if s.ContainsUnitOfSide(nx, ny, unit.Side) {
@@ -828,7 +830,7 @@ l24:
 				}
 				if s.scenarioData.UnitScores[unit.Type]&248 > 0 ||
 					unit.Fatigue+unit.General.Data2High*4 > 96 {
-					v = r + s.magicCoeff(s.hexes.Arr96[:], nx, ny, unit.Side)
+					v = r + s.magicCoeff(&s.hexes.Arr96, nx, ny, unit.Side)
 				}
 			}
 			if v >= arg1 {
@@ -1131,7 +1133,7 @@ l21:
 			}
 			attackerScore = (menCoeff + tankCoeff) * unit.Morale / 256 * (255 - unit.Fatigue) / 128
 			attackerScore = attackerScore * unit.General.Attack / 16
-			attackerScore = attackerScore * s.magicCoeff(s.hexes.Arr144[:], unit.X, unit.Y, unit.Side) / 8
+			attackerScore = attackerScore * s.magicCoeff(&s.hexes.Arr144, unit.X, unit.Y, unit.Side) / 8
 			attackerScore++
 		}
 
@@ -1149,7 +1151,7 @@ l21:
 			if unit2.SupplyLevel == 0 {
 				defenderScore = defenderScore * s.scenarioData.Data167 / 8
 			}
-			defenderScore = defenderScore * s.magicCoeff(s.hexes.Arr144[:], unit2.X, unit2.Y, 1-unit.Side) / 8
+			defenderScore = defenderScore * s.magicCoeff(&s.hexes.Arr144, unit2.X, unit2.Y, 1-unit.Side) / 8
 			defenderScore++
 		}
 
@@ -1230,7 +1232,7 @@ l21:
 				r := s.scenarioData.TerrainMenDefence[tt]
 				if s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[tt][unit2.Type] > 0 {
 					if !s.ContainsUnit(nx, ny) && !s.ContainsCity(nx, ny) {
-						r += s.magicCoeff(s.hexes.Arr96[:], nx, ny, 1-unit.Side) * 4
+						r += s.magicCoeff(&s.hexes.Arr96, nx, ny, 1-unit.Side) * 4
 						if r > 11 && r >= bestDefence {
 							bestDefence = r
 							bestX, bestY = nx, ny
@@ -1265,7 +1267,7 @@ l21:
 					message = WeAreRetreating{unit2}
 				}
 				if arg1 > 60 && (s.game != Conflict || !unit.FormationTopBit) &&
-					s.magicCoeff(s.hexes.Arr96[:], oldX, oldY, unit.Side) > -4 &&
+					s.magicCoeff(&s.hexes.Arr96, oldX, oldY, unit.Side) > -4 &&
 					s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[s.terrainTypeAt(oldX, oldY)][unit.Type] > 0 {
 					s.hideUnit(unit)
 					unit.X = oldX
@@ -1352,8 +1354,13 @@ func (s *GameState) function29_showUnit(unit Unit) {
 	}
 }
 
-// arr is one of 48-element arrays in Hexes
-func (s *GameState) magicCoeff(arr []int, x, y, side int) int {
+// arr is one of arrays in Hexes
+func (s *GameState) magicCoeff(arr *[6][8]int, x, y, side int) int {
+	// bitmap0: has enemy unit in given direction
+	// bitmap1: has friendly unit or impassable terrain in given direction
+	// bitmap2: has enemy unit in neighbouring directions
+	// bitmap3: has friendly unit in neighbouring directions
+	// bitmap4: contains impassable terrain in given direction
 	var bitmaps [5]byte
 	for i := 5; i >= 0; i-- {
 		bitmaps[0] <<= 1
@@ -1381,25 +1388,43 @@ func (s *GameState) magicCoeff(arr []int, x, y, side int) int {
 
 	bitmaps[1] |= rotateRight6Bits(bitmaps[4])
 
-	xA70B := [16]int{0, 2, 1, 0, 4, 2, 1, 0, 3, 2, 1, 0, 5, 2, 1, 0}
-	var xA705 [6]int
+	// Except for the first one, zero values are impossible.
+	xA70B := [16]int{
+		0, // 0) no unit ahead nor in neighbouring directions
+		2, // 1) enemy ahead, nothing in neighbouring directions
+		1, // 2) friendly unit or impassable terrain ahead, nothing in neighbouring directions
+		0, // 3) (impossible)
+		4, // 4) nothing ahead, enemy unit in a neighbouring direction
+		2, // 5) enemy ahead and in a neighbouring direction
+		1, // 6) friendly unit or impassable ahead and an enemy in a neighbouring direction
+		0, // 7) (impossible)
+		3, // 8) friendly unit in a neighbouring direction, nothing ahead
+		2, // 9) enemy ehead, friendly unit in a neighbouring direction
+		1, // 10) friendly unit/impassable terrain ahead, friendly unit in a neighbouring direction
+		0, // 11) (impossible)
+		5, // 12) nothing ahead and an enemy and a friendly unit in neighbouring directions
+		2, // 13) enemy ahead and enemy and friendly unit in neighbouring directions
+		1, // 14) friendly unit/impassable terrain ahead, enemy and friendly unit in neighbouring directions
+		0, // 15) (impossible)
+	}
 
+	// xA705[i] - how many times xA80B[value of bitmaps[0-4)] occurs for all bitmap indices
+	var xA705 [6]int
 	for i := 0; i < 6; i++ {
-		xA6FE := 0
-		for Y := 3; Y >= 0; Y-- {
-			xA6FE <<= 1
-			if bitmaps[Y]&1 != 0 {
-				xA6FE++
-			}
+		var xA6FE byte // concatenation of bitmaps[0:4) on position i
+		for Y := 0; Y < 4; Y++ {
+			xA6FE |= (bitmaps[Y] & 1) << Y
 			bitmaps[Y] >>= 1
 		}
-
 		A := xA70B[xA6FE]
+		if A == 0 && xA6FE != 0 {
+			panic(fmt.Errorf("xA6FE==%d", int(xA6FE)))
+		}
 		xA705[A]++
 	}
 	xA704 := 0
-	for i := 5; i >= 0; i-- {
-		xA704 += arr[8*i+xA705[i]]
+	for i := 0; i < 6; i++ {
+		xA704 += arr[i][xA705[i]]
 	}
 	return int(int8(xA704))
 }

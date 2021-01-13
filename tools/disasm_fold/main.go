@@ -1,8 +1,11 @@
 package main
 
-import "bufio"
-import "os"
-import "github.com/pwiecz/command_series/tools/lib"
+import (
+	"bufio"
+	"os"
+
+	"github.com/pwiecz/command_series/tools/lib"
+)
 
 func main() {
 	reader := bufio.NewReader(os.Stdin)

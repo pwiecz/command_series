@@ -1,7 +1,9 @@
 package lib
 
-import "math/rand"
-import "testing"
+import (
+	"math/rand"
+	"testing"
+)
 
 func createTestGameState(filename string, scenarioNum, variantNum int, options Options, messageSync *MessageSync, t *testing.T) *GameState {
 	rand := rand.New(rand.NewSource(1))

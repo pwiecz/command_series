@@ -1,10 +1,12 @@
 package main
 
-import "image"
-import "github.com/hajimehoshi/ebiten"
-import "github.com/hajimehoshi/ebiten/inpututil"
+import (
+	"image"
 
-import "github.com/pwiecz/command_series/lib"
+	"github.com/hajimehoshi/ebiten"
+	"github.com/hajimehoshi/ebiten/inpututil"
+	"github.com/pwiecz/command_series/lib"
+)
 
 type Button struct {
 	label *Label

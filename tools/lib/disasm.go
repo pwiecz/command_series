@@ -1,8 +1,10 @@
 package lib
 
-import "io"
-import "io/ioutil"
-import "fmt"
+import (
+	"fmt"
+	"io"
+	"io/ioutil"
+)
 
 type decoder struct {
 	buf    []byte

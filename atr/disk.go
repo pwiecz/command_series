@@ -1,9 +1,11 @@
 package atr
 
-import "bytes"
-import "fmt"
-import "io"
-import "os"
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"os"
+)
 
 type SectorReader interface {
 	/* 1-based sector number */
@@ -39,7 +41,7 @@ func NewAtrSectorReader(filename string) (SectorReader, error) {
 	sectorReader.sectorSize = int(atrHeader[4]) + (int(atrHeader[5]) << 8)
 	imageSize := (int(atrHeader[2]) + (int(atrHeader[3]) << 8) +
 		(int(atrHeader[6]) << 16) + (int(atrHeader[7]) << 24)) * 16
-	sectorReader.sectorCount = 3 + (imageSize - 3*128) / sectorReader.sectorSize
+	sectorReader.sectorCount = 3 + (imageSize-3*128)/sectorReader.sectorSize
 	if sectorReader.sectorSize == 256 {
 		sectorReader.sectorCount = (sectorReader.sectorCount + 3) / 2
 	}

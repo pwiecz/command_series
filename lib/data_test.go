@@ -1,8 +1,10 @@
 package lib
 
-import "bytes"
-import "reflect"
-import "testing"
+import (
+	"bytes"
+	"reflect"
+	"testing"
+)
 
 func TestParseEncodeParseDataFirst255Bytes(t *testing.T) {
 	_, scenarioData, err := readTestData("crusade.atr", 0)

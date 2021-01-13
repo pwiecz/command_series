@@ -1,11 +1,13 @@
 package lib
 
-import "bytes"
-import "fmt"
-import "strconv"
-import "strings"
+import (
+	"bytes"
+	"fmt"
+	"strconv"
+	"strings"
 
-import "github.com/pwiecz/command_series/atr"
+	"github.com/pwiecz/command_series/atr"
+)
 
 // Representation of the data parsed from a {scenario}.SCN file.
 type Scenario struct {

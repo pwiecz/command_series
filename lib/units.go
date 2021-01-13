@@ -1,11 +1,13 @@
 package lib
 
-import "bytes"
-import "encoding/binary"
-import "fmt"
-import "io"
+import (
+	"bytes"
+	"encoding/binary"
+	"fmt"
+	"io"
 
-import "github.com/pwiecz/command_series/atr"
+	"github.com/pwiecz/command_series/atr"
+)
 
 type OrderType int
 

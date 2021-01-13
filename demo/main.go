@@ -1,14 +1,16 @@
 package main
 
-import "flag"
-import "fmt"
-import "log"
-import "math/rand"
-import "os"
-import "runtime/pprof"
-import "time"
+import (
+	"flag"
+	"fmt"
+	"log"
+	"math/rand"
+	"os"
+	"runtime/pprof"
+	"time"
 
-import "github.com/hajimehoshi/ebiten"
+	"github.com/hajimehoshi/ebiten"
+)
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 var seed = flag.Int64("seed", 0, "if specified, use given seed to initialize random number generator. Otherwise, a random seed will be used")

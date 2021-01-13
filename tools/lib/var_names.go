@@ -2,14 +2,14 @@ package lib
 
 var varNames = [64]string{
 	"INDEX",
-	"&UNITS", // SCN_UNI
-	"&SCRN",  // CRUSADE_MAP
-	"&TXT",   // SCN_TER ?
-	"&TABLE", // GENERIC_DTA
+	"&UNITS",   // SCN_UNI
+	"&SCRN",    // CRUSADE_MAP
+	"&TXT",     // SCN_TER ?
+	"&TABLE",   // GENERIC_DTA
 	"&S_TABLE", // SCN_DTA
 	"INDEX2",
 	"WHO",
-	"&GENS",  // HEXES_DTA (-256)
+	"&GENS", // HEXES_DTA (-256)
 	"MSG",
 	"&LOC",
 	"&UNIT",
@@ -32,7 +32,7 @@ var varNames = [64]string{
 	"&DEFEN",
 	"TEMP2",
 	"TEMP",
-	"AUTO",  // V10[8]
+	"AUTO", // V10[8]
 	"UNIT.STATE",
 	"UNIT.PX",
 	"UNIT.PY",

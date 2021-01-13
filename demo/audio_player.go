@@ -1,8 +1,11 @@
 package main
 
-import "io"
-import "sync"
-import "github.com/hajimehoshi/oto"
+import (
+	"io"
+	"sync"
+
+	"github.com/hajimehoshi/oto"
+)
 
 // A trivial player generating strictly rectangular waves of given frequency on 4 channels.
 type AudioPlayer struct {

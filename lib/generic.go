@@ -1,10 +1,12 @@
 package lib
 
-import "bytes"
-import "fmt"
-import "io"
+import (
+	"bytes"
+	"fmt"
+	"io"
 
-import "github.com/pwiecz/command_series/atr"
+	"github.com/pwiecz/command_series/atr"
+)
 
 // Representation of data parsed from GENERIC.DTA file.
 type Generic struct {

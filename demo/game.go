@@ -1,13 +1,14 @@
 package main
 
-import "fmt"
-import "math/rand"
+import (
+	"fmt"
+	"math/rand"
 
-import "github.com/hajimehoshi/ebiten"
-import "github.com/hajimehoshi/oto"
-
-import "github.com/pwiecz/command_series/atr"
-import "github.com/pwiecz/command_series/lib"
+	"github.com/hajimehoshi/ebiten"
+	"github.com/hajimehoshi/oto"
+	"github.com/pwiecz/command_series/atr"
+	"github.com/pwiecz/command_series/lib"
+)
 
 type SubGame interface {
 	Update() error

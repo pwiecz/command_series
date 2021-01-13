@@ -1,8 +1,10 @@
 package lib
 
-import "encoding/binary"
-import "fmt"
-import "io"
+import (
+	"encoding/binary"
+	"fmt"
+	"io"
+)
 
 type Intelligence struct{ i int }
 

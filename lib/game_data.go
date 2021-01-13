@@ -1,7 +1,10 @@
 package lib
 
-import "fmt"
-import "github.com/pwiecz/command_series/atr"
+import (
+	"fmt"
+
+	"github.com/pwiecz/command_series/atr"
+)
 
 type GameData struct {
 	Game      Game

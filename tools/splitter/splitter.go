@@ -1,9 +1,11 @@
 package main
 
-import "bufio"
-import "io/ioutil"
-import "fmt"
-import "os"
+import (
+	"bufio"
+	"fmt"
+	"io/ioutil"
+	"os"
+)
 
 func main() {
 	reader := bufio.NewReader(os.Stdin)

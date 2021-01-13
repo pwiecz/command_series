@@ -1,11 +1,12 @@
 package main
 
-import "image/color"
+import (
+	"image/color"
 
-import "github.com/hajimehoshi/ebiten"
-import "github.com/hajimehoshi/ebiten/inpututil"
-
-import "github.com/pwiecz/command_series/lib"
+	"github.com/hajimehoshi/ebiten"
+	"github.com/hajimehoshi/ebiten/inpututil"
+	"github.com/pwiecz/command_series/lib"
+)
 
 type OptionSelection struct {
 	font           *lib.Font
