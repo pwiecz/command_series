@@ -390,7 +390,7 @@ nextUnit:
 		goto nextUnit
 	}
 	if unit.Terrain%64 >= 48 {
-		panic(fmt.Errorf("%v", unit))
+		panic(fmt.Errorf("%s@(%d,%d %d):%v", unit.FullName(), unit.X, unit.Y, unit.Terrain, unit))
 	}
 	var v9 int
 	var arg1 int
@@ -818,8 +818,7 @@ l24:
 				v = -128
 			} else {
 				r := s.scenarioData.TerrainMenDefence[tt]
-				nx := unit.X + s.generic.Dx[i]
-				ny := unit.Y + s.generic.Dy[i]
+				nx, ny := s.generic.IthNeighbour(unit.X, unit.Y, i)
 				if s.game != Conflict {
 					v = r + s.neighbourScore(&s.hexes.Arr0, nx, ny, unit.Side)
 				}
@@ -851,8 +850,7 @@ l24:
 			bestI = 6
 		}
 		if bestI < 6 {
-			unit.ObjectiveX = unit.X + s.generic.Dx[bestI]
-			unit.ObjectiveY = unit.Y + s.generic.Dy[bestI]
+			unit.ObjectiveX, unit.ObjectiveY = s.generic.IthNeighbour(unit.X, unit.Y, bestI)
 		} else {
 			unit.TargetFormation = s.function10(unit.Order, 1)
 		}
@@ -1040,7 +1038,8 @@ l21:
 			unit.SeenByEnemy = true // |= 64
 		}
 		for i := 0; i < 6; i++ {
-			if unit2, ok := s.FindUnit(unit.X+s.generic.Dx[i], unit.Y+s.generic.Dy[i]); ok && unit2.Side == 1-unit.Side {
+			nx, ny := s.generic.IthNeighbour(unit.X, unit.Y, i)
+			if unit2, ok := s.FindUnit(nx, ny); ok && unit2.Side == 1-unit.Side {
 				unit2.InContactWithEnemy = true
 				unit2.SeenByEnemy = true // |= 65
 				s.showUnit(unit2)
@@ -1226,8 +1225,7 @@ l21:
 			bestDefence := -128
 			bestX, bestY := unit2.X, unit2.Y
 			for i := 0; i < 6; i++ {
-				nx := unit2.X + s.generic.Dx[i]
-				ny := unit2.Y + s.generic.Dy[i]
+				nx, ny := s.generic.IthNeighbour(unit2.X, unit2.Y, i)
 				tt := s.terrainTypeAt(nx, ny)
 				r := s.scenarioData.TerrainMenDefence[tt]
 				if s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[tt][unit2.Type] > 0 {
@@ -1360,8 +1358,7 @@ func (s *GameState) neighbourScore(arr *[6][8]int, x, y, side int) int {
 	// Count of neighbour tiles with given type
 	var neighTypeCount [6]int
 	for i := 0; i < 6; i++ {
-		nx := x + s.generic.Dx[i]
-		ny := y + s.generic.Dy[i]
+		nx, ny := s.generic.IthNeighbour(x, y, i)
 		var neighType int
 		if s.ContainsUnitOfSide(nx, ny, 1-side) {
 			neighType = 2
@@ -1369,9 +1366,9 @@ func (s *GameState) neighbourScore(arr *[6][8]int, x, y, side int) int {
 			neighType = 1
 		} else {
 			// neighbours to the left of nx,ny
-			n0x, n0y := x+s.generic.Dx[(i+5)%6], y+s.generic.Dy[(i+5)%6]
+			n0x, n0y := s.generic.IthNeighbour(x, y, (i+5)%6)
 			// neighbours to the right of nx,ny
-			n1x, n1y := x+s.generic.Dx[(i+1)%6], y+s.generic.Dy[(i+1)%6]
+			n1x, n1y := s.generic.IthNeighbour(x, y, (i+1)%6)
 			enemyInNeighDir := s.ContainsUnitOfSide(n0x, n0y, 1-side) || s.ContainsUnitOfSide(n1x, n1y, 1-side)
 			friendlyInNeighDir := s.ContainsUnitOfSide(n0x, n0y, side) || s.ContainsUnitOfSide(n1x, n1y, side)
 			if enemyInNeighDir && friendlyInNeighDir {
@@ -1835,7 +1832,7 @@ func (s *GameState) ShowAllVisibleUnits() {
 			}
 			sideUnits[i].Terrain = s.terrainAt(unit.X, unit.Y)
 			if sideUnits[i].Terrain%64 >= 48 {
-				panic(fmt.Errorf("%v", sideUnits[i]))
+				panic(fmt.Errorf("%s@(%d,%d %d):%v", sideUnits[i].FullName(), sideUnits[i].X, sideUnits[i].Y, sideUnits[i].Terrain, sideUnits[i]))
 			}
 			if s.IsUnitVisible(unit) {
 				s.showUnit(unit)
@@ -1849,11 +1846,8 @@ func (s *GameState) ShowAllVisibleUnits() {
 // of type unitType. If variant == 0 consider only neighbour fields directly towards the goal,
 // if variant == 1 look at neighbour two fields "more to the side"
 func (s *GameState) FindBestMoveFromTowards(unitX0, unitY0, unitX1, unitY1, unitType, variant int) (int, int, int) {
-	dx, dy := unitX1-unitX0, unitY1-unitY0
-
-	neighbour1 := s.generic.DxDyToNeighbour(dx, dy, 2*variant)
-	candX1 := unitX0 + s.generic.Dx[neighbour1]
-	candY1 := unitY0 + s.generic.Dy[neighbour1]
+	candX1, candY1 := s.generic.FirstNeighbourFromTowards(
+		unitX0, unitY0, unitX1, unitY1, 2*variant)
 	var speed1 int
 	if !s.terrainMap.AreCoordsValid(candX1/2, candY1) {
 		candX1, candY1 = unitX0, unitY0
@@ -1862,9 +1856,8 @@ func (s *GameState) FindBestMoveFromTowards(unitX0, unitY0, unitX1, unitY1, unit
 		speed1 = s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[terrainType1][unitType]
 	}
 
-	neighbour2 := s.generic.DxDyToNeighbour(dx, dy, 2*variant+1)
-	candX2 := unitX0 + s.generic.Dx[neighbour2]
-	candY2 := unitY0 + s.generic.Dy[neighbour2]
+	candX2, candY2 := s.generic.FirstNeighbourFromTowards(
+		unitX0, unitY0, unitX1, unitY1, 2*variant+1)
 	var speed2 int
 	if !s.terrainMap.AreCoordsValid(candX2/2, candY2) {
 		candX2, candY2 = unitX0, unitY0
