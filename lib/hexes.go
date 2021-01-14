@@ -33,16 +33,16 @@ func ParseHexes(reader io.Reader) (Hexes, error) {
 
 	var hexes Hexes
 	for i, val := range data[0:48] {
-		hexes.Arr0[i/8][i%8] = int(val)
+		hexes.Arr0[i/8][i%8] = int(int8(val))
 	}
 	for i, val := range data[48:96] {
-		hexes.Arr48[i/8][i%8] = int(val)
+		hexes.Arr48[i/8][i%8] = int(int8(val))
 	}
 	for i, val := range data[96:144] {
-		hexes.Arr96[i/8][i%8] = int(val)
+		hexes.Arr96[i/8][i%8] = int(int8(val))
 	}
 	for i, val := range data[144:192] {
-		hexes.Arr144[i/8][i%8] = int(val)
+		hexes.Arr144[i/8][i%8] = int(int8(val))
 	}
 
 	// Last 64 bytes is always zero as it gets overwritten with .GEN data, ignore it.
