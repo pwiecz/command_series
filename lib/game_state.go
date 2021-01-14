@@ -389,7 +389,7 @@ nextUnit:
 	if !unit.IsInGame {
 		goto nextUnit
 	}
-	if unit.Terrain%64 >= 48 {
+	if !s.areUnitCoordsValid(unit.X, unit.Y) || unit.Terrain%64 >= 48 {
 		panic(fmt.Errorf("%s@(%d,%d %d):%v", unit.FullName(), unit.X, unit.Y, unit.Terrain, unit))
 	}
 	var v9 int
@@ -804,21 +804,19 @@ l24:
 		// Score for i==6 (zero offset - the unit's position).
 		var v_6 int
 		for i := 0; i <= 6; i++ {
-			ix := s.coordsToMapIndex(unit.X, unit.Y) + s.generic.MapOffsets[i]
-			if !s.terrainMap.IsIndexValid(ix) {
+			nx, ny := s.generic.IthNeighbour(unit.X, unit.Y, i)
+			if !s.areUnitCoordsValid(nx, ny) {
 				continue
 			}
-			ter := s.terrainAtIndex(ix)
-			if i == 6 {
-				ter = unit.Terrain
+			tt := s.terrainType(unit.Terrain)
+			if i < 6 {
+				tt = s.terrainTypeAt(nx, ny)
 			}
-			tt := s.terrainType(ter)
 			var v int
 			if tt == 7 {
 				v = -128
 			} else {
 				r := s.scenarioData.TerrainMenDefence[tt]
-				nx, ny := s.generic.IthNeighbour(unit.X, unit.Y, i)
 				if s.game != Conflict {
 					v = r + s.neighbourScore(&s.hexes.Arr0, nx, ny, unit.Side)
 				}
@@ -1226,6 +1224,9 @@ l21:
 			bestX, bestY := unit2.X, unit2.Y
 			for i := 0; i < 6; i++ {
 				nx, ny := s.generic.IthNeighbour(unit2.X, unit2.Y, i)
+				if !s.areUnitCoordsValid(nx, ny) {
+					continue
+				}
 				tt := s.terrainTypeAt(nx, ny)
 				r := s.scenarioData.TerrainMenDefence[tt]
 				if s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[tt][unit2.Type] > 0 {
@@ -1341,9 +1342,6 @@ func (s *GameState) function16(unit Unit) (City, bool) {
 	}
 	return City{}, false
 }
-func (s *GameState) coordsToMapIndex(x, y int) int {
-	return y*s.terrainMap.Width + x/2 - y/2
-}
 
 func (s *GameState) function29_showUnit(unit Unit) {
 	if unit.InContactWithEnemy || unit.SeenByEnemy /* &65 != 0 */ ||
@@ -1362,7 +1360,7 @@ func (s *GameState) neighbourScore(arr *[6][8]int, x, y, side int) int {
 		var neighType int
 		if s.ContainsUnitOfSide(nx, ny, 1-side) {
 			neighType = 2
-		} else if s.ContainsUnitOfSide(nx, ny, side) || s.terrainTypeAt(nx, ny) >= 7 {
+		} else if s.ContainsUnitOfSide(nx, ny, side) || !s.areUnitCoordsValid(nx, ny) || s.terrainTypeAt(nx, ny) >= 7 {
 			neighType = 1
 		} else {
 			// neighbours to the left of nx,ny
@@ -1786,30 +1784,21 @@ func (s *GameState) terrainType(terrain byte) int {
 func (s *GameState) terrainTypeAt(x, y int) int {
 	return s.terrainType(s.terrainAt(x, y))
 }
-func (s *GameState) terrainTypeAtIndex(ix int) int {
-	return s.terrainType(s.terrainAtIndex(ix))
-}
-func (s *GameState) terrainAtIndex(ix int) byte {
-	return s.terrainMap.GetTileAtIndex(ix)
-}
 func (s *GameState) terrainAt(x, y int) byte {
-	ix := s.coordsToMapIndex(x, y)
-	if !s.terrainMap.IsIndexValid(ix) {
-		return 0
+	if !s.areUnitCoordsValid(x, y) {
+		return 255
 	}
-	return s.terrainMap.GetTileAtIndex(ix)
+	return s.terrainMap.GetTile(x/2, y)
 }
 
 func (s *GameState) showUnit(unit Unit) {
-	ix := s.coordsToMapIndex(unit.X, unit.Y)
-	s.terrainMap.SetTileAtIndex(ix, byte(unit.Type+unit.ColorPalette*16))
+	s.terrainMap.SetTile(unit.X/2, unit.Y, byte(unit.Type+unit.ColorPalette*16))
 }
 func (s *GameState) hideUnit(unit Unit) {
-	ix := s.coordsToMapIndex(unit.X, unit.Y)
 	if unit.Terrain%64 >= 48 {
 		panic(fmt.Errorf("%v", unit))
 	}
-	s.terrainMap.SetTileAtIndex(ix, unit.Terrain)
+	s.terrainMap.SetTile(unit.X/2, unit.Y, unit.Terrain)
 }
 func (s *GameState) HideAllUnits() {
 	for _, sideUnits := range s.units {
@@ -1841,6 +1830,14 @@ func (s *GameState) ShowAllVisibleUnits() {
 	}
 }
 
+func (s *GameState) areUnitCoordsValid(x, y int) bool {
+	// When x ==-1 x/2 is 0, which is a valid tile coordinate.
+	if x < 0 {
+		return false
+	}
+	return s.terrainMap.AreCoordsValid(x/2, y)
+}
+
 // function6
 // Finds best position to move if you want to move from unitX0,unitY0 to unitX1, unitY1 with unit
 // of type unitType. If variant == 0 consider only neighbour fields directly towards the goal,
@@ -1849,7 +1846,7 @@ func (s *GameState) FindBestMoveFromTowards(unitX0, unitY0, unitX1, unitY1, unit
 	candX1, candY1 := s.generic.FirstNeighbourFromTowards(
 		unitX0, unitY0, unitX1, unitY1, 2*variant)
 	var speed1 int
-	if !s.terrainMap.AreCoordsValid(candX1/2, candY1) {
+	if !s.areUnitCoordsValid(candX1, candY1) {
 		candX1, candY1 = unitX0, unitY0
 	} else {
 		terrainType1 := s.terrainTypeAt(candX1, candY1)
@@ -1859,7 +1856,7 @@ func (s *GameState) FindBestMoveFromTowards(unitX0, unitY0, unitX1, unitY1, unit
 	candX2, candY2 := s.generic.FirstNeighbourFromTowards(
 		unitX0, unitY0, unitX1, unitY1, 2*variant+1)
 	var speed2 int
-	if !s.terrainMap.AreCoordsValid(candX2/2, candY2) {
+	if !s.areUnitCoordsValid(candX2, candY2) {
 		candX2, candY2 = unitX0, unitY0
 	} else {
 		terrainType2 := s.terrainTypeAt(candX2, candY2)

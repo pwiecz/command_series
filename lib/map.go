@@ -52,7 +52,7 @@ func (m *Map) SetTile(x, y int, tile byte) {
 }
 func (m *Map) GetTileAtIndex(ix int) byte {
 	if ix < 0 || ix >= len(m.terrain) {
-		return 0
+		return 255
 	}
 	return m.terrain[ix]
 }
