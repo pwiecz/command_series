@@ -42,11 +42,11 @@ func TestRegression_Basic(t *testing.T) {
 		}
 	}
 
-	expectedNumMessages := 1464
+	expectedNumMessages := 1578
 	if numMessages != expectedNumMessages {
 		t.Errorf("Expecting %d messages, got %d", expectedNumMessages, numMessages)
 	}
-	expectedNumMessagesFromUnit := 83
+	expectedNumMessagesFromUnit := 85
 	if numMessagesFromUnit != expectedNumMessagesFromUnit {
 		t.Errorf("Expecting %d messages from a unit, got %d", expectedNumMessagesFromUnit, numMessagesFromUnit)
 	}
@@ -89,16 +89,16 @@ func TestRegression_Side1Player(t *testing.T) {
 		}
 	}
 
-	expectedNumMessages := 4734
+	expectedNumMessages := 4772
 	if numMessages != expectedNumMessages {
 		t.Errorf("Expecting %d messages, got %d", expectedNumMessages, numMessages)
 	}
-	expectedNumMessagesFromUnit := 51
+	expectedNumMessagesFromUnit := 120
 	if numMessagesFromUnit != expectedNumMessagesFromUnit {
 		t.Errorf("Expecting %d messages from a unit, got %d", expectedNumMessagesFromUnit, numMessagesFromUnit)
 	}
 
-	expectedResult, expectedBalance, expectedRank := 0, 2, 0
+	expectedResult, expectedBalance, expectedRank := 5, 2, 5
 	result, balance, rank := gameState.FinalResults()
 	if result != expectedResult || balance != expectedBalance || rank != expectedRank {
 		t.Errorf("Expecting %d,%d,%d final results, got %d,%d,%d",
@@ -185,16 +185,16 @@ func TestRegression_RegressionPanicInCampaign(t *testing.T) {
 		}
 	}
 
-	expectedNumMessages := 522792
+	expectedNumMessages := 459704
 	if numMessages != expectedNumMessages {
 		t.Errorf("Expecting %d messages, got %d", expectedNumMessages, numMessages)
 	}
-	expectedNumMessagesFromUnit := 2525
+	expectedNumMessagesFromUnit := 4029
 	if numMessagesFromUnit != expectedNumMessagesFromUnit {
 		t.Errorf("Expecting %d messages from a unit, got %d", expectedNumMessagesFromUnit, numMessagesFromUnit)
 	}
 
-	expectedResult, expectedBalance, expectedRank := 2, 2, 2
+	expectedResult, expectedBalance, expectedRank := 3, 2, 3
 	result, balance, rank := gameState.FinalResults()
 	if result != expectedResult || balance != expectedBalance || rank != expectedRank {
 		t.Errorf("Expecting %d,%d,%d final results, got %d,%d,%d",

@@ -413,7 +413,7 @@ nextUnit:
 		unit.State4 = false // &= 239
 	}
 
-	if ((unit.Side + 1) & s.commanderMask) == 0 {
+	if (unit.Side+1)&s.commanderMask == 0 {
 		s.update = unit.Side
 		// If not a local command and either objective is specified, or order is defend or move).
 		if !unit.HasLocalCommand && (unit.Order == Defend || unit.Order == Move || unit.ObjectiveX != 0) { // ... maybe?
@@ -432,7 +432,7 @@ nextUnit:
 	if s.update != unit.Side {
 		s.reinitSmallMapsAndSuch(unit.Side)
 	}
-	// If unit is commanded by the computer find the best order to execute by the unit.
+	// If the unit is commanded by the computer find the best order to execute by the unit.
 	{
 		// v57 := sign(sign_extend([29927 + 10 + unit.side])/16)*4
 		sx, sy := unit.X/8, unit.Y/4
@@ -514,39 +514,39 @@ nextUnit:
 				v49 := 0
 				v50 := 0
 				v53 := 0
-				unit.MenCount = s.map0[unit.Side][sx+dx][sy+dy]
-				unit.EquipCount = (unit.MenCount + s.map3[unit.Side][sx+dx][sy+dy]) / 2
-				v16 := s.map0[1-unit.Side][sx+dx][sy+dy] / 2
+				friendlyUnitsInArea := s.map0[unit.Side][sx+dx][sy+dy]
+				enemyUnitsInArea := s.map0[1-unit.Side][sx+dx][sy+dy]
+				v36 := (friendlyUnitsInArea + s.map3[unit.Side][sx+dx][sy+dy]) / 2
+				v52 := (enemyUnitsInArea + s.map3[1-unit.Side][sx+dx][sy+dy]) / 2
+				enemyUnitsAround := s.map0[1-unit.Side][sx+dx][sy+dy] / 2
 				for j := 0; j <= 7; j++ {
 					ddx, ddy := s.generic.SmallMapOffsets(j + 1)
 					if !InRange(sx+dx+ddx, 0, 16) || !InRange(sy+dy+ddy, 0, 16) {
 						continue
 					}
-					v := s.map0[1-unit.Side][sx+dx+ddx][sy+dy+ddy]
+					v := s.map0[1-unit.Side][sx+dx+ddx][sy+dy+ddy] / 4
 					if j&4 > 0 { // diagonals(?)
 						v /= 2
 					}
-					v16 += v
+					enemyUnitsAround += v
 				}
-				v51 := s.map0[1-unit.Side][sx+dx][sy+dy]
 				temp := Reserve
 				if s.map3[1-unit.Side][sx+dx][sy+dy] > 0 {
 					temp = Attack
 				}
-				v52 := (v51 + s.map3[1-unit.Side][sx+dx][sy+dy]) / 2
 				for j := 0; j < 2; j++ {
 					var v48 int
-					if unit.MenCount > v52 {
-						v48 = Clamp((unit.MenCount+1)*8/(v52+1)-7, 0, 16)
+					if friendlyUnitsInArea > v52 {
+						v48 = Clamp((friendlyUnitsInArea+1)*8/(v52+1)-7, 0, 16)
 					} else {
-						v48 = -Clamp((v52+1)*8/(unit.MenCount+1)-8, 0, 16)
+						v48 = -Clamp((v52+1)*8/(friendlyUnitsInArea+1)-8, 0, 16)
 					}
 					v48 += unit.General.Data1High + s.scenarioData.Data0High[unit.Type]
 					var v55 int
-					if unit.EquipCount > v16 {
-						v55 = Clamp((unit.EquipCount+1)*8/(v16+1)-7, 0, 16)
+					if v36 > enemyUnitsAround {
+						v55 = Clamp((v36+1)*8/(enemyUnitsAround+1)-7, 0, 16)
 					} else {
-						v55 = -Clamp((v16+1)*8/(unit.EquipCount+1)-8, 0, 16)
+						v55 = -Clamp((enemyUnitsAround+1)*8/(v36+1)-8, 0, 16)
 					}
 					if v48 > 0 {
 						v := v48 * s.map1[1-unit.Side][sx+dx][sy+dy]
@@ -560,13 +560,13 @@ nextUnit:
 							v /= 2
 						}
 						if j > 0 {
-							v += s.map1[unit.Side][sx+dx][sy+dy] * 8 / unit.MenCount
+							v += s.map1[unit.Side][sx+dx][sy+dy] * 8 / friendlyUnitsInArea
 						}
 						v54 += v
 					}
 					if v55 < 0 {
 						temp = Reserve
-						if v51 > 0 {
+						if enemyUnitsInArea > 0 {
 							v := s.map1[unit.Side][sx+dx][sy+dy] * v55
 							if generalMask&2 > 0 {
 								v *= 2
@@ -581,7 +581,7 @@ nextUnit:
 						if v9 > 0 {
 							temp = Attack
 						}
-						if v51 > 0 {
+						if enemyUnitsInArea > 0 {
 							v := v48
 							if generalMask&8 > 0 {
 								v *= 2
@@ -589,14 +589,14 @@ nextUnit:
 							if generalMask&128 > 0 {
 								v /= 2
 							}
-							v *= v51
+							v *= enemyUnitsInArea
 							v49 += v
 						}
 					}
 					if v55 < 0 {
-						if unit.MenCount > 0 {
+						if friendlyUnitsInArea > 0 {
 							temp = Defend
-							v := unit.MenCount * v55
+							v := friendlyUnitsInArea * v55
 							if generalMask&1 > 0 {
 								v *= 2
 							}
@@ -616,14 +616,14 @@ nextUnit:
 						v53 = -v53
 						v49 = -v49
 						v50 = -v50
-						unit.MenCount += temp2
-						unit.EquipCount += v61
+						friendlyUnitsInArea += temp2
+						v36 += v61
 					}
 				}
 				t := v54 + v53 + v49 + v50
 				if i == 1 {
 					if _, ok := s.FindCity(unit.X, unit.Y); ok {
-						if v51 > 0 {
+						if enemyUnitsInArea > 0 {
 							v9 = 2
 						}
 					}
@@ -633,7 +633,7 @@ nextUnit:
 					v += unit.Fatigue/16 + unit.Fatigue/32
 				}
 				if v > 7 {
-					t = unit.EquipCount - v52*2
+					t = v36 - v52*2
 					v9 = -128
 					temp = Reserve
 					unit.Fatigue &= 255
@@ -697,8 +697,8 @@ nextUnit:
 					s.map0[unit.Side][sx+bestDx][sy+bestDy] += temp2 / 2
 				}
 				s.map3[unit.Side][sx+bestDx][sy+bestDy] += temp2 / 2
-				unit.ObjectiveY = (((sy+bestDy)&240)/4 + Rand(2, s.rand) + 1) & 63
-				unit.ObjectiveX = ((((sy+bestDy)&15)*4+Rand(2, s.rand)+1)*2 + (unit.ObjectiveY & 1)) & 127
+				unit.ObjectiveY = ((sy+bestDy)*4 + Rand(2, s.rand) + 1) & 63
+				unit.ObjectiveX = (((sx+bestDx)*4+Rand(2, s.rand)+1)*2 + (unit.ObjectiveY & 1)) & 127
 				mode = Move
 				if v9 != 0 {
 					unit.Order = Defend
