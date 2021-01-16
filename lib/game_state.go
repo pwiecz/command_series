@@ -447,7 +447,7 @@ nextUnit:
 		// If there are no enemy units in neaby "small" map and there is a supply line to unit and sth (not a special unit?) then look at the "tiny" map.
 		if numEnemyTroops == 0 && unit.HasSupplyLine &&
 			((s.game != Conflict && s.scenarioData.UnitScores[unit.Type]&248 == 0) ||
-				(s.game == Conflict && s.scenarioData.UnitMask[unit.Type&1] == 0)) {
+				(s.game == Conflict && s.scenarioData.UnitMask[unit.Type]&1 == 0)) {
 			tx, ty := unit.X/32, unit.Y/16
 			arg1 = -17536 // 48000
 			bestI := 0
@@ -460,14 +460,13 @@ nextUnit:
 				}
 				// Coords are a good target if there are more high importance objects (supply units, air wings, cities with high vp), and less good target if there are already many friendly units.
 				val := (s.map2_1[unit.Side][x][y] + s.map2_1[1-unit.Side][x][y]) * 16 / Clamp(s.map2_0[unit.Side][x][y]-s.map2_0[1-unit.Side][x][y], 10, 9999)
-				tmp := val * s.function26(unit.X/4, unit.Y/4, i) / 8
+				val = val * s.function26(unit.X/4, unit.Y/4, i) / 8
 				if i == 0 {
 					// Prioritize staying withing the same square.
-					// But why, if we seem to ignore the i==0 solution later..?
-					tmp *= 2
+					val *= 2
 				}
-				if tmp > arg1 {
-					arg1 = tmp
+				if val > arg1 {
+					arg1 = val
 					bestI = i
 					bestX, bestY = x, y
 				}
@@ -518,13 +517,13 @@ nextUnit:
 				unit.MenCount = s.map0[unit.Side][sx+dx][sy+dy]
 				unit.EquipCount = (unit.MenCount + s.map3[unit.Side][sx+dx][sy+dy]) / 2
 				v16 := s.map0[1-unit.Side][sx+dx][sy+dy] / 2
-				for i := 0; i <= 7; i++ {
-					ddx, ddy := s.generic.SmallMapOffsets(i + 1)
+				for j := 0; j <= 7; j++ {
+					ddx, ddy := s.generic.SmallMapOffsets(j + 1)
 					if !InRange(sx+dx+ddx, 0, 16) || !InRange(sy+dy+ddy, 0, 16) {
 						continue
 					}
 					v := s.map0[1-unit.Side][sx+dx+ddx][sy+dy+ddy]
-					if i&4 > 0 { // diagonals(?)
+					if j&4 > 0 { // diagonals(?)
 						v /= 2
 					}
 					v16 += v
@@ -631,7 +630,7 @@ nextUnit:
 				}
 				v := s.scenarioData.UnitScores[unit.Type] & 248
 				if unit.InContactWithEnemy {
-					v += (unit.Fatigue/16 + unit.Fatigue/32)
+					v += unit.Fatigue/16 + unit.Fatigue/32
 				}
 				if v > 7 {
 					t = unit.EquipCount - v52*2
@@ -639,7 +638,7 @@ nextUnit:
 					temp = Reserve
 					unit.Fatigue &= 255
 				}
-				t = t * s.function26(unit.X, unit.Y, i) / 8
+				t = t * s.function26(unit.X, unit.Y, i-1) / 8
 				if i == 1 {
 					v63 = t
 					mode = temp
@@ -1387,7 +1386,7 @@ func (s *GameState) neighbourScore(arr *[6][8]int, x, y, side int) int {
 }
 
 func (s *GameState) function10(order OrderType, offset int) int {
-	if offset < 0 || offset >= 4 {
+	if !InRange(offset, 0, 4) {
 		panic(offset)
 	}
 	return s.scenarioData.Data176[int(order)][offset]
@@ -1403,9 +1402,10 @@ func Function15_distanceToObjective(unit Unit) int {
 	}
 }
 func (s *GameState) function26(x, y int, index int) int {
-	v := s.generic.Data214[((x/4)&1)*2+((y/2)&1)*18+index]
-	if ((((x/2)&3)+1)&2)+((((y)&3)+1)&2) == 4 {
-		v = ((index + 1) / 2) & 6
+	v := s.generic.Data214[((x/2)&2)+(y&2)*9+index]
+	// If not on the edge of a 4x4 square
+	if InRange((x/2)%4, 1, 3) && InRange(y%4, 1, 3) {
+		v = 9 - (((index + 3) / 2) & 6)
 	}
 	return v
 }
@@ -1436,8 +1436,8 @@ func (s *GameState) reinitSmallMapsAndSuch(currentSide int) {
 				}
 			}
 			v30 := unit.MenCount + unit.EquipCount
-			tmp := v30 * Clamp(s.scenarioData.FormationMenDefence[unit.Formation], 8, 99) / 8
-			v29 := tmp * s.scenarioData.TerrainMenDefence[s.terrainType(unit.Terrain)] / 8
+			v29 := v30 * Clamp(s.scenarioData.FormationMenDefence[unit.Formation], 8, 99) / 8
+			v29 = v29 * s.scenarioData.TerrainMenDefence[s.terrainType(unit.Terrain)] / 8
 			if s.scenarioData.UnitScores[unit.Type] > 7 {
 				// special units - supply, air wings
 				v29 = 4
@@ -1445,70 +1445,70 @@ func (s *GameState) reinitSmallMapsAndSuch(currentSide int) {
 			}
 			s.map0[unit.Side][sx][sy] += (v30 + 4) / 8
 			s.map3[unit.Side][sx][sy] = Clamp(s.map3[unit.Side][sx][sy]+(v29+4)/8, 0, 255)
-			if unit.SupplyLevel-1 > s.scenarioData.AvgDailySupplyUse {
-				// An "influence" of the unit on the surrounding squares on the "small" map.
-				influence := s.scenarioData.UnitScores[unit.Type] / 4
-				if influence > 0 {
-					// Mark the "influence" of the unit on concentric circles around the unit position.
-					// The influence gets smaller, further away we get.
-					for radius := -1; radius <= influence; radius++ {
-						// Last index on a "circle" with given radius.
-						lastNeighbour := (Abs(radius) - Sign(Abs(radius))) * 4
-						for i := 0; i <= lastNeighbour; i++ {
-							dx, dy := s.generic.SmallMapOffsets(i)
-							x, y := sx+dx, sy+dy
-							if !InRange(x, 0, 16) || !InRange(y, 0, 16) {
-								continue
-							}
-							s.map1[unit.Side][x][y] += 2
-							if unit.IsUnderAttack {
-								s.map1[unit.Side][x][y] += 2
-							}
-						}
+			if unit.SupplyLevel-1 <= s.scenarioData.AvgDailySupplyUse {
+				continue
+			}
+			// An "influence" of the unit on the surrounding squares on the "small" map.
+			influence := s.scenarioData.UnitScores[unit.Type] / 4
+			if influence <= 0 {
+				continue
+			}
+			// Mark the "influence" of the unit on concentric circles around the unit position.
+			// The influence gets smaller, further away we get.
+			for radius := -1; radius <= influence; radius++ {
+				// Last index on a "circle" with given radius.
+				lastNeighbour := (Abs(radius) - Sign(Abs(radius))) * 4
+				for i := 0; i <= lastNeighbour; i++ {
+					dx, dy := s.generic.SmallMapOffsets(i)
+					x, y := sx+dx, sy+dy
+					if !InRange(x, 0, 16) || !InRange(y, 0, 16) {
+						continue
+					}
+					s.map1[unit.Side][x][y] += 2
+					if unit.IsUnderAttack {
+						s.map1[unit.Side][x][y] += 2
 					}
 				}
 			}
+			//l23:
+
 		}
 	}
 	// function18(): potentially exit the whole update here
 	for _, city := range s.terrain.Cities {
-		if city.Owner != 0 || city.VictoryPoints != 0 {
-			sx, sy := city.X/8, city.Y/4
-			v29 := city.VictoryPoints / 8
-			if v29 > 0 {
-				// Mark the "influence" of the city on concentric circles around the city position.
-				// The influence gets smaller, further away we get.
-				s.map3[city.Owner][sx][sy]++
-				for i := 1; i <= v29; i++ {
-					for j := 0; j <= (i-1)*4; j++ {
-						dx, dy := s.generic.SmallMapOffsets(j)
-						x, y := sx+dx, sy+dy
-						if !InRange(x, 0, 16) || !InRange(y, 0, 16) {
-							continue
-						}
-						s.map1[city.Owner][x][y] += 2
-					}
+		if city.VictoryPoints == 0 {
+			continue
+		}
+		sx, sy := city.X/8, city.Y/4
+		influence := city.VictoryPoints / 8
+		if influence <= 0 {
+			continue
+		}
+		// Mark the "influence" of the city on concentric circles around the city position.
+		// The influence gets smaller, further away we get.
+		s.map3[city.Owner][sx][sy]++
+		for i := 1; i <= influence; i++ {
+			for j := 0; j <= (i-1)*4; j++ {
+				dx, dy := s.generic.SmallMapOffsets(j)
+				x, y := sx+dx, sy+dy
+				if !InRange(x, 0, 16) || !InRange(y, 0, 16) {
+					continue
 				}
+				s.map1[city.Owner][x][y] += 2
 			}
 		}
 	}
-	// function18(): potentially exit the whole update here
-	for x := 0; x < 16; x++ {
-		for y := 0; y < 16; y++ {
-			s.map1[0][x][y] = s.map1[0][x][y] * s.terrain.Coeffs[x][y] / 8
-			s.map1[1][x][y] = s.map1[1][x][y] * s.terrain.Coeffs[x][y] / 8
-		}
-	}
-	// function18(): potentially exit the whole update here
+	// function18()
 	for side := 0; side < 2; side++ {
 		for x := 0; x < 16; x++ {
 			for y := 0; y < 16; y++ {
+				s.map1[side][x][y] = s.map1[side][x][y] * s.terrain.Coeffs[x][y] / 8
 				s.map2_0[side][x/4][y/4] += s.map0[side][x][y]
 				s.map2_1[side][x/4][y/4] += s.map1[side][x][y]
 			}
 		}
 	}
-	// function18(): potentially exit the whole update here
+	// function18()
 }
 
 func (s *GameState) countNeighbourUnits(x, y, side int) int {
@@ -1734,6 +1734,9 @@ func (s *GameState) ContainsCity(x, y int) bool {
 }
 
 func (s *GameState) FindUnit(x, y int) (Unit, bool) {
+	if !s.areUnitCoordsValid(x, y) {
+		return Unit{}, false
+	}
 	return s.FindUnitAtMapCoords(x/2, y)
 }
 func (s *GameState) FindUnitAtMapCoords(x, y int) (Unit, bool) {
@@ -1756,6 +1759,9 @@ func (s *GameState) FindUnitOfSide(x, y, side int) (Unit, bool) {
 	return Unit{}, false
 }
 func (s *GameState) FindCity(x, y int) (City, bool) {
+	if !s.areUnitCoordsValid(x, y) {
+		return City{}, false
+	}
 	return s.FindCityAtMapCoords(x/2, y)
 }
 func (s *GameState) FindCityAtMapCoords(x, y int) (City, bool) {
