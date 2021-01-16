@@ -661,12 +661,12 @@ nextUnit:
 				supplyUse *= 2
 			}
 			if unit.SupplyLevel < supplyUse {
-				unit2 := s.units[unit.Side][unit.SupplyUnit]
-				if !unit2.IsInGame {
-					unit2 = s.units[unit.Side][unit2.SupplyUnit]
+				supplyUnit := s.units[unit.Side][unit.SupplyUnit]
+				if !supplyUnit.IsInGame {
+					supplyUnit = s.units[unit.Side][supplyUnit.SupplyUnit]
 				}
-				unit.ObjectiveX = unit2.X
-				unit.ObjectiveY = unit2.Y
+				unit.ObjectiveX = supplyUnit.X
+				unit.ObjectiveY = supplyUnit.Y
 				t := Move
 				if v9 > 0 {
 					t = Defend
