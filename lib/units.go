@@ -5,8 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-
-	"github.com/pwiecz/command_series/atr"
+	"io/fs"
 )
 
 type OrderType int
@@ -97,8 +96,8 @@ type FlashbackUnit struct {
 type FlashbackUnits []FlashbackUnit
 type FlashbackHistory []FlashbackUnits
 
-func ReadUnits(diskimage atr.SectorReader, filename string, game Game, unitTypeNames []string, unitNames [2][]string, generals Generals) (Units, error) {
-	fileData, err := atr.ReadFile(diskimage, filename)
+func ReadUnits(fsys fs.FS, filename string, game Game, unitTypeNames []string, unitNames [2][]string, generals Generals) (Units, error) {
+	fileData, err := fs.ReadFile(fsys, filename)
 	if err != nil {
 		return Units{}, fmt.Errorf("Cannot read units file %s (%v)", filename, err)
 	}

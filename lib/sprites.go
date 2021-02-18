@@ -6,8 +6,7 @@ import (
 	"image"
 	"image/color"
 	"io"
-
-	"github.com/pwiecz/command_series/atr"
+	"io/fs"
 )
 
 type Font struct {
@@ -35,16 +34,16 @@ type Sprites struct {
 	UnitIconSprites   [16]*image.Paletted
 }
 
-func ReadSprites(diskimage atr.SectorReader) (Sprites, error) {
-	iconSpritesData, err := atr.ReadFile(diskimage, "CRUSADEI.FNT")
+func ReadSprites(fsys fs.FS) (Sprites, error) {
+	iconSpritesData, err := fs.ReadFile(fsys, "CRUSADEI.FNT")
 	if err != nil {
 		return Sprites{}, fmt.Errorf("Cannot read CRUSADEI.FNT file (%v)", err)
 	}
-	symbolSpritesData, err := atr.ReadFile(diskimage, "CRUSADES.FNT")
+	symbolSpritesData, err := fs.ReadFile(fsys, "CRUSADES.FNT")
 	if err != nil {
 		return Sprites{}, fmt.Errorf("Cannot read CRUSADES.FNT file (%v)", err)
 	}
-	introSpritesData, err := atr.ReadFile(diskimage, "FLAG.FNT")
+	introSpritesData, err := fs.ReadFile(fsys, "FLAG.FNT")
 	if err != nil {
 		return Sprites{}, fmt.Errorf("Cannot read FLAG.FNT file (%v)", err)
 	}

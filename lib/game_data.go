@@ -2,8 +2,7 @@ package lib
 
 import (
 	"fmt"
-
-	"github.com/pwiecz/command_series/atr"
+	"io/fs"
 )
 
 type GameData struct {
@@ -23,32 +22,32 @@ type ScenarioData struct {
 	Units    Units
 }
 
-func LoadGameData(diskImage atr.SectorReader) (*GameData, error) {
-	game, err := DetectGame(diskImage)
+func LoadGameData(fsys fs.FS) (*GameData, error) {
+	game, err := DetectGame(fsys)
 	if err != nil {
 		return nil, fmt.Errorf("Error detecting game, %v", err)
 	}
-	scenarios, err := ReadScenarios(diskImage)
+	scenarios, err := ReadScenarios(fsys)
 	if err != nil {
 		return nil, fmt.Errorf("Error loading scenarios, %v", err)
 	}
-	sprites, err := ReadSprites(diskImage)
+	sprites, err := ReadSprites(fsys)
 	if err != nil {
 		return nil, fmt.Errorf("Error loading sprites, %v", err)
 	}
-	icons, err := ReadIcons(diskImage)
+	icons, err := ReadIcons(fsys)
 	if err != nil {
 		return nil, fmt.Errorf("Error loading icons, %v", err)
 	}
-	terrainMap, err := ReadMap(diskImage, game)
+	terrainMap, err := ReadMap(fsys, game)
 	if err != nil {
 		return nil, fmt.Errorf("Error loading map, %v", err)
 	}
-	generic, err := ReadGeneric(diskImage)
+	generic, err := ReadGeneric(fsys)
 	if err != nil {
 		return nil, fmt.Errorf("Error loading generic, %v", err)
 	}
-	hexes, err := ReadHexes(diskImage)
+	hexes, err := ReadHexes(fsys)
 	if err != nil {
 		return nil, fmt.Errorf("Error loading hexes, %v", err)
 	}
@@ -64,37 +63,37 @@ func LoadGameData(diskImage atr.SectorReader) (*GameData, error) {
 
 }
 
-func LoadScenarioData(diskImage atr.SectorReader, filePrefix string) (*ScenarioData, error) {
+func LoadScenarioData(fsys fs.FS, filePrefix string) (*ScenarioData, error) {
 	game, err := FilePrefixToGame(filePrefix)
 	if err != nil {
 		return nil, err
 	}
 	variantsFilename := filePrefix + ".VAR"
-	variants, err := ReadVariants(diskImage, variantsFilename)
+	variants, err := ReadVariants(fsys, variantsFilename)
 	if err != nil {
 		return nil, err
 	}
 
 	generalsFilename := filePrefix + ".GEN"
-	generals, err := ReadGenerals(diskImage, generalsFilename)
+	generals, err := ReadGenerals(fsys, generalsFilename)
 	if err != nil {
 		return nil, err
 	}
 
 	terrainFilename := filePrefix + ".TER"
-	terrain, err := ReadTerrain(diskImage, terrainFilename, game)
+	terrain, err := ReadTerrain(fsys, terrainFilename, game)
 	if err != nil {
 		return nil, err
 	}
 
 	scenarioDataFilename := filePrefix + ".DTA"
-	dta, err := ReadData(diskImage, scenarioDataFilename)
+	dta, err := ReadData(fsys, scenarioDataFilename)
 	if err != nil {
 		return nil, err
 	}
 
 	unitsFilename := filePrefix + ".UNI"
-	units, err := ReadUnits(diskImage, unitsFilename, game, dta.UnitTypes, dta.UnitNames, generals)
+	units, err := ReadUnits(fsys, unitsFilename, game, dta.UnitTypes, dta.UnitNames, generals)
 	if err != nil {
 		return nil, err
 	}

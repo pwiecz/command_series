@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-
-	"github.com/pwiecz/command_series/atr"
+	"io/fs"
 )
 
 // Representation of data parsed from HEXES.DTA file.
@@ -16,8 +15,8 @@ type Hexes struct {
 	Arr144 [6][8]int // Data[144:192]
 }
 
-func ReadHexes(diskimage atr.SectorReader) (Hexes, error) {
-	fileData, err := atr.ReadFile(diskimage, "HEXES.DTA")
+func ReadHexes(fsys fs.FS) (Hexes, error) {
+	fileData, err := fs.ReadFile(fsys, "HEXES.DTA")
 	if err != nil {
 		return Hexes{}, fmt.Errorf("Cannot read HEXES.DTA file (%v)", err)
 	}

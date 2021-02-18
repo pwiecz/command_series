@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-
-	"github.com/pwiecz/command_series/atr"
+	"io/fs"
 )
 
 // Representation of data parsed from a {scenario}.TER file.
@@ -27,8 +26,8 @@ type Terrain struct {
 	Coeffs [16][16]int // Bytes [768-1024]
 }
 
-func ReadTerrain(diskimage atr.SectorReader, filename string, game Game) (Terrain, error) {
-	fileData, err := atr.ReadFile(diskimage, filename)
+func ReadTerrain(fsys fs.FS, filename string, game Game) (Terrain, error) {
+	fileData, err := fs.ReadFile(fsys, filename)
 	if err != nil {
 		return Terrain{}, fmt.Errorf("Cannot open terrain file %s (%v)", filename, err)
 	}

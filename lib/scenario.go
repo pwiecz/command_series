@@ -3,10 +3,9 @@ package lib
 import (
 	"bytes"
 	"fmt"
+	"io/fs"
 	"strconv"
 	"strings"
-
-	"github.com/pwiecz/command_series/atr"
 )
 
 // Representation of the data parsed from a {scenario}.SCN file.
@@ -23,16 +22,24 @@ type Scenario struct {
 	MinX, MaxX, MinY, MaxY int
 }
 
-func ReadScenarios(diskimage atr.SectorReader) ([]Scenario, error) {
-	files, err := atr.GetDirectory(diskimage)
+func ReadScenarios(fsys fs.FS) ([]Scenario, error) {
+	file, err := fsys.Open(".")
 	if err != nil {
 		return nil, fmt.Errorf("Cannot list contents of the disk image (%v)", err)
+	}
+	dirFile, ok := file.(fs.ReadDirFile)
+	if !ok {
+		return nil, fmt.Errorf("Root directory is not a directory")
+	}
+	files, err := dirFile.ReadDir(0)
+	if err != nil {
+		return nil, fmt.Errorf("Cannot read contents of the disk image (%v)", err)
 	}
 
 	var scenarios []Scenario
 	for _, file := range files {
-		if strings.HasSuffix(file.Name, ".SCN") {
-			scenario, err := ReadScenario(diskimage, file.Name)
+		if strings.HasSuffix(file.Name(), ".SCN") {
+			scenario, err := ReadScenario(fsys, file.Name())
 			if err != nil {
 				return nil, err
 			}
@@ -46,8 +53,8 @@ func ReadScenarios(diskimage atr.SectorReader) ([]Scenario, error) {
 	return scenarios, nil
 }
 
-func ReadScenario(diskimage atr.SectorReader, filename string) (Scenario, error) {
-	data, err := atr.ReadFile(diskimage, filename)
+func ReadScenario(fsys fs.FS, filename string) (Scenario, error) {
+	data, err := fs.ReadFile(fsys, filename)
 	if err != nil {
 		return Scenario{}, fmt.Errorf("Cannot read scenario file %s (%v)", filename, err)
 	}

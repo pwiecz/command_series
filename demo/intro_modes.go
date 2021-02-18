@@ -3,10 +3,10 @@ package main
 import (
 	"fmt"
 	"image/color"
+	"io/fs"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"github.com/pwiecz/command_series/atr"
 	"github.com/pwiecz/command_series/lib"
 )
 
@@ -103,7 +103,7 @@ func (s *VariantSelection) Draw(screen *ebiten.Image) {
 }
 
 type GameLoading struct {
-	diskimage    atr.SectorReader
+	fsys         fs.FS
 	onGameLoaded func(*lib.GameData)
 	loadingDone  chan error
 	gameData     *lib.GameData
@@ -112,9 +112,9 @@ type GameLoading struct {
 	loadingRect  *ebiten.Image
 }
 
-func NewGameLoading(diskimage atr.SectorReader, onGameLoaded func(*lib.GameData)) *GameLoading {
+func NewGameLoading(fsys fs.FS, onGameLoaded func(*lib.GameData)) *GameLoading {
 	return &GameLoading{
-		diskimage:    diskimage,
+		fsys:         fsys,
 		onGameLoaded: onGameLoaded}
 }
 
@@ -153,7 +153,7 @@ func (l *GameLoading) Draw(screen *ebiten.Image) {
 }
 
 func (l *GameLoading) loadGameData() error {
-	gameData, err := lib.LoadGameData(l.diskimage)
+	gameData, err := lib.LoadGameData(l.fsys)
 	if err != nil {
 		return err
 	}
@@ -162,7 +162,7 @@ func (l *GameLoading) loadGameData() error {
 }
 
 type ScenarioLoading struct {
-	diskimage        atr.SectorReader
+	fsys             fs.FS
 	filePrefix       string
 	onScenarioLoaded func(*lib.ScenarioData)
 	loadingDone      chan error
@@ -170,9 +170,9 @@ type ScenarioLoading struct {
 	loadingText      *Label
 }
 
-func NewScenarioLoading(diskimage atr.SectorReader, scenario lib.Scenario, font *lib.Font, onScenarioLoaded func(*lib.ScenarioData)) *ScenarioLoading {
+func NewScenarioLoading(fsys fs.FS, scenario lib.Scenario, font *lib.Font, onScenarioLoaded func(*lib.ScenarioData)) *ScenarioLoading {
 	l := &ScenarioLoading{
-		diskimage:        diskimage,
+		fsys:             fsys,
 		filePrefix:       scenario.FilePrefix,
 		loadingText:      NewLabel("... LOADING ...", 0, 0, 120, 8, font),
 		onScenarioLoaded: onScenarioLoaded}
@@ -203,7 +203,7 @@ func (l *ScenarioLoading) Draw(screen *ebiten.Image) {
 	l.loadingText.Draw(screen)
 }
 func (l *ScenarioLoading) loadScenarioData() (err error) {
-	scenarioData, err := lib.LoadScenarioData(l.diskimage, l.filePrefix)
+	scenarioData, err := lib.LoadScenarioData(l.fsys, l.filePrefix)
 	if err != nil {
 		return err
 	}

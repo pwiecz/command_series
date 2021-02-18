@@ -6,8 +6,7 @@ import (
 	"image"
 	"image/color"
 	"io"
-
-	"github.com/pwiecz/command_series/atr"
+	"io/fs"
 )
 
 // A representation of a hex map parsed from CRUSADE.MAP file.
@@ -82,8 +81,8 @@ func ParseMap(data io.Reader, width, height int) (Map, error) {
 	return terrainMap, nil
 }
 
-func ReadMap(diskimage atr.SectorReader, game Game) (Map, error) {
-	fileData, err := atr.ReadFile(diskimage, "CRUSADE.MAP")
+func ReadMap(fsys fs.FS, game Game) (Map, error) {
+	fileData, err := fs.ReadFile(fsys, "CRUSADE.MAP")
 	if err != nil {
 		return Map{}, fmt.Errorf("Cannot read CRUSADE.MAP file (%v)", err)
 	}

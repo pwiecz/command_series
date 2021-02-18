@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-
-	"github.com/pwiecz/command_series/atr"
+	"io/fs"
 )
 
 // Representation of data parsed from {scenario}.VAR file.
@@ -17,8 +16,8 @@ type Variant struct {
 	CitiesHeld        [2]int
 }
 
-func ReadVariants(diskimage atr.SectorReader, filename string) ([]Variant, error) {
-	variantsData, err := atr.ReadFile(diskimage, filename)
+func ReadVariants(fsys fs.FS, filename string) ([]Variant, error) {
+	variantsData, err := fs.ReadFile(fsys, filename)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot read variants file %s, %v", filename, err)
 	}

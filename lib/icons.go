@@ -6,8 +6,7 @@ import (
 	"image"
 	"image/color"
 	"io"
-
-	"github.com/pwiecz/command_series/atr"
+	"io/fs"
 )
 
 type IconType int
@@ -66,8 +65,8 @@ type Icons struct {
 	Sprites [24]*image.Paletted
 }
 
-func ReadIcons(diskimage atr.SectorReader) (Icons, error) {
-	iconsData, err := atr.ReadFile(diskimage, "WAR.PIC")
+func ReadIcons(fsys fs.FS) (Icons, error) {
+	iconsData, err := fs.ReadFile(fsys, "WAR.PIC")
 	if err != nil {
 		return Icons{}, fmt.Errorf("Cannot read WAR.PIC file (%v)", err)
 	}

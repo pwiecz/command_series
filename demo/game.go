@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"io/fs"
 	"math/rand"
+	"os"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/oto"
@@ -16,7 +18,7 @@ type SubGame interface {
 }
 type Game struct {
 	subGame          SubGame
-	diskimage        atr.SectorReader
+	fsys             fs.FS
 	rand             *rand.Rand
 	gameData         *lib.GameData
 	selectedScenario int
@@ -29,22 +31,37 @@ type Game struct {
 }
 
 func NewGame(filename string, rand *rand.Rand) (*Game, error) {
-	diskimage, err := atr.NewAtrSectorReader(filename)
+	file, err := os.Open(filename)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot open atr image file %s (%v)", filename, err)
+		return nil, fmt.Errorf("Cannot open file or directory %s (%v)", filename, err)
+	}
+	defer file.Close()
+	fileStat, err := file.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("Cannot stat file %s (%v)", filename, err)
+	}
+	var fsys fs.FS
+	if fileStat.IsDir() {
+		fsys = os.DirFS(filename)
+	} else {
+		var err error
+		fsys, err = atr.NewAtrFS(filename)
+		if err != nil {
+			return nil, fmt.Errorf("Cannot open atr image file %s (%v)", filename, err)
+		}
 	}
 	otoContext, err := oto.NewContext(44100, 2 /* num channels */, 1 /* num bytes per sample */, 4096 /* buffer size */)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot create Oto context (%v)", err)
 	}
 	game := &Game{
-		diskimage:        diskimage,
+		fsys:             fsys,
 		rand:             rand,
 		selectedScenario: -1,
 		selectedVariant:  -1,
 		otoContext:       otoContext,
 		audioPlayer:      NewAudioPlayer(otoContext)}
-	game.subGame = NewGameLoading(diskimage, game.onGameLoaded)
+	game.subGame = NewGameLoading(fsys, game.onGameLoaded)
 	return game, nil
 }
 
@@ -53,11 +70,11 @@ func (g *Game) onGameLoaded(gameData *lib.GameData) {
 	g.subGame = NewScenarioSelection(g.gameData.Scenarios, g.gameData.Sprites.IntroFont, g.onScenarioSelected)
 }
 func (g *Game) onRestartGame() {
-	g.subGame = NewGameLoading(g.diskimage, g.onGameLoaded)
+	g.subGame = NewGameLoading(g.fsys, g.onGameLoaded)
 }
 func (g *Game) onScenarioSelected(selectedScenario int) {
 	g.selectedScenario = selectedScenario
-	g.subGame = NewScenarioLoading(g.diskimage, g.gameData.Scenarios[selectedScenario], g.gameData.Sprites.IntroFont, g.onScenarioLoaded)
+	g.subGame = NewScenarioLoading(g.fsys, g.gameData.Scenarios[selectedScenario], g.gameData.Sprites.IntroFont, g.onScenarioLoaded)
 }
 func (g *Game) onScenarioLoaded(scenarioData *lib.ScenarioData) {
 	g.scenarioData = scenarioData

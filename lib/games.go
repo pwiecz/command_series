@@ -2,10 +2,9 @@ package lib
 
 import (
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"strings"
-
-	"github.com/pwiecz/command_series/atr"
 )
 
 type Game int
@@ -66,8 +65,8 @@ func FilenameToGame(filename string) (Game, error) {
 	return Game(0), fmt.Errorf("Cannot infer game from the filename: %s", filename)
 }
 
-func DetectGame(diskimage atr.SectorReader) (Game, error) {
-	files, err := atr.GetDirectory(diskimage)
+func DetectGame(fsys fs.FS) (Game, error) {
+	files, err := fs.ReadDir(fsys, ".")
 	if err != nil {
 		return Game(0), fmt.Errorf("Cannot list contents of the disk image (%v)", err)
 	}
@@ -75,8 +74,8 @@ func DetectGame(diskimage atr.SectorReader) (Game, error) {
 	var game Game
 	var foundScenarioFiles bool
 	for _, file := range files {
-		if strings.HasSuffix(file.Name, ".SCN") {
-			scenarioGame, err := FilenameToGame(file.Name)
+		if strings.HasSuffix(file.Name(), ".SCN") {
+			scenarioGame, err := FilenameToGame(file.Name())
 			if err != nil {
 				return Game(0), err
 			}
@@ -91,5 +90,4 @@ func DetectGame(diskimage atr.SectorReader) (Game, error) {
 		return Game(0), fmt.Errorf("No game files found")
 	}
 	return game, nil
-
 }

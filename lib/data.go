@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-
-	"github.com/pwiecz/command_series/atr"
+	"io/fs"
 )
 
 // Representation of data parsed from {scenario}.DTA files.
@@ -90,8 +89,8 @@ type DataUpdate struct {
 }
 
 // ReadData reads and parses given {scenario}.DTA.
-func ReadData(diskimage atr.SectorReader, filename string) (Data, error) {
-	fileData, err := atr.ReadFile(diskimage, filename)
+func ReadData(fsys fs.FS, filename string) (Data, error) {
+	fileData, err := fs.ReadFile(fsys, filename)
 	if err != nil {
 		return Data{}, fmt.Errorf("Cannot read data file %s (%v)", filename, err)
 	}

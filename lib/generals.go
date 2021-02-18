@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-
-	"github.com/pwiecz/command_series/atr"
+	"io/fs"
 )
 
 // Represenation of data parsed from {scenario}.GEN files.
@@ -21,8 +20,8 @@ type General struct {
 
 type Generals [2][]General
 
-func ReadGenerals(diskimage atr.SectorReader, filename string) (Generals, error) {
-	fileData, err := atr.ReadFile(diskimage, filename)
+func ReadGenerals(fsys fs.FS, filename string) (Generals, error) {
+	fileData, err := fs.ReadFile(fsys, filename)
 	if err != nil {
 		return Generals{}, fmt.Errorf("Cannot read generals file %s (%v)", filename, err)
 	}
