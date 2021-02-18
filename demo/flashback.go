@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/hajimehoshi/ebiten"
-	"github.com/hajimehoshi/ebiten/inpututil"
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/pwiecz/command_series/lib"
 )
 

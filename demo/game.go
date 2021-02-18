@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 
-	"github.com/hajimehoshi/ebiten"
+	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/oto"
 	"github.com/pwiecz/command_series/atr"
 	"github.com/pwiecz/command_series/lib"

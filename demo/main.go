@@ -9,7 +9,7 @@ import (
 	"runtime/pprof"
 	"time"
 
-	"github.com/hajimehoshi/ebiten"
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")

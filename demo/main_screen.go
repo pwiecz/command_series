@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/hajimehoshi/ebiten"
-	"github.com/hajimehoshi/ebiten/inpututil"
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/pwiecz/command_series/lib"
 )
 
@@ -103,7 +103,7 @@ func NewMainScreen(g *Game, options *lib.Options, audioPlayer *AudioPlayer, rand
 func (s *MainScreen) Update() error {
 	if s.overviewMap != nil {
 		for k := ebiten.Key(0); k <= ebiten.KeyMax; k++ {
-			if k == ebiten.KeyAlt || k == ebiten.KeyControl || k == ebiten.KeyShift || k == ebiten.KeySuper {
+			if k == ebiten.KeyAlt || k == ebiten.KeyControl || k == ebiten.KeyShift /*|| k == ebiten.KeySuper*/ {
 				continue
 			}
 			if inpututil.IsKeyJustPressed(k) {
