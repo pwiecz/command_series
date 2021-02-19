@@ -67,17 +67,18 @@ func (a *atrFSDirFile) Sys() interface{}           { return nil }
 func (a *atrFSDirFile) ReadDir(n int) ([]fs.DirEntry, error) {
 	ret := []fs.DirEntry{}
 	if n <= 0 {
-		for _, file := range a.files {
-			ret = append(ret, file)
+		for i := a.position; i < len(a.files); i++ {
+			ret = append(ret, a.files[i])
+			a.position++
 		}
-		return ret, nil
-	}
-	for i := 0; i < n; i++ {
-		if a.position >= len(a.files) {
-			return ret, io.EOF
+	} else {
+		for i := 0; i < n; i++ {
+			if a.position >= len(a.files) {
+				return ret, io.EOF
+			}
+			ret = append(ret, a.files[i])
+			a.position++
 		}
-		ret = append(ret, a.files[i])
-		a.position++
 	}
 	return ret, nil
 }
