@@ -607,7 +607,7 @@ nextUnit:
 						}
 						if v55+unit.General.Data2High+s.scenarioData.Data0Low[unit.Type] < -9 {
 							if j == i {
-								unit.Fatigue = unit.Fatigue + 256
+								unit.Fatigue += 256
 							}
 						}
 					}
@@ -653,7 +653,7 @@ nextUnit:
 				}
 				break
 			}
-			// function18: potentially exit the whole update here
+			// function18()
 			unit = unitCopy // revert modified unit
 			unit.OrderBit4 = true
 			supplyUse := s.scenarioData.AvgDailySupplyUse
@@ -1474,7 +1474,7 @@ func (s *GameState) reinitSmallMapsAndSuch(currentSide int) {
 
 		}
 	}
-	// function18(): potentially exit the whole update here
+	// function18()
 	for _, city := range s.terrain.Cities {
 		if city.VictoryPoints == 0 {
 			continue

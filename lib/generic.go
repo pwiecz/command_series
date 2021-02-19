@@ -119,7 +119,7 @@ func ParseGeneric(reader io.Reader) (Generic, error) {
 	}
 
 	for i, d := range data[44:53] {
-		generic.tinyMapOffsets[i] = int(d)
+		generic.tinyMapOffsets[i] = int(int8(d))
 	}
 
 	for i, offset := range data[53:60] {
