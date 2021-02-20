@@ -21,6 +21,7 @@ func NewScenarioSelection(scenarios []lib.Scenario, font *lib.Font, onScenarioSe
 		NewLabel("SCENARIO SELECTION", 16, 32, 300, 8, font),
 		NewLabel(fmt.Sprintf("TYPE (1-%d)", len(scenarios)), 16, float64(56+len(scenarios)*8), 300, 8, font)}
 	for _, label := range labels {
+		label.SetTextColor(0)
 		label.SetBackgroundColor(15)
 	}
 	buttons := make([]*Button, len(scenarios))
@@ -67,6 +68,7 @@ func NewVariantSelection(variants []lib.Variant, font *lib.Font, onVariantSelect
 		NewLabel("VARIANT SELECTION", 16, 32, 300, 8, font),
 		NewLabel(fmt.Sprintf("TYPE (1-%d)", len(variants)), 16, float64(56+len(variants)*8), 300, 8, font)}
 	for _, label := range labels {
+		label.SetTextColor(0)
 		label.SetBackgroundColor(15)
 	}
 	buttons := make([]*Button, len(variants))

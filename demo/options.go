@@ -69,6 +69,7 @@ func NewOptionSelection(game lib.Game, font *lib.Font, onOptionsSelected func(*l
 		NewLabel("Select Options ...", 40, 128, 300, 8, font),
 		NewLabel("Then press ENTER.", 40, 136, 300, 8, font))
 	for _, label := range s.labels {
+		label.SetTextColor(0)
 		label.SetBackgroundColor(15)
 	}
 

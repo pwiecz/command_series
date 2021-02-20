@@ -17,6 +17,7 @@ func NewButton(text string, x, y float64, width, height int, font *lib.Font) *Bu
 	b := &Button{
 		label: NewLabel(text, x, y, width, height, font),
 		rect:  image.Rect(int(x), int(y), int(x)+width, int(y)+height)}
+	b.label.SetTextColor(0)
 	b.label.SetBackgroundColor(15)
 	return b
 }
