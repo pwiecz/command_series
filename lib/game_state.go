@@ -392,7 +392,7 @@ nextUnit:
 	if !s.areUnitCoordsValid(unit.X, unit.Y) || unit.Terrain%64 >= 48 {
 		panic(fmt.Errorf("%s@(%d,%d %d):%v", unit.FullName(), unit.X, unit.Y, unit.Terrain, unit))
 	}
-	var v9 int
+	var numEnemyNeighbours int
 	var arg1 int
 	if unit.MenCount+unit.EquipCount < 7 ||
 		unit.Fatigue == 255 {
@@ -408,8 +408,8 @@ nextUnit:
 	if !s.scenarioData.UnitCanMove[unit.Type] {
 		goto nextUnit
 	}
-	v9 = s.countNeighbourUnits(unit.X, unit.Y, 1-unit.Side)
-	if v9 == 0 {
+	numEnemyNeighbours = s.countNeighbourUnits(unit.X, unit.Y, 1-unit.Side)
+	if numEnemyNeighbours == 0 {
 		unit.State4 = false // &= 239
 	}
 
@@ -534,6 +534,7 @@ nextUnit:
 				if s.map3[1-unit.Side][sx+dx][sy+dy] > 0 {
 					temp = Attack
 				}
+				// Two iterations: one not taking into consideration the current unit, and once taking it into consideration.
 				for j := 0; j < 2; j++ {
 					var v48 int
 					if friendlyUnitsInArea > v52 {
@@ -578,7 +579,7 @@ nextUnit:
 						}
 					}
 					if v48 > 0 {
-						if v9 > 0 {
+						if numEnemyNeighbours > 0 {
 							temp = Attack
 						}
 						if enemyUnitsInArea > 0 {
@@ -624,7 +625,7 @@ nextUnit:
 				if i == 1 {
 					if _, ok := s.FindCity(unit.X, unit.Y); ok {
 						if enemyUnitsInArea > 0 {
-							v9 = 2
+							numEnemyNeighbours = 2
 						}
 					}
 				}
@@ -634,7 +635,7 @@ nextUnit:
 				}
 				if v > 7 {
 					t = v36 - v52*2
-					v9 = -128
+					numEnemyNeighbours = -128
 					temp = Reserve
 					unit.Fatigue &= 255
 				}
@@ -648,7 +649,7 @@ nextUnit:
 					bestDx, bestDy = dx, dy
 					//bestI = i
 				}
-				if i+1 > Sign(int(mode))+v9 {
+				if i+1 > Sign(int(mode))+numEnemyNeighbours {
 					continue
 				}
 				break
@@ -668,7 +669,7 @@ nextUnit:
 				unit.ObjectiveX = supplyUnit.X
 				unit.ObjectiveY = supplyUnit.Y
 				t := Move
-				if v9 > 0 {
+				if numEnemyNeighbours > 0 {
 					t = Defend
 				}
 				unit.Order = t
@@ -700,7 +701,7 @@ nextUnit:
 				unit.ObjectiveY = ((sy+bestDy)*4 + Rand(2, s.rand) + 1) & 63
 				unit.ObjectiveX = (((sx+bestDx)*4+Rand(2, s.rand)+1)*2 + (unit.ObjectiveY & 1)) & 127
 				mode = Move
-				if v9 != 0 {
+				if numEnemyNeighbours != 0 {
 					unit.Order = Defend
 					goto l24
 				}
@@ -719,7 +720,7 @@ l24:
 		coeff := (menCoeff + equipCoeff) / 8 * (255 - unit.Fatigue) / 256 * (unit.Morale + s.scenarioData.Data0High[unit.Type]*16) / 128
 		temp2 := coeff * s.neighbourScore(&s.hexes.Arr144, unit.X, unit.Y, unit.Side) / 8
 		v := 0
-		if v9 > 0 && s.scenarioData.Data200Low[unit.Type] < 3 {
+		if numEnemyNeighbours > 0 && s.scenarioData.Data200Low[unit.Type] < 3 {
 			v = 12
 		}
 		for i := v; i <= 18; i++ {
@@ -1141,8 +1142,8 @@ l21:
 			}
 
 			menCoeff := s.scenarioData.TerrainMenDefence[tt2] * s.scenarioData.FormationMenDefence[unit2.Formation] * unit2.MenCount / 32
-			equipCoeff := s.scenarioData.TerrainTankAttack[tt2] * s.scenarioData.FormationTankDefence[unit2.Formation] * s.scenarioData.Data16Low[unit2.Type] / 2 * unit2.EquipCount / 64
-			defenderScore = (menCoeff + equipCoeff) * unit2.Morale / 256 * (240 - unit2.Fatigue/2) / 128
+			tankCoeff := s.scenarioData.TerrainTankAttack[tt2] * s.scenarioData.FormationTankDefence[unit2.Formation] * s.scenarioData.Data16Low[unit2.Type] / 2 * unit2.EquipCount / 64
+			defenderScore = (menCoeff + tankCoeff) * unit2.Morale / 256 * (240 - unit2.Fatigue/2) / 128
 			defenderScore = defenderScore * unit2.General.Defence / 16
 			if unit2.SupplyLevel == 0 {
 				defenderScore = defenderScore * s.scenarioData.Data167 / 8

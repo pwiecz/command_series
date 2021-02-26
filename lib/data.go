@@ -43,7 +43,7 @@ type Data struct {
 	Data167                        int        // Data[167]
 	MinutesPerTick                 int        // Data[168]
 	UnitUpdatesPerTimeIncrement    int        // Data[169]
-	MenMultiplier                  int        // Data[170] (one man store in unit data correspond to that many actual men)
+	MenMultiplier                  int        // Data[170] (one man stored in unit data correspond to that many actual men)
 	TanksMultiplier                int        // Data[171] (same as above but for tanks)
 	Data173                        int        // Data[173] (a fatigue increase)
 	Data174                        int        // Data[174]
