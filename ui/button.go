@@ -37,5 +37,11 @@ func (b *Button) Update() bool {
 			return true
 		}
 	}
+	for _, touchID := range inpututil.JustPressedTouchIDs() {
+		x, y := ebiten.TouchPosition(touchID)
+		if image.Pt(x, y).In(b.rect) {
+			return true
+		}
+	}
 	return false
 }

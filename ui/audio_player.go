@@ -18,6 +18,9 @@ type AudioPlayer struct {
 }
 
 func (p *AudioPlayer) Read(buf []byte) (int, error) {
+	if p.player == nil {
+		return len(buf), nil
+	}
 	if len(p.buf) == 0 {
 		p.buf = p.origBuf
 		p.mutex.Lock()
@@ -45,6 +48,9 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 }
 
 func NewAudioPlayer(context *oto.Context) *AudioPlayer {
+	if context == nil {
+		return &AudioPlayer{}
+	}
 	p := &AudioPlayer{
 		player:  context.NewPlayer(),
 		origBuf: make([]byte, 4096)}
@@ -60,5 +66,8 @@ func (p *AudioPlayer) SetFrequency(channel int, freq byte) {
 	p.frequencies[channel] = freq
 }
 func (p *AudioPlayer) Close() {
+	if p.player == nil {
+		return
+	}
 	p.player.Close()
 }

@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"io/fs"
 	"math/rand"
 
@@ -29,10 +28,11 @@ type Game struct {
 }
 
 func NewGame(fsys fs.FS, rand *rand.Rand) (*Game, error) {
-	otoContext, err := oto.NewContext(44100, 2 /* num channels */, 1 /* num bytes per sample */, 4096 /* buffer size */)
-	if err != nil {
-		return nil, fmt.Errorf("Cannot create Oto context (%v)", err)
-	}
+	//otoContext, err := oto.NewContext(44100, 2 /* num channels */, 1 /* num bytes per sample */, 4096 /* buffer size */)
+	//if err != nil {
+	//	return nil, fmt.Errorf("Cannot create Oto context (%v)", err)
+	//}
+	var otoContext *oto.Context
 	game := &Game{
 		fsys:             fsys,
 		rand:             rand,

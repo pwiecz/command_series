@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"image"
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -25,6 +26,8 @@ type OptionSelection struct {
 
 	cursorImage *ebiten.Image
 	cursorRow   int
+
+	enterBounds image.Rectangle
 }
 
 var crusadeSidesStrings = [2]string{"Allied", "German"}
@@ -68,6 +71,7 @@ func NewOptionSelection(game lib.Game, font *lib.Font, onOptionsSelected func(*l
 	s.labels = append(s.labels,
 		NewLabel("Select Options ...", 40, 128, 300, 8, font),
 		NewLabel("Then press ENTER.", 40, 136, 300, 8, font))
+	s.enterBounds = image.Rect(40+11*8, 136, 40+16*8, 136+16)
 	for _, label := range s.labels {
 		label.SetTextColor(0)
 		label.SetBackgroundColor(15)
@@ -188,6 +192,12 @@ func (s *OptionSelection) Update() error {
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
 		s.onOptionsSelected(s.options)
+	}
+	for _, touchID := range inpututil.JustPressedTouchIDs() {
+		x, y := ebiten.TouchPosition(touchID)
+		if  image.Pt(x, y).In(s.enterBounds) {
+			s.onOptionsSelected(s.options)
+		}
 	}
 	return nil
 }

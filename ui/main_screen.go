@@ -322,6 +322,11 @@ func (s *MainScreen) Update() error {
 			x, y := s.screenCoordsToUnitCoords(mouseX, mouseY)
 			s.mapView.SetCursorPosition(x/2, y)
 		}
+		for _, touchID := range inpututil.JustPressedTouchIDs() {
+			touchX, touchY := ebiten.TouchPosition(touchID)
+			x, y := s.screenCoordsToUnitCoords(touchX, touchY)
+			s.mapView.SetCursorPosition(x/2, y)
+		}
 	}
 	if s.isFrozen || s.areUnitsHidden || s.gameOver {
 		return nil
