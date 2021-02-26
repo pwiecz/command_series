@@ -1,4 +1,4 @@
-package main
+package ui
 
 func FindByte(s []byte, b byte) int {
 	for i, v := range s {

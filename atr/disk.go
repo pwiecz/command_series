@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"os"
 	"time"
 )
 
@@ -13,8 +12,8 @@ type atrFS struct {
 	sectorReader SectorReader
 }
 
-func NewAtrFS(filename string) (fs.FS, error) {
-	sectorReader, err := newAtrSectorReader(filename)
+func NewAtrFS(input io.ReadSeeker) (fs.FS, error) {
+	sectorReader, err := newAtrSectorReader(input)
 	if err != nil {
 		return nil, err
 	}
@@ -94,26 +93,21 @@ const (
 )
 
 type atrSectorReader struct {
-	filename    string
+	input       io.ReadSeeker
 	sectorSize  int
 	sectorCount int
 }
 
-func newAtrSectorReader(filename string) (SectorReader, error) {
-	file, err := os.Open(filename)
-	if err != nil {
-		return nil, fmt.Errorf("Cannot open file %s, %v", filename, err)
-	}
-	defer file.Close()
+func newAtrSectorReader(input io.ReadSeeker) (SectorReader, error) {
 	var atrHeader [16]byte // 8 header bytes + 8 reserved bytes
-	if _, err := io.ReadFull(file, atrHeader[:]); err != nil {
-		return nil, fmt.Errorf("Cannot read atr file header from file %s, %v", filename, err)
+	if _, err := io.ReadFull(input, atrHeader[:]); err != nil {
+		return nil, fmt.Errorf("Cannot read atr file header, %v", err)
 	}
 	if atrHeader[0] != ATR_MAGIC1 || atrHeader[1] != ATR_MAGIC2 {
-		return nil, fmt.Errorf("%s is not an atr file", filename)
+		return nil, fmt.Errorf("Input is not an atr file")
 	}
 	sectorReader := &atrSectorReader{}
-	sectorReader.filename = filename
+	sectorReader.input = input
 	sectorReader.sectorSize = int(atrHeader[4]) + (int(atrHeader[5]) << 8)
 	imageSize := (int(atrHeader[2]) + (int(atrHeader[3]) << 8) +
 		(int(atrHeader[6]) << 16) + (int(atrHeader[7]) << 24)) * 16
@@ -128,26 +122,21 @@ func (r *atrSectorReader) ReadSector(sector int) ([]byte, error) {
 	if sector < 1 || sector > r.sectorCount {
 		return nil, fmt.Errorf("Invalid sector number %d", sector)
 	}
-	file, err := os.Open(r.filename)
-	if err != nil {
-		return nil, fmt.Errorf("Cannot open file %s, %v", r.filename, err)
-	}
-	defer file.Close()
 	offset := 16 /* size of the header */
 	if sector <= 4 {
 		offset += (sector - 1) * 128
 	} else {
 		offset += 3*128 + (sector-4)*r.sectorSize
 	}
-	if _, err := file.Seek(int64(offset), 0); err != nil {
-		return nil, fmt.Errorf("Cannot seek to position %d int file %s, %v", offset, r.filename, err)
+	if _, err := r.input.Seek(int64(offset), 0); err != nil {
+		return nil, fmt.Errorf("Cannot seek to position %d, %v", offset, err)
 	}
 	sectorSize := r.sectorSize
 	if sector <= 3 {
 		sectorSize = 128
 	}
 	data := make([]byte, sectorSize)
-	if _, err := io.ReadFull(file, data); err != nil {
+	if _, err := io.ReadFull(r.input, data); err != nil {
 		return nil, err
 	}
 	return data, nil

@@ -1,14 +1,12 @@
-package main
+package ui
 
 import (
 	"fmt"
 	"io/fs"
 	"math/rand"
-	"os"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/oto"
-	"github.com/pwiecz/command_series/atr"
 	"github.com/pwiecz/command_series/lib"
 )
 
@@ -30,26 +28,7 @@ type Game struct {
 	audioPlayer *AudioPlayer
 }
 
-func NewGame(filename string, rand *rand.Rand) (*Game, error) {
-	file, err := os.Open(filename)
-	if err != nil {
-		return nil, fmt.Errorf("Cannot open file or directory %s (%v)", filename, err)
-	}
-	defer file.Close()
-	fileStat, err := file.Stat()
-	if err != nil {
-		return nil, fmt.Errorf("Cannot stat file %s (%v)", filename, err)
-	}
-	var fsys fs.FS
-	if fileStat.IsDir() {
-		fsys = os.DirFS(filename)
-	} else {
-		var err error
-		fsys, err = atr.NewAtrFS(filename)
-		if err != nil {
-			return nil, fmt.Errorf("Cannot open atr image file %s (%v)", filename, err)
-		}
-	}
+func NewGame(fsys fs.FS, rand *rand.Rand) (*Game, error) {
 	otoContext, err := oto.NewContext(44100, 2 /* num channels */, 1 /* num bytes per sample */, 4096 /* buffer size */)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot create Oto context (%v)", err)
