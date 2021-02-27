@@ -74,7 +74,7 @@ func (g *Game) onGameOver(result, balance, rank int) {
 }
 
 func (g *Game) Update() error {
-	if g.otoContext != nil {
+	if g.otoContext == nil {
 		var err error
 		g.otoContext, err = oto.NewContext(44100, 2 /* num channels */, 1 /* num bytes per sample */, 4096 /* buffer size */)
 		if err != nil {
