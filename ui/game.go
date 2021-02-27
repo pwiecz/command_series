@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"io/fs"
 	"math/rand"
 
@@ -28,18 +29,12 @@ type Game struct {
 }
 
 func NewGame(fsys fs.FS, rand *rand.Rand) (*Game, error) {
-	//otoContext, err := oto.NewContext(44100, 2 /* num channels */, 1 /* num bytes per sample */, 4096 /* buffer size */)
-	//if err != nil {
-	//	return nil, fmt.Errorf("Cannot create Oto context (%v)", err)
-	//}
-	var otoContext *oto.Context
 	game := &Game{
 		fsys:             fsys,
 		rand:             rand,
 		selectedScenario: -1,
 		selectedVariant:  -1,
-		otoContext:       otoContext,
-		audioPlayer:      NewAudioPlayer(otoContext)}
+	}
 	game.subGame = NewGameLoading(fsys, game.onGameLoaded)
 	return game, nil
 }
@@ -79,6 +74,14 @@ func (g *Game) onGameOver(result, balance, rank int) {
 }
 
 func (g *Game) Update() error {
+	if g.otoContext != nil {
+		var err error
+		g.otoContext, err = oto.NewContext(44100, 2 /* num channels */, 1 /* num bytes per sample */, 4096 /* buffer size */)
+		if err != nil {
+			return fmt.Errorf("Cannot create Oto context (%v)", err)
+		}
+		g.audioPlayer = NewAudioPlayer(g.otoContext)
+	}
 	if g.subGame != nil {
 		return g.subGame.Update()
 	}
