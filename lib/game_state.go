@@ -818,7 +818,7 @@ l24:
 			if tt < 7 {
 				r := s.scenarioData.TerrainMenDefence[tt]
 				if s.game != Conflict {
-					v = r + s.neighbourScore(&s.hexes.Arr0, nx, ny, unit.Side)
+					v = r + s.neighbourScore(&s.hexes.Arr0, nx, ny, unit.Side)*2
 				}
 				if city, ok := s.FindCity(nx, ny); ok {
 					if s.ContainsUnitOfSide(nx, ny, unit.Side) {
@@ -827,7 +827,7 @@ l24:
 				}
 				if s.scenarioData.UnitScores[unit.Type]&248 > 0 ||
 					unit.Fatigue+unit.General.Data2High*4 > 96 {
-					v = r + s.neighbourScore(&s.hexes.Arr96, nx, ny, unit.Side)
+					v = r + s.neighbourScore(&s.hexes.Arr96, nx, ny, unit.Side)*2
 				}
 			}
 			if v >= arg1 {
