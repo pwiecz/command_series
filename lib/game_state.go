@@ -727,6 +727,9 @@ l24:
 			arg2 := 16001
 			nx := unit.X + s.generic.Dx152[i]
 			ny := unit.Y + s.generic.Dy153[i]
+			if !s.areUnitCoordsValid(nx, ny) {
+				continue
+			}
 			if unit2, ok := s.FindUnitOfSide(nx, ny, 1-unit.Side); ok {
 				terrainType := s.terrainType(unit2.Terrain)
 				menCoeff := s.scenarioData.TerrainMenDefence[terrainType] * unit2.MenCount
@@ -753,14 +756,13 @@ l24:
 				if i == 18 {
 					t = unit.Terrain
 				}
-				tt := s.terrainType(t)
-				var v int
-				if unit.MenCount > unit.EquipCount {
-					v = s.scenarioData.TerrainMenAttack[tt]
-				} else {
-					v = s.scenarioData.TerrainTankAttack[tt]
-				}
-				if tt < 7 {
+				if tt := s.terrainType(t); tt < 7 {
+					var v int
+					if unit.MenCount > unit.EquipCount {
+						v = s.scenarioData.TerrainMenAttack[tt]
+					} else {
+						v = s.scenarioData.TerrainTankAttack[tt]
+					}
 					// temporarily hide the unit while we compute sth
 					s.units[unit.Side][unit.Index].IsInGame = false
 					arg2 = temp2 - s.neighbourScore(&s.hexes.Arr48, nx, ny, unit.Side)*2 + v
@@ -812,10 +814,8 @@ l24:
 			if i < 6 {
 				tt = s.terrainTypeAt(nx, ny)
 			}
-			var v int
-			if tt == 7 {
-				v = -128
-			} else {
+			v := -128
+			if tt < 7 {
 				r := s.scenarioData.TerrainMenDefence[tt]
 				if s.game != Conflict {
 					v = r + s.neighbourScore(&s.hexes.Arr0, nx, ny, unit.Side)
