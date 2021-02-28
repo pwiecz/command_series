@@ -883,7 +883,7 @@ l21:
 	{
 		var distance int
 		var sx, sy int
-		// l22:
+	l22:
 		for unitMoveBudget := 25; unitMoveBudget > 0; {
 			if unit.ObjectiveX == 0 {
 				break
@@ -898,54 +898,51 @@ l21:
 				arg1 = 7
 				break // goto l2
 			}
-			mvAdd := 0
-		l5:
-			if unit.ObjectiveX == unit.X && unit.ObjectiveY == unit.Y {
-				unit.ObjectiveX = 0
-				unit.TargetFormation = s.function10(unit.Order, 1)
-				break // goto l2
-			}
-			unit.TargetFormation = s.function10(unit.Order, 0)
-			// If unit is player controlled or its command is local
-			if ((unit.Side+1)&s.commanderMask) != 0 || unit.HasLocalCommand {
-				// If it's next to its objective to defend and it's in contact with enemy
-				if distance == 1 && unit.Order == Defend && unit.InContactWithEnemy {
-					unit.TargetFormation = s.function10(unit.Order, 1)
-				}
-			}
-			// TODO: investigate if scope of sx, sy is not too large, and they're used where they're not supposed to.
 			var moveSpeed int
-			sx, sy, moveSpeed = s.FindBestMoveFromTowards(unit.X, unit.Y, unit.ObjectiveX, unit.ObjectiveY, unit.Type, mvAdd)
-			if d32&64 > 0 { // in CiV artillery or mortars
-				if s.game != Conflict || unit.Formation == 0 {
-					sx = unit.ObjectiveX
-					sy = unit.ObjectiveY
-					tt := s.terrainTypeAt(sx, sy)
-					moveSpeed = s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[tt][unit.Type]
-					arg1 = tt // shouldn't have any impact
-					mvAdd = 1 // it just means don't go back to l5
-				} else if unit.Formation != 0 { /* Conflict */
-					if s.scenarioData.UnitMask[unit.Type]&32 != 0 {
-						break // goto l2
+			for mvAdd := 0; mvAdd <= 1; mvAdd++ { // l5:
+				if unit.ObjectiveX == unit.X && unit.ObjectiveY == unit.Y {
+					unit.ObjectiveX = 0
+					unit.TargetFormation = s.function10(unit.Order, 1)
+					break l22 // goto l2
+				}
+				unit.TargetFormation = s.function10(unit.Order, 0)
+				// If unit is player controlled or its command is local
+				if ((unit.Side+1)&s.commanderMask) != 0 || unit.HasLocalCommand {
+					// If it's next to its objective to defend and it's in contact with enemy
+					if distance == 1 && unit.Order == Defend && unit.InContactWithEnemy {
+						unit.TargetFormation = s.function10(unit.Order, 1)
 					}
 				}
-			}
-			if s.ContainsUnitOfSide(sx, sy, unit.Side) {
-				moveSpeed = 0
-			}
-			if s.ContainsUnitOfSide(sx, sy, 1-unit.Side) {
-				moveSpeed = -1
-			}
-			if moveSpeed < 1 &&
-				(unit.Order != Attack || moveSpeed != -1) &&
-				Abs(unit.ObjectiveX-unit.X)+Abs(unit.ObjectiveY-unit.Y) > 2 &&
-				mvAdd == 0 {
-				mvAdd = 1
-				goto l5
+				// TODO: investigate if scope of sx, sy is not too large, and they're used where they're not supposed to.
+				sx, sy, moveSpeed = s.FindBestMoveFromTowards(unit.X, unit.Y, unit.ObjectiveX, unit.ObjectiveY, unit.Type, mvAdd)
+				if d32&64 > 0 { // in CiV artillery or mortars
+					if s.game != Conflict || unit.Formation == 0 {
+						sx = unit.ObjectiveX
+						sy = unit.ObjectiveY
+						tt := s.terrainTypeAt(sx, sy)
+						moveSpeed = s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[tt][unit.Type]
+						arg1 = tt // shouldn't have any impact
+						mvAdd = 1
+					} else if unit.Formation != 0 { /* Conflict */
+						if s.scenarioData.UnitMask[unit.Type]&32 != 0 {
+							break l22 // goto l2
+						}
+					}
+				}
+				if s.ContainsUnitOfSide(sx, sy, unit.Side) {
+					moveSpeed = 0
+				}
+				if s.ContainsUnitOfSide(sx, sy, 1-unit.Side) {
+					moveSpeed = -1
+				}
+				if moveSpeed >= 1 || (unit.Order == Attack && moveSpeed == -1) ||
+					Abs(unit.ObjectiveX-unit.X)+Abs(unit.ObjectiveY-unit.Y) <= 2 {
+					break
+				}
 			}
 
 			if moveSpeed < 1 {
-				break
+				break // goto l2
 			}
 			moveSpeed = moveSpeed * s.scenarioData.Data192[unit.Formation] / 8
 			if unit.State4 {
