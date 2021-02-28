@@ -1093,15 +1093,15 @@ l21:
 				unit.InContactWithEnemy = true
 				unit.SeenByEnemy = true // |= 65
 			}
-			// * function14 - play sound??
+			// function14
 		} else {
 			if s.scenarioData.Data32[unit.Type]&8 > 0 && weather > 3 {
-				// [53767] = 0 sth with sound (silence???)
+				// [53767] = 0
 				goto end
 			}
-			// function27 - play some sound?
+			// function27
 		}
-		// [53767] = 0 // silence?
+		// [53767] = 0
 		if s.game != Conflict {
 			unit.InContactWithEnemy = true
 			unit.SeenByEnemy = true // |= 65
@@ -1305,14 +1305,13 @@ l21:
 	}
 end: // l3
 	for unit.Formation != unit.TargetFormation {
-		// changing to target formation???
-		dif := Sign(unit.Formation - unit.TargetFormation)
-		temp := s.scenarioData.Data216[(dif+1)*4+unit.Formation]
-		if temp > Rand(15, s.rand) {
+		dir := Sign(unit.Formation - unit.TargetFormation)
+		speed := s.scenarioData.FormationChangeSpeed[(dir+1)/2][unit.Formation]
+		if speed > Rand(15, s.rand) {
 			unit.FormationTopBit = false
-			unit.Formation -= dif
+			unit.Formation -= dir
 		}
-		if temp&16 == 0 {
+		if speed&16 == 0 {
 			break
 		}
 	}

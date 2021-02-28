@@ -52,7 +52,7 @@ type Data struct {
 	Data192                        [8]int     // Data[192:200] move cost per formation
 	Data200Low                     [16]int    // Data[200:216] lower three bits per type
 	UnitResupplyPerType            [16]int    // Data[200:216] top four bits div 2
-	Data216                        [16]int    // Data[216:232]
+	FormationChangeSpeed           [2][8]int  // Data[216:232]
 	ResupplyRate                   [2]int     // Data[232,233]
 	MenReplacementRate             [2]int     // Data[234,235]
 	EquipReplacementRate           [2]int     // Data[236,237]
@@ -175,7 +175,7 @@ func ParseData(data []byte) (Data, error) {
 		scenario.UnitResupplyPerType[i] = (int((v & 240) >> 1))
 	}
 	for i, v := range data[216:232] {
-		scenario.Data216[i] = int(v)
+		scenario.FormationChangeSpeed[i/8][i%8] = int(v)
 	}
 	scenario.ResupplyRate[0] = int(data[232])
 	scenario.ResupplyRate[1] = int(data[233])
@@ -349,7 +349,7 @@ func (s *Data) UpdateData(offset byte, value byte) {
 		s.Data200Low[offset-200] = int(value & 7)
 		s.UnitResupplyPerType[offset-200] = int((value & 240) >> 1)
 	case InRange(int(offset), 216, 232):
-		s.Data216[offset-216] = int(value)
+		s.FormationChangeSpeed[(offset-216)/8][(offset-216)%8] = int(value)
 	case offset == 232:
 		s.ResupplyRate[0] = int(value)
 	case offset == 233:
@@ -395,7 +395,6 @@ func (d *Data) WriteFirst255Bytes(writer io.Writer) error {
 		data[64+i] = byte(d.RecoveryRate[i])
 		data[80+i] = byte(d.UnitMask[i])
 		data[200+i] = byte(d.Data200Low[i] + d.UnitResupplyPerType[i]*2)
-		data[216+i] = byte(d.Data216[i])
 	}
 	for i := 0; i < 8; i++ {
 		data[96+i] = byte(d.TerrainMenAttack[i])
@@ -426,6 +425,11 @@ func (d *Data) WriteFirst255Bytes(writer io.Writer) error {
 	for order := 0; order < 4; order++ {
 		for i := 0; i < 4; i++ {
 			data[176+order*4+i] = byte(d.Data176[order][i])
+		}
+	}
+	for dir := 0; dir <= 1; dir++ {
+		for formation := 0; formation < 8; formation++ {
+			data[216+dir*8+formation] = byte(d.FormationChangeSpeed[dir][formation])
 		}
 	}
 	for i := 0; i < 2; i++ {

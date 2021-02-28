@@ -84,7 +84,6 @@ func (u *Unit) ClearState() {
 	u.HasLocalCommand = false
 	u.SeenByEnemy = false
 	u.IsInGame = false
-
 }
 
 type FlashbackUnit struct {
@@ -358,4 +357,36 @@ func (h *FlashbackHistory) Read(reader io.Reader) error {
 	}
 	*h = FlashbackHistory(history)
 	return nil
+}
+
+func (u Unit) FullString() string {
+	return fmt.Sprintf(`Side: %d
+In contact with enemy: %t
+Is under attack: %t
+State2: %t
+Has supply line: %t
+State4: %t
+Has local command: %t
+Seen by enemy: %t
+Is in game: %t
+X,Y: %d,%d
+Formation: %d
+Supply unit: %d
+Formation top bit: %t
+Type: %s (%d)
+ColorPalette: %d
+Name: %s (%d)
+Target formation: %d
+Order bit4: %t
+Order: %v
+General: %s (%d)
+Supply level: %d
+Morale: %d
+Terrain: %d
+Variants: %08b
+Half-days until appear: %d
+Inv appear probability: %d
+Fatigue: %d
+ObjectiveX,ObjectiveY: %d,%d`,
+		u.Side, u.InContactWithEnemy, u.IsUnderAttack, u.State2, u.HasSupplyLine, u.State4, u.HasLocalCommand, u.SeenByEnemy, u.IsInGame, u.X, u.Y, u.Formation, u.SupplyUnit, u.FormationTopBit, u.TypeName, u.Type, u.ColorPalette, u.Name, u.nameIndex, u.TargetFormation, u.OrderBit4, u.Order, u.General.Name, u.generalIndex, u.SupplyLevel, u.Morale, u.Terrain, u.VariantBitmap, u.HalfDaysUntilAppear, u.InvAppearProbability, u.Fatigue, u.ObjectiveX, u.ObjectiveY)
 }
