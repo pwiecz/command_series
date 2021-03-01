@@ -55,6 +55,8 @@ type GameState struct {
 	options         *Options
 
 	sync *MessageSync
+
+	allUnitsHidden bool
 }
 
 func NewGameState(rand *rand.Rand, gameData *GameData, scenarioData *ScenarioData, scenarioNum, variantNum int, playerSide int, options *Options, sync *MessageSync) *GameState {
@@ -494,7 +496,8 @@ nextUnit:
 			var bestDx, bestDy int
 			var v63 int
 			temp2 := (unit.MenCount + unit.EquipCount + 4) / 8
-			v61 := temp2 * Clamp(s.scenarioData.FormationMenDefence[unit.Formation], 8, 99) / 8 * s.scenarioData.TerrainMenDefence[s.terrainType(unit.Terrain)] / 8
+			v61 := temp2 * Clamp(s.scenarioData.FormationMenDefence[unit.Formation], 8, 99) / 8
+			v61 = v61 * s.scenarioData.TerrainMenDefence[s.terrainType(unit.Terrain)] / 8
 			if s.scenarioData.UnitScores[unit.Type] > 7 {
 				// special units - air wings or supply units
 				temp2 = 1
@@ -751,7 +754,7 @@ l24:
 				}
 				n := t / Clamp(d, 1, 32)
 				arg2 = n * s.neighbourScore(&s.hexes.Arr144, unit2.X, unit2.Y, unit2.Side) / 8 * (255 - unit2.Fatigue) / 256 * unit2.Morale / 128
-			} else {
+			} else if (nx == unit.X && ny == unit.Y) || !s.ContainsVisibleUnit(nx, ny) {
 				t := s.terrainAt(nx, ny)
 				if i == 18 {
 					t = unit.Terrain
@@ -810,24 +813,26 @@ l24:
 			if !s.areUnitCoordsValid(nx, ny) {
 				continue
 			}
-			tt := s.terrainType(unit.Terrain)
-			if i < 6 {
-				tt = s.terrainTypeAt(nx, ny)
-			}
 			v := -128
-			if tt < 7 {
-				r := s.scenarioData.TerrainMenDefence[tt]
-				if s.game != Conflict {
-					v = r + s.neighbourScore(&s.hexes.Arr0, nx, ny, unit.Side)*2
+			if (nx == unit.X && ny == unit.Y) || !s.ContainsVisibleUnit(nx, ny) {
+				tt := s.terrainType(unit.Terrain)
+				if i < 6 {
+					tt = s.terrainTypeAt(nx, ny)
 				}
-				if city, ok := s.FindCity(nx, ny); ok {
-					if s.ContainsUnitOfSide(nx, ny, unit.Side) {
-						v += city.VictoryPoints
+				if tt < 7 {
+					r := s.scenarioData.TerrainMenDefence[tt]
+					if s.game != Conflict {
+						v = r + s.neighbourScore(&s.hexes.Arr0, nx, ny, unit.Side)*2
 					}
-				}
-				if s.scenarioData.UnitScores[unit.Type]&248 > 0 ||
-					unit.Fatigue+unit.General.Data2High*4 > 96 {
-					v = r + s.neighbourScore(&s.hexes.Arr96, nx, ny, unit.Side)*2
+					if city, ok := s.FindCity(nx, ny); ok {
+						if s.ContainsUnitOfSide(nx, ny, unit.Side) {
+							v += city.VictoryPoints
+						}
+					}
+					if s.scenarioData.UnitScores[unit.Type]&248 > 0 ||
+						unit.Fatigue+unit.General.Data2High*4 > 96 {
+						v = r + s.neighbourScore(&s.hexes.Arr96, nx, ny, unit.Side)*2
+					}
 				}
 			}
 			if v >= arg1 {
@@ -1219,21 +1224,20 @@ l21:
 			}
 			bestDefence := -128
 			bestX, bestY := unit2.X, unit2.Y
-			for i := 0; i < 6; i++ {
+			for i := 0; i <= 6; i++ {
 				nx, ny := s.generic.IthNeighbour(unit2.X, unit2.Y, i)
-				if !s.areUnitCoordsValid(nx, ny) {
+				if !s.areUnitCoordsValid(nx, ny) || s.ContainsUnit(nx, ny) || s.ContainsCity(nx, ny) {
 					continue
 				}
 				tt := s.terrainTypeAt(nx, ny)
-				r := s.scenarioData.TerrainMenDefence[tt]
-				if s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[tt][unit2.Type] > 0 {
-					if !s.ContainsUnit(nx, ny) && !s.ContainsCity(nx, ny) {
-						r += s.neighbourScore(&s.hexes.Arr96, nx, ny, 1-unit.Side) * 4
-						if r > 11 && r >= bestDefence {
-							bestDefence = r
-							bestX, bestY = nx, ny
-						}
-					}
+				if s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[tt][unit2.Type] == 0 {
+					continue
+				}
+				r := s.scenarioData.TerrainMenDefence[tt] +
+					s.neighbourScore(&s.hexes.Arr96, nx, ny, 1-unit.Side)*4
+				if r > 11 && r >= bestDefence {
+					bestDefence = r
+					bestX, bestY = nx, ny
 				}
 			}
 			if bestX != unit2.X || bestY != unit2.Y {
@@ -1708,6 +1712,17 @@ outerLoop:
 	return unit
 }
 
+func (s *GameState) ContainsVisibleUnit(x, y int) bool {
+	if s.allUnitsHidden {
+		return false
+	}
+	if unit, ok := s.FindUnit(x, y); !ok {
+		return false
+	} else {
+		return s.IsUnitVisible(unit)
+	}
+}
+
 func (s *GameState) ContainsUnit(x, y int) bool {
 	return s.ContainsUnitOfSide(x, y, 0) ||
 		s.ContainsUnitOfSide(x, y, 1)
@@ -1789,6 +1804,7 @@ func (s *GameState) terrainTypeAt(x, y int) int {
 }
 func (s *GameState) terrainAt(x, y int) byte {
 	if !s.areUnitCoordsValid(x, y) {
+		panic(fmt.Errorf("%d,%d", x, y))
 		return 255
 	}
 	return s.terrainMap.GetTile(x/2, y)
@@ -1804,6 +1820,7 @@ func (s *GameState) hideUnit(unit Unit) {
 	s.terrainMap.SetTile(unit.X/2, unit.Y, unit.Terrain)
 }
 func (s *GameState) HideAllUnits() {
+	s.allUnitsHidden = true
 	for _, sideUnits := range s.units {
 		for _, unit := range sideUnits {
 			if unit.IsInGame {
@@ -1817,6 +1834,7 @@ func (s *GameState) IsUnitVisible(unit Unit) bool {
 	return unit.IsInGame && (unit.InContactWithEnemy || unit.SeenByEnemy || ((unit.Side+1)&(s.commanderMask>>2)) == 0)
 }
 func (s *GameState) ShowAllVisibleUnits() {
+	s.allUnitsHidden = false
 	for _, sideUnits := range s.units {
 		for i, unit := range sideUnits {
 			if !unit.IsInGame {
