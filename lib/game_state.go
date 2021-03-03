@@ -1200,6 +1200,7 @@ l21:
 			arg1-s.scenarioData.Data0Low[unit2.Type]*2+unit2.Fatigue/4 > 36 {
 			unit2.Morale = Abs(unit2.Morale - 1)
 			oldX, oldY := unit2.X, unit2.Y
+			bestX, bestY := unit2.X, unit2.Y
 			s.hideUnit(unit2)
 			if unit2.Fatigue > 128 {
 				unit2SupplyUnit := s.units[unit2.Side][unit2.SupplyUnit]
@@ -1223,7 +1224,6 @@ l21:
 				}
 			}
 			bestDefence := -128
-			bestX, bestY := unit2.X, unit2.Y
 			for i := 0; i <= 6; i++ {
 				nx, ny := s.generic.IthNeighbour(unit2.X, unit2.Y, i)
 				if !s.areUnitCoordsValid(nx, ny) || s.ContainsUnit(nx, ny) || s.ContainsCity(nx, ny) {
@@ -1240,13 +1240,10 @@ l21:
 					bestX, bestY = nx, ny
 				}
 			}
-			if bestX != unit2.X || bestY != unit2.Y {
-				unit2.X, unit2.Y = bestX, bestY // moved this up comparing to the original code
-
-				unit2.Terrain = s.terrainAt(bestX, bestY)
-				if unit2.Terrain%64 >= 48 {
-					panic(fmt.Errorf("%v %d %d", unit2, bestX, bestY))
-				}
+			unit2.X, unit2.Y = bestX, bestY // moved this up comparing to the original code
+			unit2.Terrain = s.terrainAt(bestX, bestY)
+			if unit2.Terrain%64 >= 48 {
+				panic(fmt.Errorf("%v %d %d", unit2, bestX, bestY))
 			}
 			if _, ok := message.(WeHaveBeenOverrun); !ok {
 				if s.game != Conflict {
