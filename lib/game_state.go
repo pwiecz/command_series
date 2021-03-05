@@ -481,11 +481,10 @@ nextUnit:
 				count := (unit.MenCount + unit.EquipCount + 8) / 16
 				s.map2_0[unit.Side][tx][ty] = Abs(s.map2_0[unit.Side][bestX][bestY] - count)
 				s.map2_0[unit.Side][bestX][bestY] += count
-				unit.ObjectiveX = bestX*32 + 16 // ((v20&6)*16)|16
+				unit.ObjectiveX, unit.ObjectiveY = bestX*32+16, bestY*16+8
 				if s.game == Conflict {
 					unit.ObjectiveX += Rand(3, s.rand) * 2
 				}
-				unit.ObjectiveY = bestY*16 + 8 // ((v20&24)*2)| 8
 				goto l21
 			}
 		}
@@ -669,8 +668,7 @@ nextUnit:
 				if !supplyUnit.IsInGame {
 					supplyUnit = s.units[unit.Side][supplyUnit.SupplyUnit]
 				}
-				unit.ObjectiveX = supplyUnit.X
-				unit.ObjectiveY = supplyUnit.Y
+				unit.ObjectiveX, unit.ObjectiveY = supplyUnit.X, supplyUnit.Y
 				t := Move
 				if numEnemyNeighbours > 0 {
 					t = Defend
@@ -787,8 +785,7 @@ l24:
 			}
 			if arg2 <= arg1 {
 				arg1 = arg2
-				unit.ObjectiveX = nx
-				unit.ObjectiveY = ny
+				unit.ObjectiveX, unit.ObjectiveY = nx, ny
 			}
 		}
 	}
@@ -799,8 +796,7 @@ l24:
 	if mode == Defend {
 		// Reset current objective.
 		if unit.ObjectiveX > 0 {
-			unit.ObjectiveX = unit.X
-			unit.ObjectiveY = unit.Y
+			unit.ObjectiveX, unit.ObjectiveY = unit.X, unit.Y
 		}
 		// temperarily hide the unit while we compute sth
 		s.units[unit.Side][unit.Index].IsInGame = false
@@ -871,8 +867,7 @@ l24:
 				if ((s.game != Conflict && (unit2.IsUnderAttack || unit2.State2)) ||
 					(s.game == Conflict && unit2.SeenByEnemy)) &&
 					Abs(unit.X-unit2.X)/2+Abs(unit.Y-unit2.Y) <= attackRange {
-					unit.ObjectiveX = unit2.X
-					unit.ObjectiveY = unit2.Y
+					unit.ObjectiveX, unit.ObjectiveY = unit2.X, unit2.Y
 					unit.Order = Attack
 					unit.Formation = s.scenarioData.Data176[0][2]
 				}
@@ -897,8 +892,7 @@ l21:
 			d32 := s.scenarioData.Data32[unit.Type]
 			attackRange := (d32 & 31) * 2
 			if distance > 0 && distance <= attackRange && unit.Order == Attack {
-				sx = unit.ObjectiveX
-				sy = unit.ObjectiveY
+				sx, sy = unit.ObjectiveX, unit.ObjectiveY
 				unit.FormationTopBit = true
 				arg1 = 7
 				break // goto l2
@@ -922,8 +916,7 @@ l21:
 				sx, sy, moveSpeed = s.FindBestMoveFromTowards(unit.X, unit.Y, unit.ObjectiveX, unit.ObjectiveY, unit.Type, mvAdd)
 				if d32&64 > 0 { // in CiV artillery or mortars
 					if s.game != Conflict || unit.Formation == 0 {
-						sx = unit.ObjectiveX
-						sy = unit.ObjectiveY
+						sx, sy = unit.ObjectiveX, unit.ObjectiveY
 						tt := s.terrainTypeAt(sx, sy)
 						moveSpeed = s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[tt][unit.Type]
 						arg1 = tt // shouldn't have any impact
@@ -993,8 +986,7 @@ l21:
 					return
 				}
 			}
-			unit.X = sx
-			unit.Y = sy
+			unit.X, unit.Y = sx, sy
 			unit.Terrain = s.terrainAt(unit.X, unit.Y)
 			if unit.Terrain%64 >= 48 {
 				panic(fmt.Errorf("%v", unit))
@@ -1039,15 +1031,14 @@ l21:
 		}
 		for i := 0; i < 6; i++ {
 			nx, ny := s.generic.IthNeighbour(unit.X, unit.Y, i)
-			if unit2, ok := s.FindUnit(nx, ny); ok && unit2.Side == 1-unit.Side {
+			if unit2, ok := s.FindUnitOfSide(nx, ny, 1-unit.Side); ok {
 				unit2.InContactWithEnemy = true
 				unit2.SeenByEnemy = true // |= 65
 				s.showUnit(unit2)
 				s.units[unit2.Side][unit2.Index] = unit2
 				if s.scenarioData.UnitScores[unit2.Type] > 8 {
 					if ((unit.Side + 1) & s.commanderMask) > 0 {
-						sx = unit2.X
-						sy = unit2.Y
+						sx, sy = unit2.X, unit2.Y
 						unit.Order = Attack
 						arg1 = 7
 						// arg2 = i
@@ -1206,8 +1197,7 @@ l21:
 				unit2SupplyUnit := s.units[unit2.Side][unit2.SupplyUnit]
 				if unit2SupplyUnit.IsInGame {
 					unit2.Morale = Abs(unit2.Morale - s.countNeighbourUnits(unit2.X, unit2.Y, unit.Side)*4)
-					unit2.X = unit2SupplyUnit.X
-					unit2.Y = unit2SupplyUnit.Y
+					unit2.X, unit2.Y = unit2SupplyUnit.X, unit2SupplyUnit.Y
 					unit2.ClearState()
 					unit2.HalfDaysUntilAppear = 6
 					unit2.InvAppearProbability = 6
@@ -1248,8 +1238,7 @@ l21:
 			if _, ok := message.(WeHaveBeenOverrun); !ok {
 				if s.game != Conflict {
 					s.showUnit(unit2)
-					unit.ObjectiveX = unit2.X
-					unit.ObjectiveY = unit2.Y
+					unit.ObjectiveX, unit.ObjectiveY = unit2.X, unit2.Y
 				} else {
 					if ((2 - unit.Side) & (s.commanderMask >> 2)) == 0 {
 						s.showUnit(unit2)
@@ -1267,8 +1256,7 @@ l21:
 					s.neighbourScore(&s.hexes.Arr96, oldX, oldY, unit.Side) > -4 &&
 					s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[s.terrainTypeAt(oldX, oldY)][unit.Type] > 0 {
 					s.hideUnit(unit)
-					unit.X = oldX
-					unit.Y = oldY
+					unit.X, unit.Y = oldX, oldY
 					unit.Terrain = s.terrainAt(unit.X, unit.Y)
 					if unit.Terrain%64 >= 48 {
 						panic(fmt.Errorf("%v", unit.Terrain))
@@ -1701,8 +1689,7 @@ outerLoop:
 		unit.Fatigue = Clamp(unit.Fatigue+64, 0, 255)
 		// todo: does it really work? Aren't the last units on the list all zeroes...
 		if supplyUnit.X != 0 {
-			unit.ObjectiveX = supplyUnit.X
-			unit.ObjectiveY = supplyUnit.Y
+			unit.ObjectiveX, unit.ObjectiveY = supplyUnit.X, supplyUnit.Y
 		}
 	}
 	s.hideUnit(unit)
