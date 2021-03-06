@@ -396,8 +396,7 @@ nextUnit:
 	}
 	var numEnemyNeighbours int
 	var arg1 int
-	if unit.MenCount+unit.EquipCount < 7 ||
-		unit.Fatigue == 255 {
+	if unit.MenCount+unit.EquipCount < 7 || unit.Fatigue == 255 {
 		s.hideUnit(unit)
 		message = WeMustSurrender{unit}
 		unit.ClearState()
@@ -712,144 +711,24 @@ nextUnit:
 	}
 l24:
 	unit.TargetFormation = s.function10(unit.Order, 1)
-	// Find the best objective for attack.
 	if mode == Attack {
-		arg1 = 16000
-		terrainType := s.terrainType(unit.Terrain)
-		menCoeff := s.scenarioData.TerrainMenAttack[terrainType] * unit.MenCount
-		equipCoeff := s.scenarioData.TerrainTankAttack[terrainType] * unit.EquipCount * s.scenarioData.Data16High[unit.Type] / 4
-		coeff := (menCoeff + equipCoeff) / 8 * (255 - unit.Fatigue) / 256 * (unit.Morale + s.scenarioData.Data0High[unit.Type]*16) / 128
-		temp2 := coeff * s.neighbourScore(&s.hexes.Arr144, unit.X, unit.Y, unit.Side) / 8
-		v := 0
-		if numEnemyNeighbours > 0 && s.scenarioData.Data200Low[unit.Type] < 3 {
-			v = 12
-		}
-		for i := v; i <= 18; i++ {
-			arg2 := 16001
-			nx := unit.X + s.generic.Dx152[i]
-			ny := unit.Y + s.generic.Dy153[i]
-			if !s.areUnitCoordsValid(nx, ny) {
-				continue
-			}
-			if unit2, ok := s.FindUnitOfSide(nx, ny, 1-unit.Side); ok {
-				terrainType := s.terrainType(unit2.Terrain)
-				menCoeff := s.scenarioData.TerrainMenDefence[terrainType] * unit2.MenCount
-				equipCoeff := s.scenarioData.TerrainTankDefence[terrainType] * unit2.EquipCount * s.scenarioData.Data16Low[unit2.Type] / 4
-				t := (menCoeff + equipCoeff) * s.scenarioData.FormationMenDefence[unit2.Formation] / 8
-				w := weather
-				if s.game != Conflict && s.scenarioData.UnitMask[unit.Type]&4 != 0 {
-					w /= 2
-				}
-				if s.game == Conflict && s.scenarioData.UnitMask[unit.Type]&4 == 0 {
-					w *= 2
-				}
-				d := s.scenarioData.UnitScores[unit2.Type] + 14 - w
-				if unit2.IsUnderAttack {
-					d += 4
-				}
-				if unit2.State2 {
-					d += 8
-				}
-				n := t / Clamp(d, 1, 32)
-				arg2 = n * s.neighbourScore(&s.hexes.Arr144, unit2.X, unit2.Y, unit2.Side) / 8 * (255 - unit2.Fatigue) / 256 * unit2.Morale / 128
-			} else if (nx == unit.X && ny == unit.Y) || !s.ContainsVisibleUnit(nx, ny) {
-				t := s.terrainAt(nx, ny)
-				if i == 18 {
-					t = unit.Terrain
-				}
-				if tt := s.terrainType(t); tt < 7 {
-					var v int
-					if unit.MenCount > unit.EquipCount {
-						v = s.scenarioData.TerrainMenAttack[tt]
-					} else {
-						v = s.scenarioData.TerrainTankAttack[tt]
-					}
-					// temporarily hide the unit while we compute sth
-					s.units[unit.Side][unit.Index].IsInGame = false
-					arg2 = temp2 - s.neighbourScore(&s.hexes.Arr48, nx, ny, unit.Side)*2 + v
-					// unhide the unit
-					s.units[unit.Side][unit.Index].IsInGame = true
-				}
-			}
-			if i < 12 {
-				arg2 *= 2
-			}
-			if city, ok := s.FindCity(nx, ny); ok {
-				if city.Owner != unit.Side {
-					if s.ContainsUnitOfSide(nx, ny, 1-unit.Side) {
-						arg2 -= city.VictoryPoints
-					} else {
-						arg2 = -city.VictoryPoints
-					}
-				}
-			}
-			if arg2 <= arg1 {
-				arg1 = arg2
-				unit.ObjectiveX, unit.ObjectiveY = nx, ny
-			}
+		if objX, objY, score := s.bestAttackObjective(unit, weather, numEnemyNeighbours); objX > 0 {
+			unit.ObjectiveX, unit.ObjectiveY = objX, objY
+			arg1 = score
 		}
 	}
 	if mode == Reserve {
 		unit.ObjectiveX = 0
 	}
-	// Pick the best location to defend from among the neighbour locations.
 	if mode == Defend {
 		// Reset current objective.
 		if unit.ObjectiveX > 0 {
 			unit.ObjectiveX, unit.ObjectiveY = unit.X, unit.Y
 		}
-		// temperarily hide the unit while we compute sth
-		s.units[unit.Side][unit.Index].IsInGame = false
-		arg1 = -17536 // 48000
-		var bestI int
-		// Score for i==6 (zero offset - the unit's position).
-		var v_6 int
-		for i := 0; i <= 6; i++ {
-			nx, ny := s.generic.IthNeighbour(unit.X, unit.Y, i)
-			if !s.areUnitCoordsValid(nx, ny) {
-				continue
-			}
-			v := -128
-			if (nx == unit.X && ny == unit.Y) || !s.ContainsVisibleUnit(nx, ny) {
-				tt := s.terrainType(unit.Terrain)
-				if i < 6 {
-					tt = s.terrainTypeAt(nx, ny)
-				}
-				if tt < 7 {
-					r := s.scenarioData.TerrainMenDefence[tt]
-					if s.game != Conflict {
-						v = r + s.neighbourScore(&s.hexes.Arr0, nx, ny, unit.Side)*2
-					}
-					if city, ok := s.FindCity(nx, ny); ok {
-						if s.ContainsUnitOfSide(nx, ny, unit.Side) {
-							v += city.VictoryPoints
-						}
-					}
-					if s.scenarioData.UnitScores[unit.Type]&248 > 0 ||
-						unit.Fatigue+unit.General.Data2High*4 > 96 {
-						v = r + s.neighbourScore(&s.hexes.Arr96, nx, ny, unit.Side)*2
-					}
-				}
-			}
-			if v >= arg1 {
-				arg1 = v
-				bestI = i
-			}
-			if i == 6 {
-				v_6 = v
-			}
-		}
-		// unhide unit
-		s.units[unit.Side][unit.Index].IsInGame = true
-		v := s.scenarioData.FormationMenDefence[unit.Formation] - 8
-		if ((unit.Side + 1) & s.commanderMask) == 0 {
-			v *= 2
-		}
-		if v+v_6 > arg1 {
-			bestI = 6
-		}
-		if bestI < 6 {
-			unit.ObjectiveX, unit.ObjectiveY = s.generic.IthNeighbour(unit.X, unit.Y, bestI)
+		objX, objY, score := s.bestDefenceObjective(unit)
+		arg1 = score
+		if objX != unit.X || objY != unit.Y {
+			unit.ObjectiveX, unit.ObjectiveY = objX, objY
 		} else {
 			unit.TargetFormation = s.function10(unit.Order, 1)
 		}
@@ -858,10 +737,11 @@ l24:
 		// long range attack
 		d32 := s.scenarioData.Data32[unit.Type]
 		attackRange := (d32 & 31) * 2
-		if attackRange > 0 &&
-			((s.game != Conflict && (d32&8)+weather < 10) ||
-				(s.game == Conflict && (d32&32)+weather < 34)) &&
-			unit.Fatigue/4 < 32 {
+		susceptibleToWeather := (d32 & 8) != 0
+		if s.game == Conflict {
+			susceptibleToWeather = (d32 & 32) != 0
+		}
+		if attackRange > 0 && (!susceptibleToWeather || weather < 2) && unit.Fatigue/4 < 32 {
 			for i := 0; i <= 32-unit.Fatigue/4; i++ {
 				unit2 := s.units[1-unit.Side][Rand(64, s.rand)]
 				if ((s.game != Conflict && (unit2.IsUnderAttack || unit2.State2)) ||
@@ -1309,6 +1189,139 @@ end: // l3
 		unit.Fatigue = Clamp(unit.Fatigue-recovery, 0, 255)
 	}
 	s.units[unit.Side][unit.Index] = unit
+	return
+}
+
+func (s *GameState) bestAttackObjective(unit Unit, weather int, numEnemyNeighbours int) (objX, objY, score int) {
+	score = 16000
+	terrainType := s.terrainType(unit.Terrain)
+	menCoeff := s.scenarioData.TerrainMenAttack[terrainType] * unit.MenCount
+	equipCoeff := s.scenarioData.TerrainTankAttack[terrainType] * unit.EquipCount * s.scenarioData.Data16High[unit.Type] / 4
+	coeff := (menCoeff + equipCoeff) / 8 * (255 - unit.Fatigue) / 256 * (unit.Morale + s.scenarioData.Data0High[unit.Type]*16) / 128
+	temp2 := coeff * s.neighbourScore(&s.hexes.Arr144, unit.X, unit.Y, unit.Side) / 8
+	v := 0
+	if numEnemyNeighbours > 0 && s.scenarioData.Data200Low[unit.Type] < 3 {
+		v = 12
+	}
+	for i := v; i <= 18; i++ {
+		arg2 := 16001
+		nx := unit.X + s.generic.Dx152[i]
+		ny := unit.Y + s.generic.Dy153[i]
+		if !s.areUnitCoordsValid(nx, ny) {
+			continue
+		}
+		if unit2, ok := s.FindUnitOfSide(nx, ny, 1-unit.Side); ok {
+			terrainType := s.terrainType(unit2.Terrain)
+			menCoeff := s.scenarioData.TerrainMenDefence[terrainType] * unit2.MenCount
+			equipCoeff := s.scenarioData.TerrainTankDefence[terrainType] * unit2.EquipCount * s.scenarioData.Data16Low[unit2.Type] / 4
+			t := (menCoeff + equipCoeff) * s.scenarioData.FormationMenDefence[unit2.Formation] / 8
+			w := weather
+			if s.game != Conflict && s.scenarioData.UnitMask[unit.Type]&4 != 0 {
+				w /= 2
+			}
+			if s.game == Conflict && s.scenarioData.UnitMask[unit.Type]&4 == 0 {
+				w *= 2
+			}
+			d := s.scenarioData.UnitScores[unit2.Type] + 14 - w
+			if unit2.IsUnderAttack {
+				d += 4
+			}
+			if unit2.State2 {
+				d += 8
+			}
+			n := t / Clamp(d, 1, 32)
+			arg2 = n * s.neighbourScore(&s.hexes.Arr144, unit2.X, unit2.Y, unit2.Side) / 8 * (255 - unit2.Fatigue) / 256 * unit2.Morale / 128
+		} else if (nx == unit.X && ny == unit.Y) || !s.ContainsVisibleUnit(nx, ny) {
+			t := s.terrainAt(nx, ny)
+			if i == 18 {
+				t = unit.Terrain
+			}
+			if tt := s.terrainType(t); tt < 7 {
+				var v int
+				if unit.MenCount > unit.EquipCount {
+					v = s.scenarioData.TerrainMenAttack[tt]
+				} else {
+					v = s.scenarioData.TerrainTankAttack[tt]
+				}
+				// temporarily hide the unit while we compute sth
+				s.units[unit.Side][unit.Index].IsInGame = false
+				arg2 = temp2 - s.neighbourScore(&s.hexes.Arr48, nx, ny, unit.Side)*2 + v
+				// unhide the unit
+				s.units[unit.Side][unit.Index].IsInGame = true
+			}
+		}
+		if i < 12 {
+			arg2 *= 2
+		}
+		if city, ok := s.FindCity(nx, ny); ok {
+			if city.Owner != unit.Side {
+				if s.ContainsUnitOfSide(nx, ny, 1-unit.Side) {
+					arg2 -= city.VictoryPoints
+				} else {
+					arg2 = -city.VictoryPoints
+				}
+			}
+		}
+		if arg2 <= score {
+			score = arg2
+			objX, objY = nx, ny
+		}
+	}
+	return
+}
+
+func (s *GameState) bestDefenceObjective(unit Unit) (objX, objY, score int) {
+	// temperarily hide the unit while we compute sth
+	s.units[unit.Side][unit.Index].IsInGame = false
+	score = -17536 // 48000
+	var bestI int
+	// Score for i==6 (zero offset - the unit's position).
+	var v_6 int
+	for i := 0; i <= 6; i++ {
+		nx, ny := s.generic.IthNeighbour(unit.X, unit.Y, i)
+		if !s.areUnitCoordsValid(nx, ny) {
+			continue
+		}
+		v := -128
+		if (nx == unit.X && ny == unit.Y) || !s.ContainsVisibleUnit(nx, ny) {
+			tt := s.terrainType(unit.Terrain)
+			if i < 6 {
+				tt = s.terrainTypeAt(nx, ny)
+			}
+			if tt < 7 {
+				r := s.scenarioData.TerrainMenDefence[tt]
+				if s.game != Conflict {
+					v = r + s.neighbourScore(&s.hexes.Arr0, nx, ny, unit.Side)*2
+				}
+				if city, ok := s.FindCity(nx, ny); ok {
+					if s.ContainsUnitOfSide(nx, ny, unit.Side) {
+						v += city.VictoryPoints
+					}
+				}
+				if s.scenarioData.UnitScores[unit.Type]&248 > 0 ||
+					unit.Fatigue+unit.General.Data2High*4 > 96 {
+					v = r + s.neighbourScore(&s.hexes.Arr96, nx, ny, unit.Side)*2
+				}
+			}
+		}
+		if v >= score {
+			score = v
+			bestI = i
+		}
+		if i == 6 {
+			v_6 = v
+		}
+	}
+	// unhide unit
+	s.units[unit.Side][unit.Index].IsInGame = true
+	v := s.scenarioData.FormationMenDefence[unit.Formation] - 8
+	if ((unit.Side + 1) & s.commanderMask) == 0 {
+		v *= 2
+	}
+	if v+v_6 > score {
+		bestI = 6
+	}
+	objX, objY = s.generic.IthNeighbour(unit.X, unit.Y, bestI)
 	return
 }
 
