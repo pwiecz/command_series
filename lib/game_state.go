@@ -1062,8 +1062,10 @@ l21:
 
 		menLost2 := Clamp((Rand(unit2.MenCount*arg1, s.rand)+500)/512, 0, unit2.MenCount)
 		s.menLost[1-unit.Side] += menLost2
+		unit2.MenCount -= menLost2
 		tanksLost2 := Clamp((Rand(unit2.EquipCount*arg1, s.rand)+255)/512, 0, unit2.EquipCount)
 		s.tanksLost[1-unit.Side] += tanksLost2
+		unit2.EquipCount -= tanksLost2
 		unit2.SupplyLevel = Clamp(unit2.SupplyLevel-s.scenarioData.Data163, 0, 255)
 		if s.scenarioData.UnitCanMove[unit2.Type] &&
 			((s.game != Conflict && !unit.FormationTopBit) ||
