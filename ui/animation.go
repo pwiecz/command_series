@@ -60,7 +60,7 @@ func (a *UnitAnimation) Draw(screen *ebiten.Image, options *ebiten.DrawImageOpti
 	// Delay creating sprite to be sure that mapView.isNight is up to date.
 	// Otherwise e.g. sprite may be using daytime palette at night.
 	if a.sprite == nil {
-		a.sprite = a.mapView.GetSpriteFromTileNum(byte(a.unit.Type + a.unit.ColorPalette*16))
+		a.sprite = a.mapView.GetSpriteForUnit(a.unit)
 	}
 	a.mapView.DrawSpriteBetween(a.sprite, a.x0, a.y0, a.x1, a.y1, alpha, screen, options)
 }

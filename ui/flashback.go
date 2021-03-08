@@ -10,15 +10,15 @@ import (
 )
 
 type Flashback struct {
-	mapView    *MapView
-	messageBox *MessageBox
-	terrainMap *lib.Map
-	flashback  lib.FlashbackHistory
-	day        int
-	shownDay   int
+	mapView        *MapView
+	messageBox     *MessageBox
+	flashback      lib.FlashbackHistory
+	terrainTypeMap *lib.TerrainTypeMap
+	day            int
+	shownDay       int
 }
 
-func NewFlashback(mapView *MapView, messageBox *MessageBox, terrainMap *lib.Map, flashback lib.FlashbackHistory) *Flashback {
+func NewFlashback(mapView *MapView, messageBox *MessageBox, flashback lib.FlashbackHistory, terrainTypeMap *lib.TerrainTypeMap) *Flashback {
 	messageBox.Clear()
 	messageBox.Print("FLASHBACK: DAY 1", 2, 0, false)
 	messageBox.Print(" F2 ", 2, 1, true)
@@ -28,11 +28,11 @@ func NewFlashback(mapView *MapView, messageBox *MessageBox, terrainMap *lib.Map,
 	messageBox.Print(" F4 ", 2, 3, true)
 	messageBox.Print("RETURN TO GAME", 7, 3, false)
 	return &Flashback{
-		mapView:    mapView,
-		messageBox: messageBox,
-		terrainMap: terrainMap,
-		flashback:  flashback,
-		shownDay:   -1}
+		mapView:        mapView,
+		messageBox:     messageBox,
+		flashback:      flashback,
+		terrainTypeMap: terrainTypeMap,
+		shownDay:       -1}
 }
 
 func (f *Flashback) Update() error {
@@ -68,7 +68,7 @@ func (f *Flashback) Draw(screen *ebiten.Image, opts *ebiten.DrawImageOptions) {
 		f.hideUnitsFromDay(f.shownDay)
 		if f.day < len(f.flashback) {
 			for _, unit := range f.flashback[f.day] {
-				f.terrainMap.SetTile(unit.X/2, unit.Y, byte(unit.Type+unit.ColorPalette*16))
+				f.terrainTypeMap.ShowUnitAt(unit.X, unit.Y)
 			}
 		}
 		f.messageBox.ClearRow(0)
@@ -83,9 +83,6 @@ func (f *Flashback) hideUnitsFromDay(day int) {
 		return
 	}
 	for _, unit := range f.flashback[day] {
-		if unit.Terrain%64 >= 48 {
-			panic(fmt.Errorf("%v", unit))
-		}
-		f.terrainMap.SetTile(unit.X/2, unit.Y, byte(unit.Terrain))
+		f.terrainTypeMap.HideUnitAt(unit.X, unit.Y)
 	}
 }

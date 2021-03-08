@@ -201,3 +201,50 @@ func TestRegression_RegressionPanicInCampaign(t *testing.T) {
 			expectedResult, expectedBalance, expectedRank, result, balance, rank)
 	}
 }
+
+func TestRegression_Conflict(t *testing.T) {
+	messageSync := NewMessageSync()
+	options := DefaultOptions()
+	options.AlliedCommander = Computer
+	options.GermanCommander = Computer
+	gameState := createTestGameState("conflict.atr", 4, 1, options, messageSync, t)
+	go func() {
+		if !messageSync.Wait() {
+			return
+		}
+		if !gameState.Init() {
+			return
+		}
+		for gameState.Update() {
+		}
+	}()
+
+	var numMessages, numMessagesFromUnit int
+	for {
+		update := messageSync.GetUpdate()
+		numMessages++
+		if _, ok := update.(MessageFromUnit); ok {
+			numMessagesFromUnit++
+		}
+		if _, ok := update.(GameOver); ok {
+			messageSync.Stop()
+			break
+		}
+	}
+
+	expectedNumMessages := 42368
+	if numMessages != expectedNumMessages {
+		t.Errorf("Expecting %d messages, got %d", expectedNumMessages, numMessages)
+	}
+	expectedNumMessagesFromUnit := 1216
+	if numMessagesFromUnit != expectedNumMessagesFromUnit {
+		t.Errorf("Expecting %d messages from a unit, got %d", expectedNumMessagesFromUnit, numMessagesFromUnit)
+	}
+
+	expectedResult, expectedBalance, expectedRank := 2, 2, 2
+	result, balance, rank := gameState.FinalResults()
+	if result != expectedResult || balance != expectedBalance || rank != expectedRank {
+		t.Errorf("Expecting %d,%d,%d final results, got %d,%d,%d",
+			expectedResult, expectedBalance, expectedRank, result, balance, rank)
+	}
+}

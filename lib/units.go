@@ -59,7 +59,6 @@ type Unit struct {
 	General              General
 	SupplyLevel          int
 	Morale               int
-	Terrain              byte
 
 	VariantBitmap        byte
 	HalfDaysUntilAppear  int
@@ -90,7 +89,6 @@ type FlashbackUnit struct {
 	X, Y         int
 	ColorPalette int
 	Type         int
-	Terrain      byte
 }
 type FlashbackUnits []FlashbackUnit
 type FlashbackHistory []FlashbackUnits
@@ -182,7 +180,6 @@ func ParseUnit(data [16]byte, unitTypeNames []string, unitNames []string, genera
 		unit.ObjectiveX = int(data[11])
 		unit.ObjectiveY = int(data[12])
 	}
-	unit.Terrain = data[13]
 	unit.SupplyLevel = int(data[14])
 	unit.Morale = int(data[15])
 	return unit, nil
@@ -280,7 +277,6 @@ func (u *Unit) Write(writer io.Writer) error {
 		data[11] = byte(u.HalfDaysUntilAppear)
 		data[12] = byte(u.InvAppearProbability)
 	}
-	data[13] = u.Terrain
 	data[14] = byte(u.SupplyLevel)
 	data[15] = byte(u.Morale)
 	if _, err := writer.Write(data[:]); err != nil {
@@ -299,7 +295,6 @@ func (u FlashbackUnits) Write(writer io.Writer) error {
 		data[0] = byte(unit.X)
 		data[1] = byte(unit.Y)
 		data[2] = byte(unit.Type) + byte(unit.ColorPalette<<4)
-		data[3] = unit.Terrain
 		if _, err := writer.Write(data[:]); err != nil {
 			return err
 		}
@@ -322,8 +317,7 @@ func (u *FlashbackUnits) Read(reader io.Reader) error {
 			X:            int(data[0]),
 			Y:            int(data[1]),
 			Type:         int(data[2] & 15),
-			ColorPalette: int(data[2] / 16),
-			Terrain:      data[3]})
+			ColorPalette: int(data[2] / 16)})
 	}
 	*u = FlashbackUnits(units)
 	return nil
@@ -382,11 +376,10 @@ Order: %v
 General: %s (%d)
 Supply level: %d
 Morale: %d
-Terrain: %d
 Variants: %08b
 Half-days until appear: %d
 Inv appear probability: %d
 Fatigue: %d
 ObjectiveX,ObjectiveY: %d,%d`,
-		u.Side, u.InContactWithEnemy, u.IsUnderAttack, u.State2, u.HasSupplyLine, u.State4, u.HasLocalCommand, u.SeenByEnemy, u.IsInGame, u.X, u.Y, u.Formation, u.SupplyUnit, u.FormationTopBit, u.TypeName, u.Type, u.ColorPalette, u.Name, u.nameIndex, u.TargetFormation, u.OrderBit4, u.Order, u.General.Name, u.generalIndex, u.SupplyLevel, u.Morale, u.Terrain, u.VariantBitmap, u.HalfDaysUntilAppear, u.InvAppearProbability, u.Fatigue, u.ObjectiveX, u.ObjectiveY)
+		u.Side, u.InContactWithEnemy, u.IsUnderAttack, u.State2, u.HasSupplyLine, u.State4, u.HasLocalCommand, u.SeenByEnemy, u.IsInGame, u.X, u.Y, u.Formation, u.SupplyUnit, u.FormationTopBit, u.TypeName, u.Type, u.ColorPalette, u.Name, u.nameIndex, u.TargetFormation, u.OrderBit4, u.Order, u.General.Name, u.generalIndex, u.SupplyLevel, u.Morale, u.VariantBitmap, u.HalfDaysUntilAppear, u.InvAppearProbability, u.Fatigue, u.ObjectiveX, u.ObjectiveY)
 }

@@ -24,11 +24,11 @@ type MainScreen struct {
 	audioPlayer      *AudioPlayer
 	onGameOver       func(int, int, int)
 
-	mapView       *MapView
-	topRect       *Rectangle
-	messageBox    *MessageBox
-	statusBar     *MessageBox
-	separatorRect *Rectangle
+	mapView                                  *MapView
+	topRect, leftRect, rightRect, bottomRect *Rectangle
+	messageBox                               *MessageBox
+	statusBar                                *MessageBox
+	separatorRect                            *Rectangle
 
 	flashback *Flashback
 	animation Animation
@@ -84,7 +84,8 @@ func NewMainScreen(g *Game, options *lib.Options, audioPlayer *AudioPlayer, rand
 	s.gameState = lib.NewGameState(rand, g.gameData, g.scenarioData, g.selectedScenario, g.selectedVariant, s.playerSide, s.options, s.sync)
 	s.mapView = NewMapView(
 		160, 19*8,
-		&g.gameData.Map, scenario.MinX, scenario.MinY, scenario.MaxX, scenario.MaxY,
+		&g.gameData.Map, s.gameState.TerrainTypeMap(), &g.scenarioData.Units,
+		scenario.MinX, scenario.MinY, scenario.MaxX, scenario.MaxY,
 		&g.gameData.Sprites.TerrainTiles,
 		&g.gameData.Sprites.UnitSymbolSprites, &g.gameData.Sprites.UnitIconSprites,
 		&g.gameData.Icons.Sprites, &g.scenarioData.Data.DaytimePalette, &g.scenarioData.Data.NightPalette)
@@ -96,6 +97,9 @@ func NewMainScreen(g *Game, options *lib.Options, audioPlayer *AudioPlayer, rand
 	s.statusBar.SetRowBackground(0, 30)
 
 	s.topRect = NewRectangle(0, 0, 336, 22)
+	s.leftRect = NewRectangle(0, 72, 8, 240-72)
+	s.rightRect = NewRectangle(336-8, 72, 8, 240-72)
+	s.bottomRect = NewRectangle(8, 240-16, 320, 16)
 	s.separatorRect = NewRectangle(0, 70, 336, 2)
 	return s
 }
@@ -686,7 +690,7 @@ func (s *MainScreen) showFlashback() {
 	if !s.areUnitsHidden {
 		s.toggleHideUnits()
 	}
-	s.flashback = NewFlashback(s.mapView, s.messageBox, &s.gameData.Map, s.gameState.Flashback())
+	s.flashback = NewFlashback(s.mapView, s.messageBox, s.gameState.Flashback(), s.gameState.TerrainTypeMap())
 }
 func (s *MainScreen) showLastMessageUnit() {
 	if s.lastMessageFromUnit == nil {
@@ -880,11 +884,16 @@ func (s *MainScreen) Draw(screen *ebiten.Image) {
 		s.overviewMap.Draw(screen, &opts)
 		return
 	}
+
 	if !s.gameState.IsNight() {
-		screen.Fill(lib.RGBPalette[s.scenarioData.Data.DaytimePalette[2]])
+		s.leftRect.SetColor(int(s.scenarioData.Data.DaytimePalette[2]))
+		s.rightRect.SetColor(int(s.scenarioData.Data.DaytimePalette[2]))
+		s.bottomRect.SetColor(int(s.scenarioData.Data.DaytimePalette[2]))
 		s.separatorRect.SetColor(int(s.scenarioData.Data.DaytimePalette[0]))
 	} else {
-		screen.Fill(lib.RGBPalette[s.scenarioData.Data.NightPalette[2]])
+		s.leftRect.SetColor(int(s.scenarioData.Data.NightPalette[2]))
+		s.rightRect.SetColor(int(s.scenarioData.Data.NightPalette[2]))
+		s.bottomRect.SetColor(int(s.scenarioData.Data.NightPalette[2]))
 		s.separatorRect.SetColor(int(s.scenarioData.Data.NightPalette[0]))
 	}
 	s.mapView.SetIsNight(s.gameState.IsNight())
@@ -893,7 +902,6 @@ func (s *MainScreen) Draw(screen *ebiten.Image) {
 	opts := ebiten.DrawImageOptions{}
 	opts.GeoM.Scale(2, 1)
 	opts.GeoM.Translate(8, 72)
-
 	if s.flashback != nil {
 		s.flashback.Draw(screen, &opts)
 	} else {
@@ -914,6 +922,9 @@ func (s *MainScreen) Draw(screen *ebiten.Image) {
 	s.messageBox.SetTextColor(playerBaseColor)
 	s.messageBox.Draw(screen)
 	s.statusBar.Draw(screen)
+	s.leftRect.Draw(screen)
+	s.rightRect.Draw(screen)
+	s.bottomRect.Draw(screen)
 	s.separatorRect.Draw(screen)
 
 	if s.inputBox != nil {

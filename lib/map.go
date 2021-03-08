@@ -38,24 +38,25 @@ func (m *Map) AreCoordsValid(x, y int) bool {
 	}
 	return true
 }
-func (m *Map) IsIndexValid(ix int) bool {
-	return ix >= 0 && ix < len(m.terrain)
-}
 
 // x, y in map coords, not unit coords
 func (m *Map) GetTile(x, y int) byte {
-	return m.GetTileAtIndex(y*m.Width + x - y/2)
+	return m.getTileAtIndex(m.CoordsToIndex(x, y))
+}
+
+func (m *Map) CoordsToIndex(x, y int) int {
+	return y*m.Width + x - y/2
 }
 func (m *Map) SetTile(x, y int, tile byte) {
-	m.SetTileAtIndex(y*m.Width+x-y/2, tile)
+	m.setTileAtIndex(m.CoordsToIndex(x, y), tile)
 }
-func (m *Map) GetTileAtIndex(ix int) byte {
+func (m *Map) getTileAtIndex(ix int) byte {
 	if ix < 0 || ix >= len(m.terrain) {
 		return 255
 	}
 	return m.terrain[ix]
 }
-func (m *Map) SetTileAtIndex(ix int, tile byte) {
+func (m *Map) setTileAtIndex(ix int, tile byte) {
 	if ix < 0 || ix >= len(m.terrain) {
 		return
 	}
