@@ -45,7 +45,7 @@ type GameState struct {
 
 	scenarioData    *Data
 	terrain         *Terrain
-	terrainMap      *Map
+	terrainTypes    *TerrainTypeMap
 	generic         *Generic
 	hexes           *Hexes
 	units           *Units
@@ -53,7 +53,6 @@ type GameState struct {
 	variants        []Variant
 	selectedVariant int
 	options         *Options
-	terrainTypes    *TerrainTypeMap
 
 	sync *MessageSync
 
@@ -77,19 +76,18 @@ func NewGameState(rand *rand.Rand, gameData *GameData, scenarioData *ScenarioDat
 	s.numUnitsToUpdatePerTimeIncrement = scenarioData.Data.UnitUpdatesPerTimeIncrement / 2
 	s.lastUpdatedUnit = 127
 	s.citiesHeld = variant.CitiesHeld
-	s.scenarioData = &scenarioData.Data
-	s.units = &scenarioData.Units
-	s.terrain = &scenarioData.Terrain
-	s.terrainMap = &gameData.Map
-	s.generic = &gameData.Generic
-	s.hexes = &gameData.Hexes
-	s.generals = &scenarioData.Generals
+	s.scenarioData = scenarioData.Data
+	s.units = scenarioData.Units
+	s.terrain = scenarioData.Terrain
+	s.terrainTypes = gameData.TerrainTypeMap
+	s.generic = gameData.Generic
+	s.hexes = gameData.Hexes
+	s.generals = scenarioData.Generals
 	s.variants = scenarioData.Variants
 	s.selectedVariant = variantNum
 	s.playerSide = playerSide
 	s.commanderMask = calculateCommanderMask(*options)
 	s.options = options
-	s.terrainTypes = newTerrainTypeMap(s.terrainMap, s.generic)
 	s.sync = sync
 
 	s.update = 3
@@ -245,11 +243,11 @@ func (s *GameState) Save(writer io.Writer) error {
 	return nil
 }
 func (s *GameState) Load(reader io.Reader) error {
-	units, err := ParseUnits(reader, s.scenarioData.UnitTypes, s.scenarioData.UnitNames, *s.generals)
+	units, err := ParseUnits(reader, s.scenarioData.UnitTypes, s.scenarioData.UnitNames, s.generals)
 	if err != nil {
 		return err
 	}
-	*s.units = units
+	s.units = units
 	if err := s.terrain.Cities.ReadOwnerAndVictoryPoints(reader); err != nil {
 		return err
 	}
@@ -1817,7 +1815,7 @@ func (s *GameState) areUnitCoordsValid(x, y int) bool {
 	if x < 0 {
 		return false
 	}
-	return s.terrainMap.AreCoordsValid(x/2, y)
+	return s.terrainTypes.AreCoordsValid(x/2, y)
 }
 
 // function6

@@ -15,22 +15,22 @@ type Hexes struct {
 	Arr144 [6][8]int // Data[144:192]
 }
 
-func ReadHexes(fsys fs.FS) (Hexes, error) {
+func ReadHexes(fsys fs.FS) (*Hexes, error) {
 	fileData, err := fs.ReadFile(fsys, "HEXES.DTA")
 	if err != nil {
-		return Hexes{}, fmt.Errorf("Cannot read HEXES.DTA file (%v)", err)
+		return nil, fmt.Errorf("Cannot read HEXES.DTA file (%v)", err)
 	}
 	return ParseHexes(bytes.NewReader(fileData))
 }
 
-func ParseHexes(reader io.Reader) (Hexes, error) {
+func ParseHexes(reader io.Reader) (*Hexes, error) {
 	var data [256]byte
 	_, err := io.ReadFull(reader, data[:])
 	if err != nil {
-		return Hexes{}, err
+		return nil, err
 	}
 
-	var hexes Hexes
+	hexes := &Hexes{}
 	for i, val := range data[0:48] {
 		hexes.Arr0[i/8][i%8] = int(int8(val))
 	}

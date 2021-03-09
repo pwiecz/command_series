@@ -44,7 +44,7 @@ func TestParseEncodeParseDataFirst255Bytes(t *testing.T) {
 	if buf.Len() != 0 {
 		t.Fatalf("Unread %d bytes remained in the encoded data buffer", buf.Len())
 	}
-	if !reflect.DeepEqual(scenarioData.Data, data) {
+	if !reflect.DeepEqual(*scenarioData.Data, data) {
 		t.Errorf("Reparsed data differ")
 		v1 := reflect.ValueOf(scenarioData.Data)
 		v2 := reflect.ValueOf(data)

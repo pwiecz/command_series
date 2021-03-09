@@ -93,22 +93,22 @@ func (g Generic) TinyMapOffsets(i int) (dx int, dy int) {
 	return
 }
 
-func ReadGeneric(fsys fs.FS) (Generic, error) {
+func ReadGeneric(fsys fs.FS) (*Generic, error) {
 	fileData, err := fs.ReadFile(fsys, "GENERIC.DTA")
 	if err != nil {
-		return Generic{}, fmt.Errorf("Cannot read GENERIC.DTA file (%v)", err)
+		return nil, fmt.Errorf("Cannot read GENERIC.DTA file (%v)", err)
 	}
 	return ParseGeneric(bytes.NewReader(fileData))
 }
 
-func ParseGeneric(reader io.Reader) (Generic, error) {
+func ParseGeneric(reader io.Reader) (*Generic, error) {
 	var data [250]byte
 	_, err := io.ReadFull(reader, data[:])
 	if err != nil {
-		return Generic{}, err
+		return nil, err
 	}
 
-	var generic Generic
+	generic := &Generic{}
 	generic.DirectionToNeighbourIndex = make(map[int]int)
 	for i, offset := range data[0:19] {
 		generic.DirectionToNeighbourIndex[i-9] = int(offset)

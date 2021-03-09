@@ -6,20 +6,21 @@ import (
 )
 
 type GameData struct {
-	Game      Game
-	Scenarios []Scenario
-	Sprites   Sprites
-	Icons     Icons
-	Map       Map
-	Generic   Generic
-	Hexes     Hexes
+	Game           Game
+	Scenarios      []Scenario
+	Sprites        *Sprites
+	Icons          *Icons
+	Map            *Map
+	Generic        *Generic
+	TerrainTypeMap *TerrainTypeMap
+	Hexes          *Hexes
 }
 type ScenarioData struct {
 	Variants []Variant
-	Generals Generals
-	Terrain  Terrain
-	Data     Data
-	Units    Units
+	Generals *Generals
+	Terrain  *Terrain
+	Data     *Data
+	Units    *Units
 }
 
 func LoadGameData(fsys fs.FS) (*GameData, error) {
@@ -52,13 +53,14 @@ func LoadGameData(fsys fs.FS) (*GameData, error) {
 		return nil, fmt.Errorf("Error loading hexes, %v", err)
 	}
 	gameData := &GameData{
-		Game:      game,
-		Scenarios: scenarios,
-		Sprites:   sprites,
-		Icons:     icons,
-		Map:       terrainMap,
-		Generic:   generic,
-		Hexes:     hexes}
+		Game:           game,
+		Scenarios:      scenarios,
+		Sprites:        sprites,
+		Icons:          icons,
+		Map:            terrainMap,
+		Generic:        generic,
+		TerrainTypeMap: newTerrainTypeMap(terrainMap, generic),
+		Hexes:          hexes}
 	return gameData, nil
 
 }

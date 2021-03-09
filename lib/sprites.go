@@ -34,18 +34,18 @@ type Sprites struct {
 	UnitIconSprites   [16]*image.Paletted
 }
 
-func ReadSprites(fsys fs.FS) (Sprites, error) {
+func ReadSprites(fsys fs.FS) (*Sprites, error) {
 	iconSpritesData, err := fs.ReadFile(fsys, "CRUSADEI.FNT")
 	if err != nil {
-		return Sprites{}, fmt.Errorf("Cannot read CRUSADEI.FNT file (%v)", err)
+		return nil, fmt.Errorf("Cannot read CRUSADEI.FNT file (%v)", err)
 	}
 	symbolSpritesData, err := fs.ReadFile(fsys, "CRUSADES.FNT")
 	if err != nil {
-		return Sprites{}, fmt.Errorf("Cannot read CRUSADES.FNT file (%v)", err)
+		return nil, fmt.Errorf("Cannot read CRUSADES.FNT file (%v)", err)
 	}
 	introSpritesData, err := fs.ReadFile(fsys, "FLAG.FNT")
 	if err != nil {
-		return Sprites{}, fmt.Errorf("Cannot read FLAG.FNT file (%v)", err)
+		return nil, fmt.Errorf("Cannot read FLAG.FNT file (%v)", err)
 	}
 	return ParseSprites(bytes.NewReader(iconSpritesData),
 		bytes.NewReader(symbolSpritesData),
@@ -92,33 +92,31 @@ func ParseSpriteData(data io.Reader, width, height, scaleX, scaleY, bits int) ([
 	}
 }
 
-func ParseSprites(iconData, symbolData, introData io.Reader) (Sprites, error) {
-	var sprites Sprites
+func ParseSprites(iconData, symbolData, introData io.Reader) (*Sprites, error) {
 	iconSprites, err := ParseSpriteData(iconData, 8, 8, 1, 1, 1)
 	if err != nil {
-		return sprites, err
+		return nil, err
 	}
 	if len(iconSprites) != 128 {
-		return sprites, fmt.Errorf("Too few icon sprites read. Expected 128, read %d",
+		return nil, fmt.Errorf("Too few icon sprites read. Expected 128, read %d",
 			len(iconSprites))
 	}
 	symbolSprites, err := ParseSpriteData(symbolData, 8, 8, 1, 1, 1)
 	if err != nil {
-		return sprites, err
+		return nil, err
 	}
 	if len(symbolSprites) != 128 {
-		return sprites, fmt.Errorf("Too few symbol sprites read. Expected 128, read %d",
+		return nil, fmt.Errorf("Too few symbol sprites read. Expected 128, read %d",
 			len(symbolSprites))
 	}
 	introSprites, err := ParseSpriteData(introData, 4, 8, 2, 1, 2)
 	if err != nil {
-		return sprites, err
+		return nil, err
 	}
 	if len(introSprites) != 128 {
-		return sprites, fmt.Errorf("Too few intro sprites read. Expected 128, read %d",
+		return nil, fmt.Errorf("Too few intro sprites read. Expected 128, read %d",
 			len(introSprites))
 	}
-	sprites.IntroSprites = introSprites
 	chars := []rune{
 		' ', '!', '"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '-', '.', '/',
 		'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', ';', '<', '=', '>', '?', '@',
@@ -142,12 +140,15 @@ func ParseSprites(iconData, symbolData, introData io.Reader) (Sprites, error) {
 		}
 		introCharacters[char] = introSprites[i]
 	}
-	sprites.IntroFont = &Font{
-		characters: introCharacters,
-		fallback:   introCharacters['?']}
-	sprites.GameFont = &Font{
-		characters: characters,
-		fallback:   characters['?']}
+	sprites := &Sprites{
+		IntroSprites: introSprites,
+		IntroFont: &Font{
+			characters: introCharacters,
+			fallback:   introCharacters['?']},
+		GameFont: &Font{
+			characters: characters,
+			fallback:   characters['?']},
+	}
 	copy(sprites.TerrainTiles[:], iconSprites[64:])
 	copy(sprites.UnitIconSprites[:], iconSprites[112:])
 	copy(sprites.UnitSymbolSprites[:], symbolSprites[112:])

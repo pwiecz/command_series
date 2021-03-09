@@ -64,8 +64,8 @@ func (m *Map) setTileAtIndex(ix int, tile byte) {
 }
 
 // ParseMap parses CRUSADE.MAP files.
-func ParseMap(data io.Reader, width, height int) (Map, error) {
-	terrainMap := Map{
+func ParseMap(data io.Reader, width, height int) (*Map, error) {
+	terrainMap := &Map{
 		Width: width, Height: height,
 		terrain: make([]byte, 0, width*height),
 	}
@@ -75,23 +75,23 @@ func ParseMap(data io.Reader, width, height int) (Map, error) {
 		row := make([]byte, rowLength)
 		_, err := io.ReadFull(data, row)
 		if err != nil {
-			return Map{}, err
+			return nil, err
 		}
 		terrainMap.terrain = append(terrainMap.terrain, row...)
 	}
 	return terrainMap, nil
 }
 
-func ReadMap(fsys fs.FS, game Game) (Map, error) {
+func ReadMap(fsys fs.FS, game Game) (*Map, error) {
 	fileData, err := fs.ReadFile(fsys, "CRUSADE.MAP")
 	if err != nil {
-		return Map{}, fmt.Errorf("Cannot read CRUSADE.MAP file (%v)", err)
+		return nil, fmt.Errorf("Cannot read CRUSADE.MAP file (%v)", err)
 	}
 	var reader io.Reader
 	if game == Conflict {
 		decoded, err := UnpackFile(bytes.NewReader(fileData))
 		if err != nil {
-			return Map{}, err
+			return nil, err
 		}
 		reader = bytes.NewReader(decoded)
 	} else {
@@ -100,7 +100,7 @@ func ReadMap(fsys fs.FS, game Game) (Map, error) {
 	}
 	terrainMap, err := ParseMap(reader, 64, 64)
 	if err != nil {
-		return Map{}, fmt.Errorf("Cannot parse CRUSADE.MAP file (%v)", err)
+		return nil, fmt.Errorf("Cannot parse CRUSADE.MAP file (%v)", err)
 	}
 	return terrainMap, nil
 }

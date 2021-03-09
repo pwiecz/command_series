@@ -93,16 +93,16 @@ type FlashbackUnit struct {
 type FlashbackUnits []FlashbackUnit
 type FlashbackHistory []FlashbackUnits
 
-func ReadUnits(fsys fs.FS, filename string, game Game, unitTypeNames []string, unitNames [2][]string, generals Generals) (Units, error) {
+func ReadUnits(fsys fs.FS, filename string, game Game, unitTypeNames []string, unitNames [2][]string, generals *Generals) (*Units, error) {
 	fileData, err := fs.ReadFile(fsys, filename)
 	if err != nil {
-		return Units{}, fmt.Errorf("Cannot read units file %s (%v)", filename, err)
+		return nil, fmt.Errorf("Cannot read units file %s (%v)", filename, err)
 	}
 	var reader io.Reader
 	if game == Conflict {
 		decoded, err := UnpackFile(bytes.NewReader(fileData))
 		if err != nil {
-			return Units{}, err
+			return nil, err
 		}
 		reader = bytes.NewReader(decoded)
 	} else {
@@ -111,7 +111,7 @@ func ReadUnits(fsys fs.FS, filename string, game Game, unitTypeNames []string, u
 	}
 	units, err := ParseUnits(reader, unitTypeNames, unitNames, generals)
 	if err != nil {
-		return Units{}, fmt.Errorf("Cannot parse units file %s (%v)", filename, err)
+		return nil, fmt.Errorf("Cannot parse units file %s (%v)", filename, err)
 	}
 	return units, nil
 }
@@ -138,7 +138,7 @@ func ParseUnit(data [16]byte, unitTypeNames []string, unitNames []string, genera
 	unit.Fatigue = int(data[6])
 	unit.Type = int(data[7] & 15)
 	if unit.Type >= len(unitTypeNames) {
-		return Unit{}, fmt.Errorf("Invalid unit type number: %d", unit.Type)
+		return unit, fmt.Errorf("Invalid unit type number: %d", unit.Type)
 	}
 	unit.TypeName = unitTypeNames[unit.Type]
 	unit.ColorPalette = int(data[7] / 16)
@@ -185,21 +185,21 @@ func ParseUnit(data [16]byte, unitTypeNames []string, unitNames []string, genera
 	return unit, nil
 }
 
-func ParseUnits(data io.Reader, unitTypeNames []string, unitNames [2][]string, generals [2][]General) (Units, error) {
+func ParseUnits(data io.Reader, unitTypeNames []string, unitNames [2][]string, generals *Generals) (*Units, error) {
 	var units Units
 	for i := 0; i < 128; i++ {
 		var unitData [16]byte
 		numRead, err := io.ReadFull(data, unitData[:])
 		if numRead < 16 {
 			if i != 127 || numRead != 15 {
-				return Units{}, fmt.Errorf("Too short unit %d data, %d bytes", i, numRead)
+				return nil, fmt.Errorf("Too short unit %d data, %d bytes", i, numRead)
 			}
 			unitData[15] = 100
 		}
 		side := i / 64
 		unit, err := ParseUnit(unitData, unitTypeNames, unitNames[side], generals[side])
 		if err != nil {
-			return Units{}, fmt.Errorf("Error parsing unit %d (%v)", i, err)
+			return nil, fmt.Errorf("Error parsing unit %d (%v)", i, err)
 		}
 		unit.Side = side
 		unit.Index = len(units[i/64])
@@ -208,7 +208,7 @@ func ParseUnits(data io.Reader, unitTypeNames []string, unitNames [2][]string, g
 			break
 		}
 	}
-	return units, nil
+	return &units, nil
 }
 
 func (u *Units) Write(writer io.Writer) error {

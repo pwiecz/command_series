@@ -89,20 +89,20 @@ type DataUpdate struct {
 }
 
 // ReadData reads and parses given {scenario}.DTA.
-func ReadData(fsys fs.FS, filename string) (Data, error) {
+func ReadData(fsys fs.FS, filename string) (*Data, error) {
 	fileData, err := fs.ReadFile(fsys, filename)
 	if err != nil {
-		return Data{}, fmt.Errorf("Cannot read data file %s (%v)", filename, err)
+		return nil, fmt.Errorf("Cannot read data file %s (%v)", filename, err)
 	}
 	return ParseData(fileData)
 }
 
 // ParseData parses data from a {scenario.DTA file.
-func ParseData(data []byte) (Data, error) {
+func ParseData(data []byte) (*Data, error) {
 	if len(data) < 512 {
-		return Data{}, fmt.Errorf("Unexpected data file expecting >512, got %d", len(data))
+		return nil, fmt.Errorf("Unexpected data file expecting >512, got %d", len(data))
 	}
-	var scenario Data
+	scenario := &Data{}
 	for i, v := range data[0:16] {
 		scenario.Data0Low[i] = int(int8(v*16)) / 16
 		scenario.Data0High[i] = int(int8(v&240)) / 16

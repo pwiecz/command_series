@@ -84,7 +84,7 @@ func NewMainScreen(g *Game, options *lib.Options, audioPlayer *AudioPlayer, rand
 	s.gameState = lib.NewGameState(rand, g.gameData, g.scenarioData, g.selectedScenario, g.selectedVariant, s.playerSide, s.options, s.sync)
 	s.mapView = NewMapView(
 		160, 19*8,
-		&g.gameData.Map, s.gameState.TerrainTypeMap(), &g.scenarioData.Units,
+		g.gameData.Map, s.gameState.TerrainTypeMap(), g.scenarioData.Units,
 		scenario.MinX, scenario.MinY, scenario.MaxX, scenario.MaxY,
 		&g.gameData.Sprites.TerrainTiles,
 		&g.gameData.Sprites.UnitSymbolSprites, &g.gameData.Sprites.UnitIconSprites,
@@ -684,7 +684,7 @@ func (s *MainScreen) showOverviewMap() {
 	if !s.areUnitsHidden {
 		s.toggleHideUnits()
 	}
-	s.overviewMap = NewOverviewMap(&s.gameData.Map, &s.scenarioData.Units, &s.gameData.Generic, &s.scenarioData.Data, s.gameState.IsUnitVisible)
+	s.overviewMap = NewOverviewMap(s.gameData.Map, s.scenarioData.Units, s.gameData.Generic, s.scenarioData.Data, s.gameState.IsUnitVisible)
 }
 func (s *MainScreen) showFlashback() {
 	if !s.areUnitsHidden {

@@ -26,16 +26,16 @@ type Terrain struct {
 	Coeffs [16][16]int // Bytes [768-1024]
 }
 
-func ReadTerrain(fsys fs.FS, filename string, game Game) (Terrain, error) {
+func ReadTerrain(fsys fs.FS, filename string, game Game) (*Terrain, error) {
 	fileData, err := fs.ReadFile(fsys, filename)
 	if err != nil {
-		return Terrain{}, fmt.Errorf("Cannot open terrain file %s (%v)", filename, err)
+		return nil, fmt.Errorf("Cannot open terrain file %s (%v)", filename, err)
 	}
 	var reader io.Reader
 	if game == Conflict {
 		decoded, err := UnpackFile(bytes.NewReader(fileData))
 		if err != nil {
-			return Terrain{}, err
+			return nil, err
 		}
 		reader = bytes.NewReader(decoded)
 	} else {
@@ -43,7 +43,7 @@ func ReadTerrain(fsys fs.FS, filename string, game Game) (Terrain, error) {
 	}
 	terrain, err := ParseTerrain(reader)
 	if err != nil {
-		return Terrain{}, fmt.Errorf("Cannot parse terrain file %s (%v)", filename, err)
+		return nil, fmt.Errorf("Cannot parse terrain file %s (%v)", filename, err)
 	}
 	return terrain, nil
 }
@@ -71,12 +71,12 @@ func ParseCity(data io.Reader) (City, error) {
 	return city, nil
 }
 
-func ParseTerrain(data io.Reader) (Terrain, error) {
-	var terrain Terrain
+func ParseTerrain(data io.Reader) (*Terrain, error) {
+	terrain := &Terrain{}
 	for i := 0; i < 48; i++ {
 		city, err := ParseCity(data)
 		if err != nil {
-			return Terrain{}, err
+			return nil, err
 		}
 		if len(city.Name) == 0 {
 			continue
@@ -86,7 +86,7 @@ func ParseTerrain(data io.Reader) (Terrain, error) {
 	var coeffData [256]byte
 	_, err := io.ReadFull(data, coeffData[:])
 	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
-		return Terrain{}, err
+		return nil, err
 	}
 	for i, v := range coeffData {
 		terrain.Coeffs[i%16][i/16] = int(v)

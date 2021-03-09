@@ -20,26 +20,26 @@ type General struct {
 
 type Generals [2][]General
 
-func ReadGenerals(fsys fs.FS, filename string) (Generals, error) {
+func ReadGenerals(fsys fs.FS, filename string) (*Generals, error) {
 	fileData, err := fs.ReadFile(fsys, filename)
 	if err != nil {
-		return Generals{}, fmt.Errorf("Cannot read generals file %s (%v)", filename, err)
+		return nil, fmt.Errorf("Cannot read generals file %s (%v)", filename, err)
 	}
 	generals, err := ParseGenerals(bytes.NewReader(fileData))
 	if err != nil {
-		return Generals{}, fmt.Errorf("Cannot parse generals file %s (%v)", filename, err)
+		return nil, fmt.Errorf("Cannot parse generals file %s (%v)", filename, err)
 	}
 	return generals, nil
 }
 
-func ParseGenerals(data io.Reader) (Generals, error) {
+func ParseGenerals(data io.Reader) (*Generals, error) {
 	var generals Generals
 	for i := 0; i < 16; i++ {
 		var general General
 		var generalData [4]byte
 		_, err := io.ReadFull(data, generalData[:])
 		if err != nil {
-			return Generals{}, err
+			return nil, err
 		}
 		general.Data0 = int(generalData[0])
 		general.Attack = int(generalData[1] & 15)
@@ -55,5 +55,5 @@ func ParseGenerals(data io.Reader) (Generals, error) {
 		general.Name = string(generalName)
 		generals[i/8] = append(generals[i/8], general)
 	}
-	return generals, nil
+	return &generals, nil
 }

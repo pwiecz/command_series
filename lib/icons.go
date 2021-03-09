@@ -65,26 +65,26 @@ type Icons struct {
 	Sprites [24]*image.Paletted
 }
 
-func ReadIcons(fsys fs.FS) (Icons, error) {
+func ReadIcons(fsys fs.FS) (*Icons, error) {
 	iconsData, err := fs.ReadFile(fsys, "WAR.PIC")
 	if err != nil {
-		return Icons{}, fmt.Errorf("Cannot read WAR.PIC file (%v)", err)
+		return nil, fmt.Errorf("Cannot read WAR.PIC file (%v)", err)
 	}
 	return ParseIcons(bytes.NewReader(iconsData))
 }
 
-func ParseIcons(iconsData io.Reader) (Icons, error) {
+func ParseIcons(iconsData io.Reader) (*Icons, error) {
 	icons, err := ParseSpriteData(iconsData, 8, 16, 1, 1, 1)
 	if err != nil {
-		return Icons{}, err
+		return nil, err
 	}
 	if len(icons) != 24 {
-		return Icons{}, fmt.Errorf("Unexpected number of icons %d, expected 24", len(icons))
+		return nil, fmt.Errorf("Unexpected number of icons %d, expected 24", len(icons))
 	}
 	res := Icons{}
 	for i, icon := range icons {
 		icon.Palette = []color.Color{color.RGBA{0, 0, 0, 0}, color.RGBA{255, 255, 255, 255}}
 		res.Sprites[i] = icon
 	}
-	return res, nil
+	return &res, nil
 }
