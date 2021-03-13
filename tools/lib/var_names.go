@@ -12,7 +12,7 @@ var varNames = [64]string{
 	"&GENS", // HEXES_DTA (-256)
 	"MSG",
 	"&LOC",
-	"&UNIT",
+	"&UNIT",  // also UNADR
 	"NEXT",
 	"ARG1",
 	"ARG2",
@@ -28,7 +28,7 @@ var varNames = [64]string{
 	"&STRAT", // SCN_TER_2
 	"UPDATE",
 	"MODE",
-	"SCROL",
+	"SCROL",  // also OBJCT
 	"&DEFEN",
 	"TEMP2",
 	"TEMP",
