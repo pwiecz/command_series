@@ -128,7 +128,7 @@ func (v *MapView) AreMapCoordsVisible(mapX, mapY int) bool {
 	return v.AreScreenCoordsVisible(x, y)
 }
 func (v *MapView) AreScreenCoordsVisible(x, y int) bool {
-	return image.Pt(x, y).In(v.visibleBounds)
+	return x >= 0 && x < v.visibleBounds.Dx() && y >= 0 && y < v.visibleBounds.Dy()
 }
 func (v *MapView) DrawSpriteBetween(sprite *ebiten.Image, mapX0, mapY0, mapX1, mapY1 int, alpha float64, screen *ebiten.Image, options *ebiten.DrawImageOptions) {
 	x0, y0 := v.MapCoordsToScreenCoords(mapX0, mapY0)
