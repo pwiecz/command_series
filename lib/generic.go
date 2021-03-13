@@ -29,7 +29,7 @@ type Generic struct {
 	// then to 4 neighbours in diagonal direction,
 	// then offsets to fields with distance 2 from the origin.
 	smallMapOffsets [25]int // Bytes [189:214]
-	Data214         [36]int
+	Data214         [2][2][9]int
 }
 
 func CoordsToMapAddress(x, y int) int {
@@ -158,7 +158,7 @@ func ParseGeneric(reader io.Reader) (*Generic, error) {
 	}
 
 	for i, v := range data[214:250] {
-		generic.Data214[i] = int(v)
+		generic.Data214[i/18][(i/9)%2][i%9] = int(v)
 	}
 	return generic, nil
 }

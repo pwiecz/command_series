@@ -1382,12 +1382,11 @@ func Function15_distanceToObjective(unit Unit) int {
 	}
 }
 func (s *GameState) function26(x, y int, index int) int {
-	v := s.generic.Data214[((x/2)&2)+(y&2)*9+index]
 	// If not on the edge of a 4x4 square
 	if InRange((x/2)%4, 1, 3) && InRange(y%4, 1, 3) {
-		v = 9 - (((index + 3) / 2) & 6)
+		return 9 - (((index + 3) / 2) & 6)
 	}
-	return v
+	return s.generic.Data214[(y/2)&1][(x/4)&1][index]
 }
 
 func (s *GameState) resetMaps() {
