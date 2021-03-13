@@ -65,6 +65,7 @@ func NewGameState(rand *rand.Rand, gameData *GameData, scenarioData *ScenarioDat
 	sunriseOffset := Abs(6-scenario.StartMonth) / 2
 	s := &GameState{}
 	s.rand = rand
+	s.game = gameData.Game
 	s.minute = scenario.StartMinute
 	s.hour = scenario.StartHour
 	s.day = scenario.StartDay

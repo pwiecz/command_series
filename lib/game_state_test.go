@@ -138,11 +138,11 @@ func TestRegression_TwoPlayers(t *testing.T) {
 		}
 	}
 
-	expectedNumMessages := 15409
+	expectedNumMessages := 15744
 	if numMessages != expectedNumMessages {
 		t.Errorf("Expecting %d messages, got %d", expectedNumMessages, numMessages)
 	}
-	expectedNumMessagesFromUnit := 194
+	expectedNumMessagesFromUnit := 315
 	if numMessagesFromUnit != expectedNumMessagesFromUnit {
 		t.Errorf("Expecting %d messages from a unit, got %d", expectedNumMessagesFromUnit, numMessagesFromUnit)
 	}
@@ -232,16 +232,16 @@ func TestRegression_Conflict(t *testing.T) {
 		}
 	}
 
-	expectedNumMessages := 45027
+	expectedNumMessages := 45752
 	if numMessages != expectedNumMessages {
 		t.Errorf("Expecting %d messages, got %d", expectedNumMessages, numMessages)
 	}
-	expectedNumMessagesFromUnit := 1025
+	expectedNumMessagesFromUnit := 1451
 	if numMessagesFromUnit != expectedNumMessagesFromUnit {
 		t.Errorf("Expecting %d messages from a unit, got %d", expectedNumMessagesFromUnit, numMessagesFromUnit)
 	}
 
-	expectedResult, expectedBalance, expectedRank := 5, 2, 5
+	expectedResult, expectedBalance, expectedRank := 3, 2, 3
 	result, balance, rank := gameState.FinalResults()
 	if result != expectedResult || balance != expectedBalance || rank != expectedRank {
 		t.Errorf("Expecting %d,%d,%d final results, got %d,%d,%d",
