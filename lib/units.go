@@ -71,6 +71,69 @@ type Unit struct {
 }
 type Units [2][]Unit
 
+func (u Units) IsUnitAt(x, y int) bool {
+	return u.IsUnitOfSideAt(x, y, 0) || u.IsUnitOfSideAt(x, y, 1)
+}
+func (u Units) IsUnitOfSideAt(x, y, side int) bool {
+	sideUnits := u[side]
+	for i := range sideUnits {
+		if sideUnits[i].IsInGame && sideUnits[i].X == x && sideUnits[i].Y == y {
+			return true
+		}
+	}
+	return false
+}
+func (u Units) FindUnitAt(x, y int) (Unit, bool) {
+	for _, sideUnits := range u {
+		for i := range sideUnits {
+			if sideUnits[i].IsInGame && sideUnits[i].X == x && sideUnits[i].Y == y {
+				return sideUnits[i], true
+			}
+		}
+	}
+	return Unit{}, false
+}
+func (u Units) FindUnitAtMapCoords(x, y int) (Unit, bool) {
+	for _, sideUnits := range u {
+		for i := range sideUnits {
+			if sideUnits[i].IsInGame && sideUnits[i].X/2 == x && sideUnits[i].Y == y {
+				return sideUnits[i], true
+			}
+		}
+	}
+	return Unit{}, false
+}
+func (u Units) FindUnitOfSideAt(x, y, side int) (Unit, bool) {
+	sideUnits := u[side]
+	for i := range sideUnits {
+		if sideUnits[i].IsInGame && sideUnits[i].X == x && sideUnits[i].Y == y {
+			return sideUnits[i], true
+		}
+	}
+	return Unit{}, false
+}
+func (u Units) FindUnitOfSideAtMapCoords(x, y, side int) (Unit, bool) {
+	sideUnits := u[side]
+	for i := range sideUnits {
+		if sideUnits[i].IsInGame && sideUnits[i].X/2 == x && sideUnits[i].Y == y {
+			return sideUnits[i], true
+		}
+	}
+	return Unit{}, false
+}
+func (u Units) NeighbourUnitCount(x, y, side int) int {
+	num := 0
+	for _, unit := range u[side] {
+		if !unit.IsInGame {
+			continue
+		}
+		if Abs(unit.X-x)+Abs(2*(unit.Y-y)) < 4 {
+			num++
+		}
+	}
+	return num
+}
+
 func (u Unit) FullName() string {
 	return u.Name + " " + u.TypeName
 }
@@ -83,6 +146,18 @@ func (u *Unit) ClearState() {
 	u.HasLocalCommand = false
 	u.SeenByEnemy = false
 	u.IsInGame = false
+}
+func (u Unit) Function15_distanceToObjective() int {
+	dx := u.ObjectiveX - u.X
+	dy := u.ObjectiveY - u.Y
+	if Abs(dy) > Abs(dx)/2 {
+		return Abs(dy)
+	} else {
+		return (Abs(dx) + Abs(dy) + 1) / 2
+	}
+}
+func (u Unit) IsVisible() bool {
+	return u.IsInGame && (u.InContactWithEnemy || u.SeenByEnemy)
 }
 
 type FlashbackUnit struct {

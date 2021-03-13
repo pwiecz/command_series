@@ -386,20 +386,16 @@ loop:
 			s.sync.Stop()
 			break loop
 		case lib.UnitMove:
-			if s.mapView.AreMapCoordsVisible(message.X0, message.Y0) || s.mapView.AreMapCoordsVisible(message.X1, message.Y1) {
-				if !s.turboMode {
-					s.animation = NewUnitAnimation(s.mapView /*s.audioPlayer*/, nil,
-						message.Unit, message.X0, message.Y0, message.X1, message.Y1, 30)
-				}
+			if !s.turboMode && (s.mapView.AreMapCoordsVisible(message.X0, message.Y0) || s.mapView.AreMapCoordsVisible(message.X1, message.Y1)) {
+				s.animation = NewUnitAnimation(s.mapView /*s.audioPlayer*/, nil,
+					message.Unit, message.X0, message.Y0, message.X1, message.Y1, 30)
 				break loop
 			}
 		case lib.SupplyTruckMove:
-			if !s.turboMode {
-				if s.mapView.AreMapCoordsVisible(message.X0, message.Y0) || s.mapView.AreMapCoordsVisible(message.X1, message.Y1) {
-					s.animation = NewIconAnimation(s.mapView, lib.SupplyTruck,
-						message.X0, message.Y0, message.X1, message.Y1, 1)
-					break loop
-				}
+			if !s.turboMode && (s.mapView.AreMapCoordsVisible(message.X0, message.Y0) || s.mapView.AreMapCoordsVisible(message.X1, message.Y1)) {
+				s.animation = NewIconAnimation(s.mapView, lib.SupplyTruck,
+					message.X0, message.Y0, message.X1, message.Y1, 1)
+				break loop
 			}
 		case lib.WeatherForecast:
 			s.messageBox.Clear()
@@ -441,7 +437,7 @@ func (s *MainScreen) showMessageFromUnit(message lib.MessageFromUnit) {
 	for i, line := range lines {
 		s.messageBox.Print(line, 2, 2+i, false)
 	}
-	if s.mapView.AreMapCoordsVisible(unit.X/2, unit.Y) {
+	if s.areUnitCoordsVisible(unit.X, unit.Y) {
 		s.mapView.ShowIcon(message.Icon(), unit.X/2, unit.Y, 0, -5)
 	} else {
 		s.mapView.HideIcon()
@@ -455,7 +451,7 @@ func (s *MainScreen) areUnitCoordsVisible(x, y int) bool {
 }
 func (s *MainScreen) tryGiveOrderAtMapCoords(x, y int, order lib.OrderType) {
 	s.messageBox.Clear()
-	if unit, ok := s.gameState.FindUnitAtMapCoords(x, y); ok && unit.Side == s.playerSide {
+	if unit, ok := s.scenarioData.Units.FindUnitOfSideAtMapCoords(x, y, s.playerSide); ok {
 		s.giveOrder(unit, order)
 		s.orderedUnit = &unit
 	} else {
@@ -497,7 +493,7 @@ func (s *MainScreen) setObjective(unit lib.Unit, x, y int) {
 	s.messageBox.Print("WHO ", 2, 0, true)
 	s.messageBox.Print(unit.FullName(), 7, 0, false)
 	s.messageBox.Print("OBJECTIVE HERE.", 2, 1, false)
-	distance := lib.Function15_distanceToObjective(unit)
+	distance := unit.Function15_distanceToObjective()
 	if distance > 0 {
 		s.messageBox.Print(fmt.Sprintf("DISTANCE: %d MILES.", distance*s.scenarioData.Data.HexSizeInMiles), 2, 2, false)
 	}
@@ -509,7 +505,7 @@ func (s *MainScreen) showUnitInfo() {
 		return
 	}
 	cursorX, cursorY := s.mapView.GetCursorPosition()
-	unit, ok := s.gameState.FindUnitAtMapCoords(cursorX, cursorY)
+	unit, ok := s.scenarioData.Units.FindUnitAtMapCoords(cursorX, cursorY)
 	if !ok {
 		return
 	}
@@ -598,7 +594,7 @@ func (s *MainScreen) showGeneralInfo() {
 		return
 	}
 	cursorX, cursorY := s.mapView.GetCursorPosition()
-	unit, ok := s.gameState.FindUnitAtMapCoords(cursorX, cursorY)
+	unit, ok := s.scenarioData.Units.FindUnitAtMapCoords(cursorX, cursorY)
 	if !ok {
 		return
 	}
@@ -621,7 +617,7 @@ func (s *MainScreen) showGeneralInfo() {
 func (s *MainScreen) showCityInfo() {
 	s.messageBox.Clear()
 	cursorX, cursorY := s.mapView.GetCursorPosition()
-	city, ok := s.gameState.FindCityAtMapCoords(cursorX, cursorY)
+	city, ok := s.scenarioData.Terrain.FindCityAtMapCoords(cursorX, cursorY)
 	if !ok {
 		s.messageBox.Print("NONE", 2, 0, false)
 		return

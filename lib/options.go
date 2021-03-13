@@ -175,3 +175,62 @@ func (o *Options) Read(reader io.Reader) error {
 	o.Speed = Speed(speed)
 	return nil
 }
+
+type CommanderFlags struct {
+	PlayerControlled      [2]bool
+	PlayerCanSeeUnits     [2]bool
+	PlayerHasIntelligence [2]bool
+}
+
+func newCommanderFlags(o *Options) *CommanderFlags {
+	commanderFlags := &CommanderFlags{}
+	commanderFlags.PlayerControlled[0] = o.AlliedCommander == Player
+	commanderFlags.PlayerControlled[1] = o.GermanCommander == Player
+	if o.Intelligence == Limited {
+		commanderFlags.PlayerCanSeeUnits[0] = o.AlliedCommander == Player || (o.AlliedCommander == Computer && o.GermanCommander == Computer)
+		commanderFlags.PlayerCanSeeUnits[1] = o.AlliedCommander == Computer
+		commanderFlags.PlayerHasIntelligence[0] = false
+		commanderFlags.PlayerHasIntelligence[1] = false
+	} else {
+		commanderFlags.PlayerCanSeeUnits[0] = true
+		commanderFlags.PlayerCanSeeUnits[1] = true
+		commanderFlags.PlayerHasIntelligence[0] = true
+		commanderFlags.PlayerHasIntelligence[1] = true
+	}
+	return commanderFlags
+}
+func (c *CommanderFlags) SwitchSides() {
+	c.PlayerControlled[0], c.PlayerControlled[1] = c.PlayerControlled[1], c.PlayerControlled[0]
+	c.PlayerCanSeeUnits[0], c.PlayerCanSeeUnits[1] = c.PlayerCanSeeUnits[1], c.PlayerCanSeeUnits[0]
+	c.PlayerHasIntelligence[0], c.PlayerHasIntelligence[1] = c.PlayerHasIntelligence[1], c.PlayerHasIntelligence[0]
+}
+
+func (c *CommanderFlags) Serialize() (result uint8) {
+	if !c.PlayerControlled[0] {
+		result |= 0b1
+	}
+	if !c.PlayerControlled[1] {
+		result |= 0b01
+	}
+	if !c.PlayerCanSeeUnits[0] {
+		result |= 0b001
+	}
+	if !c.PlayerCanSeeUnits[1] {
+		result |= 0b0001
+	}
+	if !c.PlayerHasIntelligence[0] {
+		result |= 0b00001
+	}
+	if !c.PlayerHasIntelligence[1] {
+		result |= 0b000001
+	}
+	return
+}
+func (c *CommanderFlags) Deserialize(value uint8) {
+	c.PlayerControlled[0] = (value & 0b1) == 0
+	c.PlayerControlled[1] = (value & 0b01) == 0
+	c.PlayerCanSeeUnits[0] = (value & 0b001) == 0
+	c.PlayerCanSeeUnits[1] = (value & 0b0001) == 0
+	c.PlayerHasIntelligence[0] = (value & 0b00001) == 0
+	c.PlayerHasIntelligence[1] = (value & 0b000001) == 0
+}

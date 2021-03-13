@@ -25,6 +25,30 @@ type Terrain struct {
 	// (4*(n%16), 4*n/16).
 	Coeffs [16][16]int // Bytes [768-1024]
 }
+func (t Terrain) IsCityAtUnitCoords(x, y int) bool {
+	for _, city := range t.Cities {
+		if city.VictoryPoints > 0 && city.X == x && city.Y == y {
+			return true
+		}
+	}
+	return false
+}
+func (t Terrain) FindCityAtUnitCoords(x, y int) (City, bool) {
+	for _, city := range t.Cities {
+		if city.VictoryPoints > 0 && city.X == x && city.Y == y {
+			return city, true
+		}
+	}
+	return City{}, false
+}
+func (t Terrain) FindCityAtMapCoords(x, y int) (City, bool) {
+	for _, city := range t.Cities {
+		if city.VictoryPoints > 0 && city.X/2 == x && city.Y == y {
+			return city, true
+		}
+	}
+	return City{}, false
+}
 
 func ReadTerrain(fsys fs.FS, filename string, game Game) (*Terrain, error) {
 	fileData, err := fs.ReadFile(fsys, filename)

@@ -81,6 +81,13 @@ type Data struct {
 	Colors          []string
 }
 
+func (d *Data) function10(order OrderType, offset int) int {
+	if !InRange(offset, 0, 4) {
+		panic(offset)
+	}
+	return d.Data176[int(order)][offset]
+}
+
 // At Day change byte at Offset of the scenario data to Value.
 type DataUpdate struct {
 	Day    int

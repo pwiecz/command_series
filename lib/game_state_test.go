@@ -202,11 +202,12 @@ func TestRegression_RegressionPanicInCampaign(t *testing.T) {
 	}
 }
 
-func TestRegression_Conflict(t *testing.T) {
+func TestRegression_Conflict_FullIntelligence(t *testing.T) {
 	messageSync := NewMessageSync()
 	options := DefaultOptions()
 	options.AlliedCommander = Computer
 	options.GermanCommander = Computer
+	options.Intelligence = Full
 	gameState := createTestGameState("conflict.atr", 4, 1, options, messageSync, t)
 	go func() {
 		if !messageSync.Wait() {
@@ -232,11 +233,11 @@ func TestRegression_Conflict(t *testing.T) {
 		}
 	}
 
-	expectedNumMessages := 45752
+	expectedNumMessages := 40287
 	if numMessages != expectedNumMessages {
 		t.Errorf("Expecting %d messages, got %d", expectedNumMessages, numMessages)
 	}
-	expectedNumMessagesFromUnit := 1451
+	expectedNumMessagesFromUnit := 1342
 	if numMessagesFromUnit != expectedNumMessagesFromUnit {
 		t.Errorf("Expecting %d messages from a unit, got %d", expectedNumMessagesFromUnit, numMessagesFromUnit)
 	}
