@@ -359,28 +359,7 @@ func (s *GameState) Update() bool {
 	return true
 }
 
-func (s *GameState) resetMaps() {
-	for side := 0; side < 2; side++ {
-		for sx := 0; sx < 16; sx++ {
-			for sy := 0; sy < 16; sy++ {
-				s.map0[side][sx][sy] = 0
-				s.map1[side][sx][sy] = 0
-				s.map3[side][sx][sy] = 0
-			}
-		}
-	}
-	for side := 0; side < 2; side++ {
-		for tx := 0; tx < 4; tx++ {
-			for ty := 0; ty < 4; ty++ {
-				s.map2_0[side][tx][ty] = 0
-				s.map2_1[side][tx][ty] = 0
-			}
-		}
-	}
-}
-
 func (s *GameState) updateUnit() (message MessageFromUnit, quit bool) {
-	var mode OrderType
 	weather := s.weather
 	if s.isNight {
 		weather += 8
@@ -394,7 +373,6 @@ nextUnit:
 	if !s.areUnitCoordsValid(unit.X, unit.Y) {
 		panic(fmt.Errorf("%s@(%d,%d):%v", unit.FullName(), unit.X, unit.Y, unit))
 	}
-	var numEnemyNeighbours int
 	var arg1 int
 	if unit.MenCount+unit.EquipCount < 7 || unit.Fatigue == 255 {
 		s.hideUnit(unit)
@@ -409,7 +387,128 @@ nextUnit:
 	if !s.scenarioData.UnitCanMove[unit.Type] {
 		goto nextUnit
 	}
-	numEnemyNeighbours = s.countNeighbourUnits(unit.X, unit.Y, 1-unit.Side)
+	arg1 = s.updateUnitObjective(&unit, weather)
+	//l21:
+	s.update = unit.Side
+	message = nil
+	if unit.SupplyLevel == 0 {
+		message = WeHaveExhaustedSupplies{unit}
+	}
+	{
+		sx, sy, shouldQuit := s.performUnitMovement(&unit, &message, &arg1, weather)
+		if shouldQuit {
+			quit = true
+			return
+		}
+		unit.SupplyLevel = Clamp(unit.SupplyLevel-2, 0, 255)
+		wasInContactWithEnemy := unit.InContactWithEnemy
+
+		unit.InContactWithEnemy = false
+		unit.IsUnderAttack = false
+		unit.State2 = false
+		unit.State4 = false // &= 232
+		if Rand(s.scenarioData.Data252[unit.Side], s.rand) == 0 {
+			unit.SeenByEnemy = false // &= ~64
+		}
+		if s.game == Conflict && Rand(s.scenarioData.Data175, s.rand)/8 > 0 {
+			unit.SeenByEnemy = true // |= 64
+		}
+		for i := 0; i < 6; i++ {
+			nx, ny := s.generic.IthNeighbour(unit.X, unit.Y, i)
+			if unit2, ok := s.FindUnitOfSide(nx, ny, 1-unit.Side); ok {
+				unit2.InContactWithEnemy = true
+				unit2.SeenByEnemy = true // |= 65
+				s.showUnit(unit2)
+				s.units[unit2.Side][unit2.Index] = unit2
+				if s.scenarioData.UnitScores[unit2.Type] > 8 {
+					if ((unit.Side + 1) & s.commanderMask) > 0 {
+						sx, sy = unit2.X, unit2.Y
+						unit.Order = Attack
+						arg1 = 7
+						// arg2 = i
+					}
+				}
+				// in CiE one of supply units or an air wing.
+				// in DitD also minefield or artillery
+				// in CiV supply units or bombers (not fighters nor artillery)
+				if s.scenarioData.UnitMask[unit2.Type]&128 == 0 {
+					unit.State4 = true // |= 16
+				}
+				if s.scenarioData.UnitCanMove[unit2.Type] {
+					unit.InContactWithEnemy = true
+					unit.SeenByEnemy = true // |= 65
+					if unit.Side == 0 {
+					}
+					if !wasInContactWithEnemy {
+						message = WeAreInContactWithEnemy{unit}
+					}
+				}
+			}
+		}
+		s.function29_showUnit(unit)
+		//	l11:
+		if unit.ObjectiveX == 0 || unit.Order != Attack || arg1 < 7 {
+			goto end
+		}
+		if Function15_distanceToObjective(unit) == 1 && s.ContainsUnitOfSide(sx, sy, unit.Side) {
+			unit.ObjectiveX = 0
+			goto end
+		}
+		unit.TargetFormation = s.function10(unit.Order, 2)
+		if unit.Fatigue > 64 || unit.SupplyLevel == 0 ||
+			!s.ContainsUnitOfSide(sx, sy, 1-unit.Side) ||
+			unit.Formation != s.scenarioData.Data176[0][2] {
+			goto end
+		}
+		if unit.FormationTopBit {
+			s.hideUnit(unit)
+			if !s.sync.SendUpdate(UnitMove{unit, unit.X / 2, unit.Y, sx / 2, sy}) {
+				quit = true
+				return
+			}
+			s.showUnit(unit)
+			if s.game == Conflict {
+				unit.InContactWithEnemy = true
+				unit.SeenByEnemy = true // |= 65
+			}
+			// function14
+		} else {
+			susceptibleToWeather := s.scenarioData.Data32[unit.Type]&8 != 0
+			if susceptibleToWeather && weather > 3 {
+				// [53767] = 0
+				goto end
+			}
+			// function27
+		}
+		// [53767] = 0
+		s.performAttack(&unit, sx, sy, weather, &message)
+	}
+end: // l3
+	for unit.Formation != unit.TargetFormation {
+		dir := Sign(unit.Formation - unit.TargetFormation)
+		speed := s.scenarioData.FormationChangeSpeed[(dir+1)/2][unit.Formation]
+		if speed > Rand(15, s.rand) {
+			unit.FormationTopBit = false
+			unit.Formation -= dir
+		}
+		if speed&16 == 0 {
+			break
+		}
+	}
+	{
+		recovery := s.scenarioData.RecoveryRate[unit.Type]
+		if !unit.InContactWithEnemy && unit.HasSupplyLine { // &9 == 0
+			recovery *= 2
+		}
+		unit.Fatigue = Clamp(unit.Fatigue-recovery, 0, 255)
+	}
+	s.units[unit.Side][unit.Index] = unit
+	return
+}
+
+func (s *GameState) updateUnitObjective(unit *Unit, weather int) int {
+	var mode OrderType
+	numEnemyNeighbours := s.countNeighbourUnits(unit.X, unit.Y, 1-unit.Side)
 	if numEnemyNeighbours == 0 {
 		unit.State4 = false // &= 239
 	}
@@ -418,7 +517,7 @@ nextUnit:
 		s.update = unit.Side
 		// If not a local command and either objective is specified, or order is defend or move).
 		if !unit.HasLocalCommand && (unit.Order == Defend || unit.Order == Move || unit.ObjectiveX != 0) { // ... maybe?
-			goto l21
+			return 0 // goto l21
 		} else {
 			mode = unit.Order
 			unit.HasLocalCommand = true // |= 32
@@ -450,7 +549,7 @@ nextUnit:
 			((s.game != Conflict && s.scenarioData.UnitScores[unit.Type]&248 == 0) ||
 				(s.game == Conflict && s.scenarioData.UnitMask[unit.Type]&1 == 0)) {
 			tx, ty := unit.X/32, unit.Y/16
-			arg1 = -17536 // 48000
+			bestVal := -17536 // 48000
 			bestI := 0
 			bestX, bestY := 0, 0
 			for i := 0; i < 9; i++ {
@@ -466,8 +565,8 @@ nextUnit:
 					// Prioritize staying withing the same square.
 					val *= 2
 				}
-				if val > arg1 {
-					arg1 = val
+				if val > bestVal {
+					bestVal = val
 					bestI = i
 					bestX, bestY = x, y
 				}
@@ -484,12 +583,12 @@ nextUnit:
 				if s.game == Conflict {
 					unit.ObjectiveX += Rand(3, s.rand) * 2
 				}
-				goto l21
+				return 0 //goto l21
 			}
 		}
 		{
 			generalMask := unit.General.Data0
-			arg1 = -17536 // 48000
+			bestVal := -17536 // 48000
 			//var bestI int
 			var bestDx, bestDy int
 			var v63 int
@@ -506,7 +605,7 @@ nextUnit:
 			s.map0[unit.Side][sx][sy] = Clamp(s.map0[unit.Side][sx][sy]-temp2, 0, 255)
 			s.map3[unit.Side][sx][sy] = Clamp(s.map3[unit.Side][sx][sy]-v61, 0, 255)
 			// save a copy of the unit, as we're going to modify it.
-			unitCopy := unit
+			unitCopy := *unit
 			for i := 1; i <= 9; i++ {
 				dx, dy := s.generic.SmallMapOffsets(i - 1)
 				if !InRange(sx+dx, 0, 16) || !InRange(sy+dy, 0, 16) {
@@ -646,8 +745,8 @@ nextUnit:
 					v63 = t
 					mode = temp
 				}
-				if t > arg1 {
-					arg1 = t
+				if t > bestVal {
+					bestVal = t
 					bestDx, bestDy = dx, dy
 					//bestI = i
 				}
@@ -657,7 +756,7 @@ nextUnit:
 				break
 			}
 			// function18()
-			unit = unitCopy // revert modified unit
+			*unit = unitCopy // revert modified unit
 			unit.OrderBit4 = true
 			supplyUse := s.scenarioData.AvgDailySupplyUse
 			if !unit.HasSupplyLine {
@@ -676,12 +775,12 @@ nextUnit:
 				unit.Order = t
 				unit.TargetFormation = 0
 				unit.OrderBit4 = false
-				goto l21
+				return 0 //goto l21
 			}
 			if s.game == Conflict && s.scenarioData.UnitMask[unit.Type]&1 != 0 {
 				bestDx, bestDy = 0, 0
 			}
-			if unit.Fatigue*4 > arg1-v63 {
+			if unit.Fatigue*4 > bestVal-v63 {
 				bestDx, bestDy = 0, 0
 			}
 			if bestDx == 0 && bestDy == 0 {
@@ -711,9 +810,10 @@ nextUnit:
 		}
 	}
 l24:
+	var arg1 int
 	unit.TargetFormation = s.function10(unit.Order, 1)
 	if mode == Attack {
-		if objX, objY, score := s.bestAttackObjective(unit, weather, numEnemyNeighbours); objX > 0 {
+		if objX, objY, score := s.bestAttackObjective(*unit, weather, numEnemyNeighbours); objX > 0 {
 			unit.ObjectiveX, unit.ObjectiveY = objX, objY
 			arg1 = score
 		}
@@ -726,7 +826,7 @@ l24:
 		if unit.ObjectiveX > 0 {
 			unit.ObjectiveX, unit.ObjectiveY = unit.X, unit.Y
 		}
-		objX, objY, score := s.bestDefenceObjective(unit)
+		objX, objY, score := s.bestDefenceObjective(*unit)
 		arg1 = score
 		if objX != unit.X || objY != unit.Y {
 			unit.ObjectiveX, unit.ObjectiveY = objX, objY
@@ -755,436 +855,8 @@ l24:
 			}
 		}
 	}
-l21:
-	s.update = unit.Side
-	message = nil
-	if unit.SupplyLevel == 0 {
-		message = WeHaveExhaustedSupplies{unit}
-	}
-	{
-		var distance int
-		var sx, sy int
-	l22:
-		for unitMoveBudget := 25; unitMoveBudget > 0; {
-			if unit.ObjectiveX == 0 {
-				break
-			}
-			distance = Function15_distanceToObjective(unit)
-			d32 := s.scenarioData.Data32[unit.Type]
-			attackRange := (d32 & 31) * 2
-			if distance > 0 && distance <= attackRange && unit.Order == Attack {
-				sx, sy = unit.ObjectiveX, unit.ObjectiveY
-				unit.FormationTopBit = true
-				arg1 = 7
-				break // goto l2
-			}
-			var moveSpeed int
-			for mvAdd := 0; mvAdd <= 1; mvAdd++ { // l5:
-				if unit.ObjectiveX == unit.X && unit.ObjectiveY == unit.Y {
-					unit.ObjectiveX = 0
-					unit.TargetFormation = s.function10(unit.Order, 1)
-					break l22 // goto l2
-				}
-				unit.TargetFormation = s.function10(unit.Order, 0)
-				// If unit is player controlled or its command is local
-				if ((unit.Side+1)&s.commanderMask) != 0 || unit.HasLocalCommand {
-					// If it's next to its objective to defend and it's in contact with enemy
-					if distance == 1 && unit.Order == Defend && unit.InContactWithEnemy {
-						unit.TargetFormation = s.function10(unit.Order, 1)
-					}
-				}
-				// TODO: investigate if scope of sx, sy is not too large, and they're used where they're not supposed to.
-				sx, sy, moveSpeed = s.FindBestMoveFromTowards(unit.X, unit.Y, unit.ObjectiveX, unit.ObjectiveY, unit.Type, mvAdd)
-				if d32&64 > 0 { // in CiV (some scenarios) artillery or mortars
-					if s.game != Conflict || unit.Formation == 0 {
-						sx, sy = unit.ObjectiveX, unit.ObjectiveY
-						tt := s.terrainOrUnitTypeAt(sx, sy)
-						moveSpeed = s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[tt][unit.Type]
-						arg1 = tt // shouldn't have any impact
-						mvAdd = 1
-					} else if s.scenarioData.UnitMask[unit.Type]&32 != 0 {
-						// Conflict && unit.Formation != 0
-						break l22 // goto l2
-					}
-				}
-				if s.ContainsUnitOfSide(sx, sy, unit.Side) {
-					moveSpeed = 0
-				}
-				if s.ContainsUnitOfSide(sx, sy, 1-unit.Side) {
-					moveSpeed = -1
-				}
-				if moveSpeed >= 1 || (unit.Order == Attack && moveSpeed == -1) ||
-					Abs(unit.ObjectiveX-unit.X)+Abs(unit.ObjectiveY-unit.Y) <= 2 {
-					break
-				}
-			}
-
-			if moveSpeed < 1 {
-				break // goto l2
-			}
-			moveSpeed = moveSpeed * s.scenarioData.Data192[unit.Formation] / 8
-			if unit.State4 {
-				moveSpeed = moveSpeed * s.scenarioData.Data200Low[unit.Type] / 8
-			}
-			moveSpeed *= (512 - unit.Fatigue) / 32
-			moveSpeed = moveSpeed * unit.General.Movement / 16
-			if unit.SupplyLevel == 0 {
-				moveSpeed /= 2
-			}
-			if s.game != Crusade {
-				if moveSpeed == 0 {
-					break
-				}
-			}
-			totalMoveCost := 1024
-			if s.game == Conflict {
-				totalMoveCost = 1023
-			}
-			if s.scenarioData.UnitMask[unit.Type]&4 != 0 {
-				if s.game != Conflict {
-					totalMoveCost += weather * 128
-				} else {
-					totalMoveCost += weather * 256
-				}
-			}
-			totalMoveCost *= 8
-			var moveCost int
-			if s.game == Crusade {
-				moveCost = totalMoveCost / (moveSpeed + 1)
-			} else {
-				moveCost = totalMoveCost / moveSpeed
-			}
-			if moveCost > unitMoveBudget && Rand(moveCost, s.rand) > unitMoveBudget {
-				break
-			}
-			unitMoveBudget -= moveCost
-			s.hideUnit(unit)
-			if ((unit.Side+1)&(s.commanderMask>>2)) == 0 ||
-				unit.InContactWithEnemy || unit.SeenByEnemy {
-				if !s.sync.SendUpdate(UnitMove{unit, unit.X / 2, unit.Y, sx / 2, sy}) {
-					quit = true
-					return
-				}
-			}
-			unit.X, unit.Y = sx, sy
-			s.function29_showUnit(unit)
-			if Function15_distanceToObjective(unit) == 0 {
-				unit.ObjectiveX = 0
-				unit.TargetFormation = s.function10(unit.Order, 1)
-				if (unit.Order == Defend || unit.Order == Move) &&
-					!unit.HasLocalCommand {
-					message = WeHaveReachedOurObjective{unit}
-				}
-			}
-			unit.Fatigue = Clamp(unit.Fatigue+s.scenarioData.Data173, 0, 255)
-			if city, captured := s.function16(unit); captured {
-				message = WeHaveCaptured{unit, city}
-				break
-			}
-			if unitMoveBudget > 0 {
-				if s.countNeighbourUnits(unit.X, unit.Y, 1-unit.Side) > 0 {
-					unit.InContactWithEnemy = true
-					unit.State4 = true // |= 17
-				} else {
-					unit.InContactWithEnemy = false // &= 254
-				}
-				s.function29_showUnit(unit)
-			}
-		}
-		// l2:
-		unit.SupplyLevel = Clamp(unit.SupplyLevel-2, 0, 255)
-		wasInContactWithEnemy := unit.InContactWithEnemy
-
-		unit.InContactWithEnemy = false
-		unit.IsUnderAttack = false
-		unit.State2 = false
-		unit.State4 = false // &= 232
-		if Rand(s.scenarioData.Data252[unit.Side], s.rand) == 0 {
-			unit.SeenByEnemy = false // &= ~64
-		}
-		if s.game == Conflict && Rand(s.scenarioData.Data175, s.rand)/8 > 0 {
-			unit.SeenByEnemy = true // |= 64
-		}
-		for i := 0; i < 6; i++ {
-			nx, ny := s.generic.IthNeighbour(unit.X, unit.Y, i)
-			if unit2, ok := s.FindUnitOfSide(nx, ny, 1-unit.Side); ok {
-				unit2.InContactWithEnemy = true
-				unit2.SeenByEnemy = true // |= 65
-				s.showUnit(unit2)
-				s.units[unit2.Side][unit2.Index] = unit2
-				if s.scenarioData.UnitScores[unit2.Type] > 8 {
-					if ((unit.Side + 1) & s.commanderMask) > 0 {
-						sx, sy = unit2.X, unit2.Y
-						unit.Order = Attack
-						arg1 = 7
-						// arg2 = i
-					}
-				}
-				// in CiE one of supply units or an air wing.
-				// in DitD also minefield or artillery
-				// in CiV supply units or bombers (not fighters nor artillery)
-				if s.scenarioData.UnitMask[unit2.Type]&128 == 0 {
-					unit.State4 = true // |= 16
-				}
-				if s.scenarioData.UnitCanMove[unit2.Type] {
-					unit.InContactWithEnemy = true
-					unit.SeenByEnemy = true // |= 65
-					if unit.Side == 0 {
-					}
-					if !wasInContactWithEnemy {
-						message = WeAreInContactWithEnemy{unit}
-					}
-				}
-			}
-		}
-		s.function29_showUnit(unit)
-		//	l11:
-		if unit.ObjectiveX == 0 || unit.Order != Attack || arg1 < 7 {
-			goto end
-		}
-		if distance == 1 && s.ContainsUnitOfSide(sx, sy, unit.Side) {
-			unit.ObjectiveX = 0
-			goto end
-		}
-		unit.TargetFormation = s.function10(unit.Order, 2)
-		if unit.Fatigue > 64 || unit.SupplyLevel == 0 || !s.ContainsUnitOfSide(sx, sy, 1-unit.Side) ||
-			unit.Formation != s.scenarioData.Data176[0][2] {
-			goto end
-		}
-		if unit.FormationTopBit {
-			s.hideUnit(unit)
-			if !s.sync.SendUpdate(UnitMove{unit, unit.X / 2, unit.Y, sx / 2, sy}) {
-				quit = true
-				return
-			}
-			s.showUnit(unit)
-			if s.game == Conflict {
-				unit.InContactWithEnemy = true
-				unit.SeenByEnemy = true // |= 65
-			}
-			// function14
-		} else {
-			susceptibleToWeather := s.scenarioData.Data32[unit.Type]&8 != 0
-			if susceptibleToWeather && weather > 3 {
-				// [53767] = 0
-				goto end
-			}
-			// function27
-		}
-		// [53767] = 0
-		if s.game != Conflict {
-			unit.InContactWithEnemy = true
-			unit.SeenByEnemy = true // |= 65
-		}
-		unit2, ok := s.FindUnitOfSide(sx, sy, 1-unit.Side)
-		if !ok {
-			panic("")
-		}
-		message = WeAreAttacking{unit, unit2, 0 /* placeholder value */, s.scenarioData.Formations}
-		var attackerScore int
-		{
-			tt := s.terrainTypes.terrainTypeAt(unit.X/2, unit.Y)
-			var menCoeff int
-			if !unit.FormationTopBit {
-				menCoeff = s.scenarioData.TerrainMenAttack[tt] * s.scenarioData.FormationMenAttack[unit.Formation] * unit.MenCount / 32
-			}
-			tankCoeff := s.scenarioData.TerrainTankAttack[tt] * s.scenarioData.FormationTankAttack[unit.Formation] * s.scenarioData.Data16High[unit.Type] / 2 * unit.EquipCount / 64
-			susceptibleToWeather := (s.scenarioData.Data32[unit.Type] & 8) != 0
-			if s.game == Conflict {
-				susceptibleToWeather = (s.scenarioData.Data32[unit.Type] & 32) != 0
-			}
-			if unit.FormationTopBit && susceptibleToWeather {
-				// long range unit
-				if weather > 3 {
-					goto end
-				}
-				tankCoeff = tankCoeff * (4 - weather) / 4
-			}
-			attackerScore = (menCoeff + tankCoeff) * unit.Morale / 256 * (255 - unit.Fatigue) / 128
-			attackerScore = attackerScore * unit.General.Attack / 16
-			attackerScore = attackerScore * s.neighbourScore(&s.hexes.Arr144, unit.X, unit.Y, unit.Side) / 8
-			attackerScore++
-		}
-
-		var defenderScore int
-		{
-			tt2 := s.terrainTypes.terrainTypeAt(unit2.X/2, unit2.Y)
-			if s.scenarioData.UnitScores[unit2.Type]&248 > 0 {
-				unit.State2 = true // |= 4
-			}
-
-			menCoeff := s.scenarioData.TerrainMenDefence[tt2] * s.scenarioData.FormationMenDefence[unit2.Formation] * unit2.MenCount / 32
-			tankCoeff := s.scenarioData.TerrainTankAttack[tt2] * s.scenarioData.FormationTankDefence[unit2.Formation] * s.scenarioData.Data16Low[unit2.Type] / 2 * unit2.EquipCount / 64
-			defenderScore = (menCoeff + tankCoeff) * unit2.Morale / 256 * (240 - unit2.Fatigue/2) / 128
-			defenderScore = defenderScore * unit2.General.Defence / 16
-			if unit2.SupplyLevel == 0 {
-				defenderScore = defenderScore * s.scenarioData.Data167 / 8
-			}
-			defenderScore = defenderScore * s.neighbourScore(&s.hexes.Arr144, unit2.X, unit2.Y, 1-unit.Side) / 8
-			defenderScore++
-		}
-
-		arg1 = defenderScore * 16 / attackerScore
-		if s.scenarioData.UnitMask[unit.Type]&4 == 0 {
-			arg1 += weather
-		}
-		arg1 = Clamp(arg1, 0, 63)
-		if !unit.FormationTopBit || s.scenarioData.Data32[unit.Type]&128 == 0 {
-			menLost := Clamp((Rand(unit.MenCount*arg1, s.rand)+255)/512, 0, unit.MenCount)
-			s.menLost[unit.Side] += menLost
-			unit.MenCount -= menLost
-			tanksLost := Clamp((Rand(unit.EquipCount*arg1, s.rand)+255)/512, 0, unit.EquipCount)
-			s.tanksLost[unit.Side] += tanksLost
-			unit.EquipCount -= tanksLost
-			if arg1 < 24 {
-				unit.Morale = Clamp(unit.Morale+1, 0, 250)
-			}
-			unit2.IsUnderAttack = true //  |= 2
-			if arg1 > 32 {
-				unit.Order = Defend // ? ^48
-				message = WeHaveMetStrongResistance{unit}
-				unit.Morale = Abs(unit.Morale - 2)
-			}
-		}
-		unit.Fatigue = Clamp(unit.Fatigue+arg1, 0, 255)
-		unit.SupplyLevel = Clamp(unit.SupplyLevel-s.scenarioData.Data162, 0, 255)
-
-		arg1 = attackerScore*16/defenderScore - weather
-		if s.game == Crusade {
-			arg1 = Clamp(arg1, 0, 63)
-		} else {
-			arg1 = Clamp(arg1, 0, 128)
-		}
-		// function13(sx, sy)
-		// function4(arg1)
-		s.sync.SendUpdate(UnitAttack{sx, sy, arg1})
-
-		menLost2 := Clamp((Rand(unit2.MenCount*arg1, s.rand)+500)/512, 0, unit2.MenCount)
-		s.menLost[1-unit.Side] += menLost2
-		unit2.MenCount -= menLost2
-		tanksLost2 := Clamp((Rand(unit2.EquipCount*arg1, s.rand)+255)/512, 0, unit2.EquipCount)
-		s.tanksLost[1-unit.Side] += tanksLost2
-		unit2.EquipCount -= tanksLost2
-		unit2.SupplyLevel = Clamp(unit2.SupplyLevel-s.scenarioData.Data163, 0, 255)
-		if s.scenarioData.UnitCanMove[unit2.Type] &&
-			((s.game != Conflict && !unit.FormationTopBit) ||
-				(s.game == Conflict && s.scenarioData.UnitMask[unit2.Type]&2 == 0)) &&
-			arg1-s.scenarioData.Data0Low[unit2.Type]*2+unit2.Fatigue/4 > 36 {
-			unit2.Morale = Abs(unit2.Morale - 1)
-			oldX, oldY := unit2.X, unit2.Y
-			bestX, bestY := unit2.X, unit2.Y
-			s.hideUnit(unit2)
-			if unit2.Fatigue > 128 {
-				unit2SupplyUnit := s.units[unit2.Side][unit2.SupplyUnit]
-				if unit2SupplyUnit.IsInGame {
-					unit2.Morale = Abs(unit2.Morale - s.countNeighbourUnits(unit2.X, unit2.Y, unit.Side)*4)
-					unit2.X, unit2.Y = unit2SupplyUnit.X, unit2SupplyUnit.Y
-					unit2.ClearState()
-					unit2.HalfDaysUntilAppear = 6
-					unit2.InvAppearProbability = 6
-					if s.game != Crusade {
-						unit2.HalfDaysUntilAppear = 4
-						unit2.InvAppearProbability = 4
-						if s.game == Decision {
-							unit2.Fatigue = 130
-						} else {
-							unit2.Fatigue = 120
-						}
-					}
-					message = WeHaveBeenOverrun{unit2}
-				}
-			}
-			bestDefence := -128
-			for i := 0; i <= 6; i++ {
-				nx, ny := s.generic.IthNeighbour(unit2.X, unit2.Y, i)
-				if !s.areUnitCoordsValid(nx, ny) || s.ContainsUnit(nx, ny) || s.ContainsCity(nx, ny) {
-					continue
-				}
-				tt := s.terrainOrUnitTypeAt(nx, ny)
-				if s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[tt][unit2.Type] == 0 {
-					continue
-				}
-				r := s.scenarioData.TerrainMenDefence[tt] +
-					s.neighbourScore(&s.hexes.Arr96, nx, ny, 1-unit.Side)*4
-				if r > 11 && r >= bestDefence {
-					bestDefence = r
-					bestX, bestY = nx, ny
-				}
-			}
-			unit2.X, unit2.Y = bestX, bestY // moved this up comparing to the original code
-			if _, ok := message.(WeHaveBeenOverrun); !ok {
-				if s.game != Conflict {
-					s.showUnit(unit2)
-					unit.ObjectiveX, unit.ObjectiveY = unit2.X, unit2.Y
-				} else {
-					if ((2 - unit.Side) & (s.commanderMask >> 2)) == 0 {
-						s.showUnit(unit2)
-					}
-					unit2.InContactWithEnemy = false
-					unit2.SeenByEnemy = false // &= 190
-				}
-			}
-			if bestX != oldX || bestY != oldY {
-				// unit2 is retreating, unit one is chasing (and maybe capturing a city)
-				if _, ok := message.(WeHaveBeenOverrun); !ok {
-					message = WeAreRetreating{unit2}
-				}
-				if arg1 > 60 && (s.game != Conflict || !unit.FormationTopBit) &&
-					s.neighbourScore(&s.hexes.Arr96, oldX, oldY, unit.Side) > -4 &&
-					s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[s.terrainOrUnitTypeAt(oldX, oldY)][unit.Type] > 0 {
-					s.hideUnit(unit)
-					unit.X, unit.Y = oldX, oldY
-					s.showUnit(unit)
-					if city, captured := s.function16(unit); captured {
-						message = WeHaveCaptured{unit, city}
-					}
-				}
-			} else {
-				message = nil
-			}
-			unit2.Formation = s.scenarioData.Data176[1][0]
-			unit2.Order = OrderType((s.scenarioData.Data176[1][0] + 1) % 4)
-			unit2.HasSupplyLine = false // |= 32
-		}
-
-		a := arg1
-		if _, ok := message.(WeAreRetreating); ok { // are retreating
-			a /= 2
-		}
-		unit2.Fatigue = Clamp(unit2.Fatigue+a, 0, 255)
-
-		if arg1 < 24 {
-			unit2.Morale = Clamp(unit2.Morale+1, 0, 250)
-		}
-		s.units[unit2.Side][unit2.Index] = unit2
-		if attack, ok := message.(WeAreAttacking); ok {
-			// update arg1 value if the message is still WeAreAttacking
-			message = WeAreAttacking{attack.unit, attack.enemy, arg1, attack.formationNames}
-		}
-	}
-end: // l3
-	for unit.Formation != unit.TargetFormation {
-		dir := Sign(unit.Formation - unit.TargetFormation)
-		speed := s.scenarioData.FormationChangeSpeed[(dir+1)/2][unit.Formation]
-		if speed > Rand(15, s.rand) {
-			unit.FormationTopBit = false
-			unit.Formation -= dir
-		}
-		if speed&16 == 0 {
-			break
-		}
-	}
-	{
-		recovery := s.scenarioData.RecoveryRate[unit.Type]
-		if !unit.InContactWithEnemy && unit.HasSupplyLine { // &9 == 0
-			recovery *= 2
-		}
-		unit.Fatigue = Clamp(unit.Fatigue-recovery, 0, 255)
-	}
-	s.units[unit.Side][unit.Index] = unit
-	return
+	return arg1
 }
-
 func (s *GameState) bestAttackObjective(unit Unit, weather int, numEnemyNeighbours int) (objX, objY, score int) {
 	score = 16000
 	terrainType := s.terrainTypes.terrainTypeAt(unit.X/2, unit.Y)
@@ -1310,6 +982,330 @@ func (s *GameState) bestDefenceObjective(unit Unit) (objX, objY, score int) {
 	return
 }
 
+func (s *GameState) performUnitMovement(unit *Unit, message *MessageFromUnit, arg1 *int, weather int) (sx, sy int, quit bool) {
+	// l22:
+	for unitMoveBudget := 25; unitMoveBudget > 0; {
+		if unit.ObjectiveX == 0 {
+			return
+		}
+		distance := Function15_distanceToObjective(*unit)
+		d32 := s.scenarioData.Data32[unit.Type]
+		attackRange := (d32 & 31) * 2
+		if distance > 0 && distance <= attackRange && unit.Order == Attack {
+			sx, sy = unit.ObjectiveX, unit.ObjectiveY
+			unit.FormationTopBit = true
+			*arg1 = 7
+			return // goto l2
+		}
+		var moveSpeed int
+		for mvAdd := 0; mvAdd <= 1; mvAdd++ { // l5:
+			if unit.ObjectiveX == unit.X && unit.ObjectiveY == unit.Y {
+				unit.ObjectiveX = 0
+				unit.TargetFormation = s.function10(unit.Order, 1)
+				return // goto l2
+			}
+			unit.TargetFormation = s.function10(unit.Order, 0)
+			// If unit is player controlled or its command is local
+			if ((unit.Side+1)&s.commanderMask) != 0 || unit.HasLocalCommand {
+				// If it's next to its objective to defend and it's in contact with enemy
+				if distance == 1 && unit.Order == Defend && unit.InContactWithEnemy {
+					unit.TargetFormation = s.function10(unit.Order, 1)
+				}
+			}
+			sx, sy, moveSpeed = s.FindBestMoveFromTowards(unit.X, unit.Y, unit.ObjectiveX, unit.ObjectiveY, unit.Type, mvAdd)
+			if d32&64 > 0 { // in CiV (some scenarios) artillery or mortars
+				if s.game != Conflict || unit.Formation == 0 {
+					sx, sy = unit.ObjectiveX, unit.ObjectiveY
+					tt := s.terrainOrUnitTypeAt(sx, sy)
+					moveSpeed = s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[tt][unit.Type]
+					*arg1 = tt // shouldn't have any impact
+					mvAdd = 1
+				} else if s.scenarioData.UnitMask[unit.Type]&32 != 0 {
+					// Conflict && unit.Formation != 0
+					return // goto l2
+				}
+			}
+			if s.ContainsUnitOfSide(sx, sy, unit.Side) {
+				moveSpeed = 0
+			}
+			if s.ContainsUnitOfSide(sx, sy, 1-unit.Side) {
+				moveSpeed = -1
+			}
+			if moveSpeed >= 1 || (unit.Order == Attack && moveSpeed == -1) ||
+				Abs(unit.ObjectiveX-unit.X)+Abs(unit.ObjectiveY-unit.Y) <= 2 {
+				break
+			}
+		}
+
+		if moveSpeed < 1 {
+			return // goto l2
+		}
+		moveSpeed = moveSpeed * s.scenarioData.Data192[unit.Formation] / 8
+		if unit.State4 {
+			moveSpeed = moveSpeed * s.scenarioData.Data200Low[unit.Type] / 8
+		}
+		moveSpeed *= (512 - unit.Fatigue) / 32
+		moveSpeed = moveSpeed * unit.General.Movement / 16
+		if unit.SupplyLevel == 0 {
+			moveSpeed /= 2
+		}
+		if s.game != Crusade {
+			if moveSpeed == 0 {
+				return
+			}
+		}
+		totalMoveCost := 1024
+		if s.game == Conflict {
+			totalMoveCost = 1023
+		}
+		if s.scenarioData.UnitMask[unit.Type]&4 != 0 {
+			if s.game != Conflict {
+				totalMoveCost += weather * 128
+			} else {
+				totalMoveCost += weather * 256
+			}
+		}
+		totalMoveCost *= 8
+		var moveCost int
+		if s.game == Crusade {
+			moveCost = totalMoveCost / (moveSpeed + 1)
+		} else {
+			moveCost = totalMoveCost / moveSpeed
+		}
+		if moveCost > unitMoveBudget && Rand(moveCost, s.rand) > unitMoveBudget {
+			return
+		}
+		unitMoveBudget -= moveCost
+		s.hideUnit(*unit)
+		if ((unit.Side+1)&(s.commanderMask>>2)) == 0 ||
+			unit.InContactWithEnemy || unit.SeenByEnemy {
+			if !s.sync.SendUpdate(UnitMove{*unit, unit.X / 2, unit.Y, sx / 2, sy}) {
+				quit = true
+				return
+			}
+		}
+		unit.X, unit.Y = sx, sy
+		s.function29_showUnit(*unit)
+		if Function15_distanceToObjective(*unit) == 0 {
+			unit.ObjectiveX = 0
+			unit.TargetFormation = s.function10(unit.Order, 1)
+			if (unit.Order == Defend || unit.Order == Move) &&
+				!unit.HasLocalCommand {
+				*message = WeHaveReachedOurObjective{*unit}
+			}
+		}
+		unit.Fatigue = Clamp(unit.Fatigue+s.scenarioData.Data173, 0, 255)
+		if city, captured := s.function16(*unit); captured {
+			*message = WeHaveCaptured{*unit, city}
+			return
+		}
+		if unitMoveBudget > 0 {
+			if s.countNeighbourUnits(unit.X, unit.Y, 1-unit.Side) > 0 {
+				unit.InContactWithEnemy = true
+				unit.State4 = true // |= 17
+			} else {
+				unit.InContactWithEnemy = false // &= 254
+			}
+			s.function29_showUnit(*unit)
+		}
+	}
+	// l2:
+	return
+}
+
+func (s *GameState) performAttack(unit *Unit, sx, sy, weather int, message *MessageFromUnit) {
+	if s.game != Conflict {
+		unit.InContactWithEnemy = true
+		unit.SeenByEnemy = true // |= 65
+	}
+
+	unit2, ok := s.FindUnitOfSide(sx, sy, 1-unit.Side)
+	if !ok {
+		panic("")
+	}
+	*message = WeAreAttacking{*unit, unit2, 0 /* placeholder value */, s.scenarioData.Formations}
+	var attackerScore int
+	{
+		tt := s.terrainTypes.terrainTypeAt(unit.X/2, unit.Y)
+		var menCoeff int
+		if !unit.FormationTopBit {
+			menCoeff = s.scenarioData.TerrainMenAttack[tt] * s.scenarioData.FormationMenAttack[unit.Formation] * unit.MenCount / 32
+		}
+		tankCoeff := s.scenarioData.TerrainTankAttack[tt] * s.scenarioData.FormationTankAttack[unit.Formation] * s.scenarioData.Data16High[unit.Type] / 2 * unit.EquipCount / 64
+		susceptibleToWeather := (s.scenarioData.Data32[unit.Type] & 8) != 0
+		if s.game == Conflict {
+			susceptibleToWeather = (s.scenarioData.Data32[unit.Type] & 32) != 0
+		}
+		if unit.FormationTopBit && susceptibleToWeather {
+			// long range unit
+			if weather > 3 {
+				return //goto end
+			}
+			tankCoeff = tankCoeff * (4 - weather) / 4
+		}
+		attackerScore = (menCoeff + tankCoeff) * unit.Morale / 256 * (255 - unit.Fatigue) / 128
+		attackerScore = attackerScore * unit.General.Attack / 16
+		attackerScore = attackerScore * s.neighbourScore(&s.hexes.Arr144, unit.X, unit.Y, unit.Side) / 8
+		attackerScore++
+	}
+
+	var defenderScore int
+	{
+		if s.scenarioData.UnitScores[unit2.Type]&248 > 0 {
+			unit.State2 = true // |= 4
+		}
+		tt2 := s.terrainTypes.terrainTypeAt(unit2.X/2, unit2.Y)
+		menCoeff := s.scenarioData.TerrainMenDefence[tt2] * s.scenarioData.FormationMenDefence[unit2.Formation] * unit2.MenCount / 32
+		tankCoeff := s.scenarioData.TerrainTankAttack[tt2] * s.scenarioData.FormationTankDefence[unit2.Formation] * s.scenarioData.Data16Low[unit2.Type] / 2 * unit2.EquipCount / 64
+		defenderScore = (menCoeff + tankCoeff) * unit2.Morale / 256 * (240 - unit2.Fatigue/2) / 128
+		defenderScore = defenderScore * unit2.General.Defence / 16
+		if unit2.SupplyLevel == 0 {
+			defenderScore = defenderScore * s.scenarioData.Data167 / 8
+		}
+		defenderScore = defenderScore * s.neighbourScore(&s.hexes.Arr144, unit2.X, unit2.Y, 1-unit.Side) / 8
+		defenderScore++
+	}
+
+	arg1 := defenderScore * 16 / attackerScore
+	if s.scenarioData.UnitMask[unit.Type]&4 == 0 {
+		arg1 += weather
+	}
+	arg1 = Clamp(arg1, 0, 63)
+	if !unit.FormationTopBit || s.scenarioData.Data32[unit.Type]&128 == 0 {
+		menLost := Clamp((Rand(unit.MenCount*arg1, s.rand)+255)/512, 0, unit.MenCount)
+		s.menLost[unit.Side] += menLost
+		unit.MenCount -= menLost
+		tanksLost := Clamp((Rand(unit.EquipCount*arg1, s.rand)+255)/512, 0, unit.EquipCount)
+		s.tanksLost[unit.Side] += tanksLost
+		unit.EquipCount -= tanksLost
+		if arg1 < 24 {
+			unit.Morale = Clamp(unit.Morale+1, 0, 250)
+		}
+		unit2.IsUnderAttack = true //  |= 2
+		if arg1 > 32 {
+			unit.Order = Defend // ? ^48
+			*message = WeHaveMetStrongResistance{*unit}
+			unit.Morale = Abs(unit.Morale - 2)
+		}
+	}
+	unit.Fatigue = Clamp(unit.Fatigue+arg1, 0, 255)
+	unit.SupplyLevel = Clamp(unit.SupplyLevel-s.scenarioData.Data162, 0, 255)
+
+	arg1 = attackerScore*16/defenderScore - weather
+	if s.game == Crusade {
+		arg1 = Clamp(arg1, 0, 63)
+	} else {
+		arg1 = Clamp(arg1, 0, 128)
+	}
+	// function13(sx, sy)
+	// function4(arg1)
+	s.sync.SendUpdate(UnitAttack{sx, sy, arg1})
+
+	menLost2 := Clamp((Rand(unit2.MenCount*arg1, s.rand)+500)/512, 0, unit2.MenCount)
+	s.menLost[1-unit.Side] += menLost2
+	unit2.MenCount -= menLost2
+	tanksLost2 := Clamp((Rand(unit2.EquipCount*arg1, s.rand)+255)/512, 0, unit2.EquipCount)
+	s.tanksLost[1-unit.Side] += tanksLost2
+	unit2.EquipCount -= tanksLost2
+	unit2.SupplyLevel = Clamp(unit2.SupplyLevel-s.scenarioData.Data163, 0, 255)
+	if s.scenarioData.UnitCanMove[unit2.Type] &&
+		((s.game != Conflict && !unit.FormationTopBit) ||
+			(s.game == Conflict && s.scenarioData.UnitMask[unit2.Type]&2 == 0)) &&
+		arg1-s.scenarioData.Data0Low[unit2.Type]*2+unit2.Fatigue/4 > 36 {
+		unit2.Morale = Abs(unit2.Morale - 1)
+		oldX, oldY := unit2.X, unit2.Y
+		bestX, bestY := unit2.X, unit2.Y
+		s.hideUnit(unit2)
+		if unit2.Fatigue > 128 {
+			unit2SupplyUnit := s.units[unit2.Side][unit2.SupplyUnit]
+			if unit2SupplyUnit.IsInGame {
+				unit2.Morale = Abs(unit2.Morale - s.countNeighbourUnits(unit2.X, unit2.Y, unit.Side)*4)
+				unit2.X, unit2.Y = unit2SupplyUnit.X, unit2SupplyUnit.Y
+				unit2.ClearState()
+				unit2.HalfDaysUntilAppear = 6
+				unit2.InvAppearProbability = 6
+				if s.game != Crusade {
+					unit2.HalfDaysUntilAppear = 4
+					unit2.InvAppearProbability = 4
+					if s.game == Decision {
+						unit2.Fatigue = 130
+					} else {
+						unit2.Fatigue = 120
+					}
+				}
+				*message = WeHaveBeenOverrun{unit2}
+			}
+		}
+		bestDefence := -128
+		for i := 0; i <= 6; i++ {
+			nx, ny := s.generic.IthNeighbour(unit2.X, unit2.Y, i)
+			if !s.areUnitCoordsValid(nx, ny) || s.ContainsUnit(nx, ny) || s.ContainsCity(nx, ny) {
+				continue
+			}
+			tt := s.terrainOrUnitTypeAt(nx, ny)
+			if s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[tt][unit2.Type] == 0 {
+				continue
+			}
+			r := s.scenarioData.TerrainMenDefence[tt] +
+				s.neighbourScore(&s.hexes.Arr96, nx, ny, 1-unit.Side)*4
+			if r > 11 && r >= bestDefence {
+				bestDefence = r
+				bestX, bestY = nx, ny
+			}
+		}
+		unit2.X, unit2.Y = bestX, bestY // moved this up comparing to the original code
+		if _, ok := (*message).(WeHaveBeenOverrun); !ok {
+			if s.game != Conflict {
+				s.showUnit(unit2)
+				unit.ObjectiveX, unit.ObjectiveY = unit2.X, unit2.Y
+			} else {
+				if ((2 - unit.Side) & (s.commanderMask >> 2)) == 0 {
+					s.showUnit(unit2)
+				}
+				unit2.InContactWithEnemy = false
+				unit2.SeenByEnemy = false // &= 190
+			}
+		}
+		if bestX != oldX || bestY != oldY {
+			// unit2 is retreating, unit one is chasing (and maybe capturing a city)
+			if _, ok := (*message).(WeHaveBeenOverrun); !ok {
+				*message = WeAreRetreating{unit2}
+			}
+			if arg1 > 60 && (s.game != Conflict || !unit.FormationTopBit) &&
+				s.neighbourScore(&s.hexes.Arr96, oldX, oldY, unit.Side) > -4 &&
+				s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[s.terrainOrUnitTypeAt(oldX, oldY)][unit.Type] > 0 {
+				s.hideUnit(*unit)
+				unit.X, unit.Y = oldX, oldY
+				s.showUnit(*unit)
+				if city, captured := s.function16(*unit); captured {
+					*message = WeHaveCaptured{*unit, city}
+				}
+			}
+		} else {
+			*message = nil
+		}
+		unit2.Formation = s.scenarioData.Data176[1][0]
+		unit2.Order = OrderType((s.scenarioData.Data176[1][0] + 1) % 4)
+		unit2.HasSupplyLine = false // |= 32
+	}
+
+	a := arg1
+	if _, ok := (*message).(WeAreRetreating); ok { // are retreating
+		a /= 2
+	}
+	unit2.Fatigue = Clamp(unit2.Fatigue+a, 0, 255)
+
+	if arg1 < 24 {
+		unit2.Morale = Clamp(unit2.Morale+1, 0, 250)
+	}
+	s.units[unit2.Side][unit2.Index] = unit2
+	if attack, ok := (*message).(WeAreAttacking); ok {
+		// update arg1 value if the message is still WeAreAttacking
+		*message = WeAreAttacking{attack.unit, attack.enemy, arg1, attack.formationNames}
+	}
+
+}
+
 // Has unit captured a city
 func (s *GameState) function16(unit Unit) (City, bool) {
 	if city, ok := s.FindCity(unit.X, unit.Y); ok {
@@ -1392,6 +1388,26 @@ func (s *GameState) function26(x, y int, index int) int {
 		v = 9 - (((index + 3) / 2) & 6)
 	}
 	return v
+}
+
+func (s *GameState) resetMaps() {
+	for side := 0; side < 2; side++ {
+		for sx := 0; sx < 16; sx++ {
+			for sy := 0; sy < 16; sy++ {
+				s.map0[side][sx][sy] = 0
+				s.map1[side][sx][sy] = 0
+				s.map3[side][sx][sy] = 0
+			}
+		}
+	}
+	for side := 0; side < 2; side++ {
+		for tx := 0; tx < 4; tx++ {
+			for ty := 0; ty < 4; ty++ {
+				s.map2_0[side][tx][ty] = 0
+				s.map2_1[side][tx][ty] = 0
+			}
+		}
+	}
 }
 
 // If the side is controlled by the computer create the strategy level maps aggregating locations and numbers of units, important locations and such.
