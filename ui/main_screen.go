@@ -322,15 +322,27 @@ func (s *MainScreen) Update() error {
 			}
 		default:
 		}
-		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
 			mouseX, mouseY := ebiten.CursorPosition()
 			x, y := s.screenCoordsToUnitCoords(mouseX, mouseY)
-			s.mapView.SetCursorPosition(x/2, y)
+			if s.mapView.AreMapCoordsVisible(x/2, y) {
+				s.mapView.SetCursorPosition(x/2, y)
+			}
+		}
+		if inpututil.MouseButtonPressDuration(ebiten.MouseButtonLeft) > 30 {
+			mouseX, mouseY := ebiten.CursorPosition()
+			x, y := s.screenCoordsToUnitCoords(mouseX, mouseY)
+			if s.mapView.AreMapCoordsVisible(x/2, y) {
+				s.mapView.SetCursorPosition(x/2, y)
+				s.pickOrder(x, y)
+			}
 		}
 		for _, touchID := range inpututil.JustPressedTouchIDs() {
 			touchX, touchY := ebiten.TouchPosition(touchID)
 			x, y := s.screenCoordsToUnitCoords(touchX, touchY)
-			s.mapView.SetCursorPosition(x/2, y)
+			if s.mapView.AreMapCoordsVisible(x, y) {
+				s.mapView.SetCursorPosition(x/2, y)
+			}
 		}
 	}
 	if s.isFrozen || s.areUnitsHidden || s.gameOver {
@@ -477,6 +489,34 @@ func (s *MainScreen) giveOrder(unit lib.Unit, order lib.OrderType) {
 	}
 	s.scenarioData.Units[unit.Side][unit.Index] = unit
 }
+func (s *MainScreen) pickOrder(x, y int) {
+	s.messageBox.Clear()
+	if unit, ok := s.scenarioData.Units.FindUnitOfSideAtMapCoords(x/2, y, s.playerSide); !ok {
+		s.messageBox.Print("NO FRIENDLY UNIT.", 2, 0, false)
+	} else {
+		commands := []string{"MOVE", "ATTACK", "DEFEND", "RESERVE", "CANCEL"}
+		s.listBox = NewListBox(4*8, 22, 7, 5, commands, s.gameData.Sprites.GameFont, func(command string) { s.orderPicked(command, unit) })
+		playerBaseColor := s.scenarioData.Data.SideColor[s.playerSide] * 16
+		s.listBox.SetTextColor(playerBaseColor)
+		s.listBox.SetBackgroundColor(256)
+	}
+}
+func (s *MainScreen) orderPicked(command string, unit lib.Unit) {
+	s.listBox = nil
+	if command == "MOVE" {
+		s.giveOrder(unit, lib.Move)
+	} else if command == "ATTACK" {
+		s.giveOrder(unit, lib.Attack)
+	} else if command == "DEFEND" {
+		s.giveOrder(unit, lib.Defend)
+	} else if command == "RESERVE" {
+		s.giveOrder(unit, lib.Reserve)
+	} else {
+		return
+	}
+	s.orderedUnit = &unit
+}
+
 func (s *MainScreen) trySetObjective(x, y int) {
 	if s.orderedUnit == nil {
 		s.messageBox.Clear()
@@ -802,6 +842,9 @@ func (s *MainScreen) loadGame() {
 		listLen = 8
 	}
 	s.listBox = NewListBox(23*8., 22+2*8, 8, listLen, saveNames, s.gameData.Sprites.GameFont, func(filename string) { s.loadGameFromFile(filename) })
+	playerBaseColor := s.scenarioData.Data.SideColor[s.playerSide] * 16
+	s.listBox.SetTextColor(playerBaseColor)
+	s.listBox.SetBackgroundColor(int(s.scenarioData.Data.DaytimePalette[2]))
 }
 
 func (s *MainScreen) loadGameFromFile(filename string) {
@@ -930,8 +973,6 @@ func (s *MainScreen) Draw(screen *ebiten.Image) {
 		s.inputBox.Draw(screen)
 	}
 	if s.listBox != nil {
-		s.listBox.SetTextColor(playerBaseColor)
-		s.listBox.SetBackgroundColor(int(s.scenarioData.Data.DaytimePalette[2]))
 		s.listBox.Draw(screen)
 	}
 

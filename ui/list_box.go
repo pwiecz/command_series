@@ -68,6 +68,16 @@ func (l *ListBox) Update() {
 			}
 			modified = true
 		}
+	} else if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		mouseX, mouseY := ebiten.CursorPosition()
+		for i, row := range l.rows {
+			if row.ContainsPoint(mouseX, mouseY) {
+				l.selectedItem = i + l.topItem
+				l.onEnter(l.items[l.selectedItem])
+				modified = true
+				break
+			}
+		}
 	}
 	if modified {
 		for i := 0; i < len(l.rows); i++ {

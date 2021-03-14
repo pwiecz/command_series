@@ -38,7 +38,6 @@ func NewLabel(text string, x, y float64, width, height int, font *lib.Font) *Lab
 	}
 	return l
 }
-
 func (l *Label) SetBackgroundColor(color int) {
 	if color == l.backgroundColor {
 		return
@@ -66,14 +65,20 @@ func (l *Label) SetText(text string, x int, inverted bool) {
 		}
 		l.targetCells[x].rune = r
 		l.targetCells[x].inverted = inverted
+		l.dirty = true
 		x++
 	}
+}
+func (l *Label) ContainsPoint(x, y int) bool {
+	bounds := l.image.Bounds()
+	return float64(x) >= l.x && float64(y) >= l.y && float64(x) < l.x+float64(bounds.Dx()) && float64(y) < l.y+float64(bounds.Dy())
 }
 func (l *Label) SetCharInverted(x int, inverted bool) {
 	if x >= len(l.targetCells) {
 		return
 	}
 	l.targetCells[x].inverted = inverted
+	l.dirty = true
 }
 func (l *Label) Draw(screen *ebiten.Image) {
 	if l.dirty {

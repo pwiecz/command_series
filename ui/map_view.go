@@ -2,6 +2,7 @@ package ui
 
 import (
 	"image"
+	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/pwiecz/command_series/lib"
@@ -71,8 +72,9 @@ func NewMapView(
 func (v *MapView) ToUnitCoords(imageX, imageY int) (x, y int) {
 	imageX += v.visibleBounds.Min.X
 	imageY += v.visibleBounds.Min.Y
-	y = imageY/8 + v.minY
-	x = ((imageX+(y%2)*4)/8)*2 - y%2 + v.minX*2
+	// Cast to float64 to perform division rounding to floor instead of rounding to zero.
+	y = int(math.Floor(float64(imageY)/8)) + v.minY
+	x = int(math.Floor(float64(imageX+(y%2)*4)/8))*2 - y%2 + v.minX*2
 	return
 
 }
