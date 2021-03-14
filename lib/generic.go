@@ -49,19 +49,19 @@ func signInt(v int) int {
 // First neighbouring tile met when going from x0,y0 towards x1,y1.
 // If variant is 0 or 1, pick one of the most direct directions.
 // If variant is 2 or 3, pick one of the less direct directions.
-func (g Generic) FirstNeighbourFromTowards(x0, y0, x1, y1, variant int) (int, int) {
-	dx, dy := x1-x0, y1-y0
+func (g Generic) FirstNeighbourFromTowards(xy0, xy1 UnitCoords, variant int) UnitCoords {
+	dx, dy := xy1.X-xy0.X, xy1.Y-xy0.Y
 	direction := 5*signInt(dy) + 3*signInt(dx-dy) + signInt(dx+dy)
 	neighbourIndex, ok := g.DirectionToNeighbourIndex[direction]
 	if !ok {
 		panic(fmt.Errorf("No neighbour index for direction %d", direction))
 	}
-	return g.IthNeighbour(x0, y0, g.Neighbours[variant][neighbourIndex])
+	return g.IthNeighbour(xy0, g.Neighbours[variant][neighbourIndex])
 }
 
-func (g Generic) IthNeighbour(x, y, i int) (int, int) {
+func (g Generic) IthNeighbour(xy UnitCoords, i int) UnitCoords {
 	dx, dy := g.Dx[i], g.Dy[i]
-	return x + dx, y + dy
+	return UnitCoords{xy.X + dx, xy.Y + dy}
 }
 
 func (g Generic) SmallMapOffsets(i int) (dx int, dy int) {

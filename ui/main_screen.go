@@ -59,12 +59,12 @@ type MainScreen struct {
 func NewMainScreen(g *Game, options *lib.Options, audioPlayer *AudioPlayer, rand *rand.Rand, onGameOver func(int, int, int)) *MainScreen {
 	scenario := &g.gameData.Scenarios[g.selectedScenario]
 	for x := scenario.MinX - 1; x <= scenario.MaxX+1; x++ {
-		g.gameData.Map.SetTile(x, scenario.MinY-1, 12)
-		g.gameData.Map.SetTile(x, scenario.MaxY+1, 12)
+		g.gameData.Map.SetTile(lib.MapCoords{x, scenario.MinY - 1}, 12)
+		g.gameData.Map.SetTile(lib.MapCoords{x, scenario.MaxY + 1}, 12)
 	}
 	for y := scenario.MinY; y <= scenario.MaxY; y++ {
-		g.gameData.Map.SetTile(scenario.MinX-1, y, 10)
-		g.gameData.Map.SetTile(scenario.MaxX+1, y, 12)
+		g.gameData.Map.SetTile(lib.MapCoords{scenario.MinX - 1, y}, 10)
+		g.gameData.Map.SetTile(lib.MapCoords{scenario.MaxX + 1, y}, 12)
 	}
 	s := &MainScreen{
 		selectedScenario: g.selectedScenario,
@@ -89,7 +89,7 @@ func NewMainScreen(g *Game, options *lib.Options, audioPlayer *AudioPlayer, rand
 		&g.gameData.Sprites.TerrainTiles,
 		&g.gameData.Sprites.UnitSymbolSprites, &g.gameData.Sprites.UnitIconSprites,
 		&g.gameData.Icons.Sprites, &g.scenarioData.Data.DaytimePalette, &g.scenarioData.Data.NightPalette)
-	s.mapView.SetCursorPosition(scenario.MinX+10, scenario.MinY+9)
+	s.mapView.SetCursorPosition(lib.MapCoords{scenario.MinX + 10, scenario.MinY + 9})
 	s.messageBox = NewMessageBox(0, 22, 336, 40, g.gameData.Sprites.GameFont)
 	s.messageBox.Print("PREPARE FOR BATTLE!", 12, 1, false)
 	s.statusBar = NewMessageBox(0, 62, 376, 8, g.gameData.Sprites.GameFont)
@@ -249,64 +249,64 @@ func (s *MainScreen) Update() error {
 				if s.gameOver {
 					break
 				}
-				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, lib.Reserve)
+				s.tryGiveOrderAtMapCoords(s.mapView.cursorXY, lib.Reserve)
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case Defend:
 				if s.gameOver {
 					break
 				}
-				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, lib.Defend)
+				s.tryGiveOrderAtMapCoords(s.mapView.cursorXY, lib.Defend)
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case Attack:
 				if s.gameOver {
 					break
 				}
-				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, lib.Attack)
+				s.tryGiveOrderAtMapCoords(s.mapView.cursorXY, lib.Attack)
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case Move:
 				if s.gameOver {
 					break
 				}
-				s.tryGiveOrderAtMapCoords(s.mapView.cursorX, s.mapView.cursorY, lib.Move)
+				s.tryGiveOrderAtMapCoords(s.mapView.cursorXY, lib.Move)
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case SetObjective:
 				if s.gameOver {
 					break
 				}
-				s.trySetObjective(s.mapView.cursorX, s.mapView.cursorY)
+				s.trySetObjective(s.mapView.cursorXY)
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			case ScrollDown:
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
-				curX, curY := s.mapView.GetCursorPosition()
-				s.mapView.SetCursorPosition(curX, curY+1)
+				curXY := s.mapView.GetCursorPosition()
+				s.mapView.SetCursorPosition(lib.MapCoords{curXY.X, curXY.Y + 1})
 			case ScrollDownFast:
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
-				curX, curY := s.mapView.GetCursorPosition()
-				s.mapView.SetCursorPosition(curX, curY+2)
+				curXY := s.mapView.GetCursorPosition()
+				s.mapView.SetCursorPosition(lib.MapCoords{curXY.X, curXY.Y + 2})
 			case ScrollUp:
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
-				curX, curY := s.mapView.GetCursorPosition()
-				s.mapView.SetCursorPosition(curX, curY-1)
+				curXY := s.mapView.GetCursorPosition()
+				s.mapView.SetCursorPosition(lib.MapCoords{curXY.X, curXY.Y - 1})
 			case ScrollUpFast:
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
-				curX, curY := s.mapView.GetCursorPosition()
-				s.mapView.SetCursorPosition(curX, curY-2)
+				curXY := s.mapView.GetCursorPosition()
+				s.mapView.SetCursorPosition(lib.MapCoords{curXY.X, curXY.Y - 2})
 			case ScrollRight:
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
-				curX, curY := s.mapView.GetCursorPosition()
-				s.mapView.SetCursorPosition(curX+1, curY)
+				curXY := s.mapView.GetCursorPosition()
+				s.mapView.SetCursorPosition(lib.MapCoords{curXY.X + 1, curXY.Y})
 			case ScrollRightFast:
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
-				curX, curY := s.mapView.GetCursorPosition()
-				s.mapView.SetCursorPosition(curX+2, curY)
+				curXY := s.mapView.GetCursorPosition()
+				s.mapView.SetCursorPosition(lib.MapCoords{curXY.X + 2, curXY.Y})
 			case ScrollLeft:
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
-				curX, curY := s.mapView.GetCursorPosition()
-				s.mapView.SetCursorPosition(curX-1, curY)
+				curXY := s.mapView.GetCursorPosition()
+				s.mapView.SetCursorPosition(lib.MapCoords{curXY.X - 1, curXY.Y})
 			case ScrollLeftFast:
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
-				curX, curY := s.mapView.GetCursorPosition()
-				s.mapView.SetCursorPosition(curX-2, curY)
+				curXY := s.mapView.GetCursorPosition()
+				s.mapView.SetCursorPosition(lib.MapCoords{curXY.X - 2, curXY.Y})
 			case Save:
 				if s.gameOver {
 					break
@@ -324,34 +324,34 @@ func (s *MainScreen) Update() error {
 		}
 		if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
 			mouseX, mouseY := ebiten.CursorPosition()
-			x, y := s.screenCoordsToUnitCoords(mouseX, mouseY)
-			if s.mapView.AreMapCoordsVisible(x/2, y) {
-				s.mapView.SetCursorPosition(x/2, y)
+			xy := s.screenCoordsToUnitCoords(mouseX, mouseY)
+			if s.mapView.AreMapCoordsVisible(xy.ToMapCoords()) {
+				s.mapView.SetCursorPosition(xy.ToMapCoords())
 			}
 		}
 		if inpututil.MouseButtonPressDuration(ebiten.MouseButtonLeft) > 30 {
 			mouseX, mouseY := ebiten.CursorPosition()
-			x, y := s.screenCoordsToUnitCoords(mouseX, mouseY)
-			if s.mapView.AreMapCoordsVisible(x/2, y) {
-				s.mapView.SetCursorPosition(x/2, y)
-				s.pickOrder(x, y)
+			xy := s.screenCoordsToUnitCoords(mouseX, mouseY)
+			if s.mapView.AreMapCoordsVisible(xy.ToMapCoords()) {
+				s.mapView.SetCursorPosition(xy.ToMapCoords())
+				s.pickOrder(xy)
 			}
 		}
 		for _, touchID := range inpututil.JustPressedTouchIDs() {
 			touchX, touchY := ebiten.TouchPosition(touchID)
-			x, y := s.screenCoordsToUnitCoords(touchX, touchY)
-			if s.mapView.AreMapCoordsVisible(x/2, y) {
-				s.mapView.SetCursorPosition(x/2, y)
+			xy := s.screenCoordsToUnitCoords(touchX, touchY)
+			if s.mapView.AreMapCoordsVisible(xy.ToMapCoords()) {
+				s.mapView.SetCursorPosition(xy.ToMapCoords())
 				break
 			}
 		}
 		for _, touchID := range ebiten.TouchIDs() {
 			if inpututil.TouchPressDuration(touchID) > 30 {
 				touchX, touchY := ebiten.TouchPosition(touchID)
-				x, y := s.screenCoordsToUnitCoords(touchX, touchY)
-				if s.mapView.AreMapCoordsVisible(x/2, y) {
-					s.mapView.SetCursorPosition(x/2, y)
-					s.pickOrder(x, y)
+				xy := s.screenCoordsToUnitCoords(touchX, touchY)
+				if s.mapView.AreMapCoordsVisible(xy.ToMapCoords()) {
+					s.mapView.SetCursorPosition(xy.ToMapCoords())
+					s.pickOrder(xy)
 					break
 				}
 			}
@@ -394,7 +394,7 @@ loop:
 			}
 		case lib.UnitAttack:
 			if !s.turboMode {
-				s.animation = NewIconsAnimation(s.mapView, lib.CircleIcons, message.X/2, message.Y)
+				s.animation = NewIconsAnimation(s.mapView, lib.CircleIcons, message.XY.ToMapCoords())
 				break loop
 			}
 		case lib.Reinforcements:
@@ -411,15 +411,15 @@ loop:
 			s.sync.Stop()
 			break loop
 		case lib.UnitMove:
-			if !s.turboMode && (s.mapView.AreMapCoordsVisible(message.X0, message.Y0) || s.mapView.AreMapCoordsVisible(message.X1, message.Y1)) {
+			if !s.turboMode && (s.mapView.AreMapCoordsVisible(message.XY0) || s.mapView.AreMapCoordsVisible(message.XY1)) {
 				s.animation = NewUnitAnimation(s.mapView /*s.audioPlayer*/, nil,
-					message.Unit, message.X0, message.Y0, message.X1, message.Y1, 30)
+					message.Unit, message.XY0, message.XY1, 30)
 				break loop
 			}
 		case lib.SupplyTruckMove:
-			if !s.turboMode && (s.mapView.AreMapCoordsVisible(message.X0, message.Y0) || s.mapView.AreMapCoordsVisible(message.X1, message.Y1)) {
+			if !s.turboMode && (s.mapView.AreMapCoordsVisible(message.XY0) || s.mapView.AreMapCoordsVisible(message.XY1)) {
 				s.animation = NewIconAnimation(s.mapView, lib.SupplyTruck,
-					message.X0, message.Y0, message.X1, message.Y1, 1)
+					message.XY0, message.XY1, 1)
 				break loop
 			}
 		case lib.WeatherForecast:
@@ -462,8 +462,8 @@ func (s *MainScreen) showMessageFromUnit(message lib.MessageFromUnit) {
 	for i, line := range lines {
 		s.messageBox.Print(line, 2, 2+i, false)
 	}
-	if s.areUnitCoordsVisible(unit.X, unit.Y) {
-		s.mapView.ShowIcon(message.Icon(), unit.X/2, unit.Y, 0, -5)
+	if s.areUnitCoordsVisible(unit.XY) {
+		s.mapView.ShowIcon(message.Icon(), unit.XY.ToMapCoords(), 0, -5)
 	} else {
 		s.mapView.HideIcon()
 	}
@@ -471,12 +471,12 @@ func (s *MainScreen) showMessageFromUnit(message lib.MessageFromUnit) {
 	s.idleTicksLeft = s.options.Speed.DelayTicks() + 15
 	s.lastMessageFromUnit = message
 }
-func (s *MainScreen) areUnitCoordsVisible(x, y int) bool {
-	return s.mapView.AreMapCoordsVisible(x/2, y)
+func (s *MainScreen) areUnitCoordsVisible(xy lib.UnitCoords) bool {
+	return s.mapView.AreMapCoordsVisible(xy.ToMapCoords())
 }
-func (s *MainScreen) tryGiveOrderAtMapCoords(x, y int, order lib.OrderType) {
+func (s *MainScreen) tryGiveOrderAtMapCoords(xy lib.MapCoords, order lib.OrderType) {
 	s.messageBox.Clear()
-	if unit, ok := s.scenarioData.Units.FindUnitOfSideAtMapCoords(x, y, s.playerSide); ok {
+	if unit, ok := s.scenarioData.Units.FindUnitOfSideAtMapCoords(xy, s.playerSide); ok {
 		s.giveOrder(unit, order)
 		s.orderedUnit = &unit
 	} else {
@@ -488,22 +488,22 @@ func (s *MainScreen) giveOrder(unit lib.Unit, order lib.OrderType) {
 	unit.HasLocalCommand = false
 	switch order {
 	case lib.Reserve:
-		unit.ObjectiveX = 0
+		unit.Objective.X = 0
 		s.messageBox.Print("RESERVE", 2, 0, false)
 	case lib.Attack:
-		unit.ObjectiveX = 0
+		unit.Objective.X = 0
 		s.messageBox.Print("ATTACKING", 2, 0, false)
 	case lib.Defend:
-		unit.ObjectiveX, unit.ObjectiveY = unit.X, unit.Y
+		unit.Objective = unit.XY
 		s.messageBox.Print("DEFENDING", 2, 0, false)
 	case lib.Move:
 		s.messageBox.Print("MOVE WHERE ?", 2, 0, false)
 	}
 	s.scenarioData.Units[unit.Side][unit.Index] = unit
 }
-func (s *MainScreen) pickOrder(x, y int) {
+func (s *MainScreen) pickOrder(xy lib.UnitCoords) {
 	s.messageBox.Clear()
-	if unit, ok := s.scenarioData.Units.FindUnitOfSideAtMapCoords(x/2, y, s.playerSide); !ok {
+	if unit, ok := s.scenarioData.Units.FindUnitOfSideAt(xy, s.playerSide); !ok {
 		s.messageBox.Print("NO FRIENDLY UNIT.", 2, 0, false)
 	} else {
 		commands := []string{"MOVE", "ATTACK", "DEFEND", "RESERVE", "CANCEL"}
@@ -529,18 +529,17 @@ func (s *MainScreen) orderPicked(command string, unit lib.Unit) {
 	s.orderedUnit = &unit
 }
 
-func (s *MainScreen) trySetObjective(x, y int) {
+func (s *MainScreen) trySetObjective(xy lib.MapCoords) {
 	if s.orderedUnit == nil {
 		s.messageBox.Clear()
 		s.messageBox.Print("GIVE ORDERS FIRST!", 2, 0, false)
 		return
 	}
-	unitX := 2*x + y%2
-	s.setObjective(s.scenarioData.Units[s.orderedUnit.Side][s.orderedUnit.Index], unitX, y)
+	s.setObjective(s.scenarioData.Units[s.orderedUnit.Side][s.orderedUnit.Index], xy.ToUnitCoords())
 
 }
-func (s *MainScreen) setObjective(unit lib.Unit, x, y int) {
-	unit.ObjectiveX, unit.ObjectiveY = x, y
+func (s *MainScreen) setObjective(unit lib.Unit, xy lib.UnitCoords) {
+	unit.Objective = xy
 	unit.HasLocalCommand = false
 	s.messageBox.Clear()
 	s.messageBox.Print("WHO ", 2, 0, true)
@@ -557,14 +556,14 @@ func (s *MainScreen) showUnitInfo() {
 	if s.areUnitsHidden {
 		return
 	}
-	cursorX, cursorY := s.mapView.GetCursorPosition()
-	unit, ok := s.scenarioData.Units.FindUnitAtMapCoords(cursorX, cursorY)
+	cursorXY := s.mapView.GetCursorPosition()
+	unit, ok := s.scenarioData.Units.FindUnitAtMapCoords(cursorXY)
 	if !ok {
 		return
 	}
 	s.messageBox.Clear()
-	if unit.Side == s.playerSide && unit.ObjectiveX > 0 && s.areUnitCoordsVisible(unit.ObjectiveX, unit.ObjectiveY) {
-		s.mapView.ShowAnimatedIcon(lib.ArrowIcons, unit.ObjectiveX/2, unit.ObjectiveY, 0, -5)
+	if unit.Side == s.playerSide && unit.Objective.X > 0 && s.areUnitCoordsVisible(unit.Objective) {
+		s.mapView.ShowAnimatedIcon(lib.ArrowIcons, unit.Objective.ToMapCoords(), 0, -5)
 	} else {
 		s.mapView.HideIcon()
 	}
@@ -646,8 +645,8 @@ func (s *MainScreen) showGeneralInfo() {
 	if s.areUnitsHidden {
 		return
 	}
-	cursorX, cursorY := s.mapView.GetCursorPosition()
-	unit, ok := s.scenarioData.Units.FindUnitAtMapCoords(cursorX, cursorY)
+	cursorXY := s.mapView.GetCursorPosition()
+	unit, ok := s.scenarioData.Units.FindUnitAtMapCoords(cursorXY)
 	if !ok {
 		return
 	}
@@ -669,8 +668,8 @@ func (s *MainScreen) showGeneralInfo() {
 }
 func (s *MainScreen) showCityInfo() {
 	s.messageBox.Clear()
-	cursorX, cursorY := s.mapView.GetCursorPosition()
-	city, ok := s.scenarioData.Terrain.FindCityAtMapCoords(cursorX, cursorY)
+	cursorXY := s.mapView.GetCursorPosition()
+	city, ok := s.scenarioData.Terrain.FindCityAtMapCoords(cursorXY)
 	if !ok {
 		s.messageBox.Print("NONE", 2, 0, false)
 		return
@@ -746,8 +745,8 @@ func (s *MainScreen) showLastMessageUnit() {
 		return
 	}
 	messageUnit := s.lastMessageFromUnit.Unit()
-	s.mapView.SetCursorPosition(messageUnit.X/2, messageUnit.Y)
-	s.mapView.ShowIcon(s.lastMessageFromUnit.Icon(), messageUnit.X/2, messageUnit.Y, 0, -5)
+	s.mapView.SetCursorPosition(messageUnit.XY.ToMapCoords())
+	s.mapView.ShowIcon(s.lastMessageFromUnit.Icon(), messageUnit.XY.ToMapCoords(), 0, -5)
 }
 func (s *MainScreen) increaseGameSpeed() {
 	s.changeGameSpeed(true)
@@ -777,7 +776,7 @@ func (s *MainScreen) dateTimeString() string {
 	return fmt.Sprintf("%d:%02d %s %s, %d %d  %s", hour, s.gameState.Minute(), meridianString, s.gameState.Month(), s.gameState.Day()+1, s.gameState.Year(), s.gameState.Weather())
 }
 
-func (s *MainScreen) screenCoordsToUnitCoords(screenX, screenY int) (x, y int) {
+func (s *MainScreen) screenCoordsToUnitCoords(screenX, screenY int) lib.UnitCoords {
 	return s.mapView.ToUnitCoords((screenX-8)/2, screenY-72)
 }
 

@@ -17,12 +17,12 @@ type UnitAnimation struct {
 	sprite  *ebiten.Image
 	unit    lib.Unit
 
-	x0, y0, x1, y1 int
-	frames         int
-	elapsed        int
+	xy0, xy1 lib.MapCoords
+	frames   int
+	elapsed  int
 }
 
-func NewUnitAnimation(mapView *MapView, player *AudioPlayer, unit lib.Unit, x0, y0, x1, y1, frames int) Animation {
+func NewUnitAnimation(mapView *MapView, player *AudioPlayer, unit lib.Unit, xy0, xy1 lib.MapCoords, frames int) Animation {
 	if frames <= 0 {
 		panic("frames must be positive")
 	}
@@ -31,10 +31,8 @@ func NewUnitAnimation(mapView *MapView, player *AudioPlayer, unit lib.Unit, x0, 
 		mapView: mapView,
 		player:  player,
 		unit:    unit,
-		x0:      x0,
-		y0:      y0,
-		x1:      x1,
-		y1:      y1,
+		xy0:     xy0,
+		xy1:     xy1,
 		frames:  frames}
 }
 
@@ -62,29 +60,27 @@ func (a *UnitAnimation) Draw(screen *ebiten.Image, options *ebiten.DrawImageOpti
 	if a.sprite == nil {
 		a.sprite = a.mapView.GetSpriteForUnit(a.unit)
 	}
-	a.mapView.DrawSpriteBetween(a.sprite, a.x0, a.y0, a.x1, a.y1, alpha, screen, options)
+	a.mapView.DrawSpriteBetween(a.sprite, a.xy0, a.xy1, alpha, screen, options)
 }
 
 type IconAnimation struct {
 	mapView *MapView
 	sprite  *ebiten.Image
 
-	x0, y0, x1, y1 int
-	frames         int
-	elapsed        int
+	xy0, xy1 lib.MapCoords
+	frames   int
+	elapsed  int
 }
 
-func NewIconAnimation(mapView *MapView, icon lib.IconType, x0, y0, x1, y1, frames int) Animation {
+func NewIconAnimation(mapView *MapView, icon lib.IconType, xy0, xy1 lib.MapCoords, frames int) Animation {
 	if frames <= 0 {
 		panic("frames must be positive")
 	}
 	return &IconAnimation{
 		mapView: mapView,
 		sprite:  mapView.GetSpriteFromIcon(icon),
-		x0:      x0,
-		y0:      y0,
-		x1:      x1,
-		y1:      y1,
+		xy0:     xy0,
+		xy1:     xy1,
 		frames:  frames}
 }
 
@@ -97,7 +93,7 @@ func (a *IconAnimation) Done() bool {
 }
 func (a *IconAnimation) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
 	alpha := float64(a.elapsed) / float64(a.frames)
-	a.mapView.DrawSpriteBetween(a.sprite, a.x0, a.y0, a.x1, a.y1, alpha, screen, options)
+	a.mapView.DrawSpriteBetween(a.sprite, a.xy0, a.xy1, alpha, screen, options)
 }
 
 type IconsAnimation struct {
@@ -105,27 +101,26 @@ type IconsAnimation struct {
 	sprite  *ebiten.Image
 	icons   []lib.IconType
 
-	x, y    int
+	xy      lib.MapCoords
 	elapsed int
 }
 
-func NewIconsAnimation(mapView *MapView, icons []lib.IconType, x, y int) Animation {
+func NewIconsAnimation(mapView *MapView, icons []lib.IconType, xy lib.MapCoords) Animation {
 	if len(icons) == 0 {
 		panic("icons cannot be empty")
 	}
 	return &IconsAnimation{
 		mapView: mapView,
 		icons:   icons,
-		x:       x,
-		y:       y}
+		xy:      xy}
 }
 func (a *IconsAnimation) Update() {
 	a.elapsed++
 	iconIndex := a.elapsed / 3
 	if iconIndex < len(a.icons)-1 {
-		a.mapView.ShowIcon(a.icons[iconIndex], a.x, a.y, -1, -5)
+		a.mapView.ShowIcon(a.icons[iconIndex], a.xy, -1, -5)
 	} else {
-		a.mapView.ShowIcon(a.icons[len(a.icons)-1], a.x, a.y, -1, -5)
+		a.mapView.ShowIcon(a.icons[len(a.icons)-1], a.xy, -1, -5)
 	}
 }
 func (a *IconsAnimation) Done() bool {

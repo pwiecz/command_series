@@ -123,17 +123,17 @@ type Reinforcements struct{ Sides [2]bool }
 type GameOver struct{ Results string }
 
 type UnitAttack struct {
-	X, Y    int
+	XY      UnitCoords
 	Outcome int
 }
 
 type UnitMove struct {
-	Unit           Unit
-	X0, Y0, X1, Y1 int
+	Unit     Unit
+	XY0, XY1 MapCoords
 }
 
 type SupplyTruckMove struct {
-	X0, Y0, X1, Y1 int
+	XY0, XY1 MapCoords
 }
 
 type WeatherForecast struct{ Weather int }

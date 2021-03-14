@@ -355,8 +355,8 @@ nextUnit:
 	if !unit.IsInGame {
 		goto nextUnit
 	}
-	if !s.areUnitCoordsValid(unit.X, unit.Y) {
-		panic(fmt.Errorf("%s@(%d,%d):%v", unit.FullName(), unit.X, unit.Y, unit))
+	if !s.areUnitCoordsValid(unit.XY) {
+		panic(fmt.Errorf("%s@(%v):%v", unit.FullName(), unit.XY, unit))
 	}
 	var arg1 int
 	if unit.MenCount+unit.EquipCount < 7 || unit.Fatigue == 255 {
@@ -379,7 +379,7 @@ nextUnit:
 		message = WeHaveExhaustedSupplies{unit}
 	}
 	{
-		sx, sy, shouldQuit := s.performUnitMovement(&unit, &message, &arg1, weather)
+		sxy, shouldQuit := s.performUnitMovement(&unit, &message, &arg1, weather)
 		if shouldQuit {
 			quit = true
 			return
@@ -398,15 +398,15 @@ nextUnit:
 			unit.SeenByEnemy = true // |= 64
 		}
 		for i := 0; i < 6; i++ {
-			nx, ny := s.generic.IthNeighbour(unit.X, unit.Y, i)
-			if unit2, ok := s.units.FindUnitOfSideAt(nx, ny, 1-unit.Side); ok {
+			nxy := s.generic.IthNeighbour(unit.XY, i)
+			if unit2, ok := s.units.FindUnitOfSideAt(nxy, 1-unit.Side); ok {
 				unit2.InContactWithEnemy = true
 				unit2.SeenByEnemy = true // |= 65
 				s.terrainTypes.showUnit(unit2)
 				s.units[unit2.Side][unit2.Index] = unit2
 				if s.scenarioData.UnitScores[unit2.Type] > 8 {
 					if !s.commanderFlags.PlayerControlled[unit.Side] {
-						sx, sy = unit2.X, unit2.Y
+						sxy = unit2.XY
 						unit.Order = Attack
 						arg1 = 7
 						// arg2 = i
@@ -431,22 +431,22 @@ nextUnit:
 		}
 		s.function29_showUnit(unit)
 		//	l11:
-		if unit.ObjectiveX == 0 || unit.Order != Attack || arg1 < 7 {
+		if unit.Objective.X == 0 || unit.Order != Attack || arg1 < 7 {
 			goto end
 		}
-		if unit.Function15_distanceToObjective() == 1 && s.units.IsUnitOfSideAt(sx, sy, unit.Side) {
-			unit.ObjectiveX = 0
+		if unit.Function15_distanceToObjective() == 1 && s.units.IsUnitOfSideAt(sxy, unit.Side) {
+			unit.Objective.X = 0
 			goto end
 		}
 		unit.TargetFormation = s.scenarioData.function10(unit.Order, 2)
 		if unit.Fatigue > 64 || unit.SupplyLevel == 0 ||
-			!s.units.IsUnitOfSideAt(sx, sy, 1-unit.Side) ||
+			!s.units.IsUnitOfSideAt(sxy, 1-unit.Side) ||
 			unit.Formation != s.scenarioData.Data176[0][2] {
 			goto end
 		}
 		if unit.FormationTopBit {
 			s.terrainTypes.hideUnit(unit)
-			if !s.sync.SendUpdate(UnitMove{unit, unit.X / 2, unit.Y, sx / 2, sy}) {
+			if !s.sync.SendUpdate(UnitMove{unit, unit.XY.ToMapCoords(), sxy.ToMapCoords()}) {
 				quit = true
 				return
 			}
@@ -465,7 +465,7 @@ nextUnit:
 			// function27
 		}
 		// [53767] = 0
-		s.performAttack(&unit, sx, sy, weather, &message)
+		s.performAttack(&unit, sxy, weather, &message)
 	}
 end: // l3
 	for unit.Formation != unit.TargetFormation {
@@ -490,25 +490,25 @@ end: // l3
 	return
 }
 
-func (s *GameState) performUnitMovement(unit *Unit, message *MessageFromUnit, arg1 *int, weather int) (sx, sy int, quit bool) {
+func (s *GameState) performUnitMovement(unit *Unit, message *MessageFromUnit, arg1 *int, weather int) (sxy UnitCoords, quit bool) {
 	// l22:
 	for unitMoveBudget := 25; unitMoveBudget > 0; {
-		if unit.ObjectiveX == 0 {
+		if unit.Objective.X == 0 {
 			return
 		}
 		distance := unit.Function15_distanceToObjective()
 		d32 := s.scenarioData.Data32[unit.Type]
 		attackRange := (d32 & 31) * 2
 		if distance > 0 && distance <= attackRange && unit.Order == Attack {
-			sx, sy = unit.ObjectiveX, unit.ObjectiveY
+			sxy = unit.Objective
 			unit.FormationTopBit = true
 			*arg1 = 7
 			return // goto l2
 		}
 		var moveSpeed int
 		for mvAdd := 0; mvAdd <= 1; mvAdd++ { // l5:
-			if unit.ObjectiveX == unit.X && unit.ObjectiveY == unit.Y {
-				unit.ObjectiveX = 0
+			if unit.Objective == unit.XY {
+				unit.Objective.X = 0
 				unit.TargetFormation = s.scenarioData.function10(unit.Order, 1)
 				return // goto l2
 			}
@@ -520,11 +520,11 @@ func (s *GameState) performUnitMovement(unit *Unit, message *MessageFromUnit, ar
 					unit.TargetFormation = s.scenarioData.function10(unit.Order, 1)
 				}
 			}
-			sx, sy, moveSpeed = s.FindBestMoveFromTowards(unit.X, unit.Y, unit.ObjectiveX, unit.ObjectiveY, unit.Type, mvAdd)
+			sxy, moveSpeed = s.FindBestMoveFromTowards(unit.XY, unit.Objective, unit.Type, mvAdd)
 			if d32&64 > 0 { // in CiV (some scenarios) artillery or mortars
 				if s.game != Conflict || unit.Formation == 0 {
-					sx, sy = unit.ObjectiveX, unit.ObjectiveY
-					tt := s.terrainTypes.terrainOrUnitTypeAt(sx/2, sy)
+					sxy = unit.Objective
+					tt := s.terrainTypes.terrainOrUnitTypeAt(sxy.ToMapCoords())
 					moveSpeed = s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[tt][unit.Type]
 					*arg1 = tt // shouldn't have any impact
 					mvAdd = 1
@@ -533,14 +533,14 @@ func (s *GameState) performUnitMovement(unit *Unit, message *MessageFromUnit, ar
 					return // goto l2
 				}
 			}
-			if s.units.IsUnitOfSideAt(sx, sy, unit.Side) {
+			if s.units.IsUnitOfSideAt(sxy, unit.Side) {
 				moveSpeed = 0
 			}
-			if s.units.IsUnitOfSideAt(sx, sy, 1-unit.Side) {
+			if s.units.IsUnitOfSideAt(sxy, 1-unit.Side) {
 				moveSpeed = -1
 			}
 			if moveSpeed >= 1 || (unit.Order == Attack && moveSpeed == -1) ||
-				Abs(unit.ObjectiveX-unit.X)+Abs(unit.ObjectiveY-unit.Y) <= 2 {
+				Abs(unit.Objective.X-unit.XY.X)+Abs(unit.Objective.Y-unit.XY.Y) <= 2 {
 				break
 			}
 		}
@@ -587,15 +587,15 @@ func (s *GameState) performUnitMovement(unit *Unit, message *MessageFromUnit, ar
 		s.terrainTypes.hideUnit(*unit)
 		if s.commanderFlags.PlayerCanSeeUnits[unit.Side] ||
 			unit.InContactWithEnemy || unit.SeenByEnemy {
-			if !s.sync.SendUpdate(UnitMove{*unit, unit.X / 2, unit.Y, sx / 2, sy}) {
+			if !s.sync.SendUpdate(UnitMove{*unit, unit.XY.ToMapCoords(), sxy.ToMapCoords()}) {
 				quit = true
 				return
 			}
 		}
-		unit.X, unit.Y = sx, sy
+		unit.XY = sxy
 		s.function29_showUnit(*unit)
 		if unit.Function15_distanceToObjective() == 0 {
-			unit.ObjectiveX = 0
+			unit.Objective.X = 0
 			unit.TargetFormation = s.scenarioData.function10(unit.Order, 1)
 			if (unit.Order == Defend || unit.Order == Move) && !unit.HasLocalCommand {
 				*message = WeHaveReachedOurObjective{*unit}
@@ -607,7 +607,7 @@ func (s *GameState) performUnitMovement(unit *Unit, message *MessageFromUnit, ar
 			return
 		}
 		if unitMoveBudget > 0 {
-			if s.units.NeighbourUnitCount(unit.X, unit.Y, 1-unit.Side) > 0 {
+			if s.units.NeighbourUnitCount(unit.XY, 1-unit.Side) > 0 {
 				unit.InContactWithEnemy = true
 				unit.State4 = true // |= 17
 			} else {
@@ -620,20 +620,20 @@ func (s *GameState) performUnitMovement(unit *Unit, message *MessageFromUnit, ar
 	return
 }
 
-func (s *GameState) performAttack(unit *Unit, sx, sy, weather int, message *MessageFromUnit) {
+func (s *GameState) performAttack(unit *Unit, sxy UnitCoords, weather int, message *MessageFromUnit) {
 	if s.game != Conflict {
 		unit.InContactWithEnemy = true
 		unit.SeenByEnemy = true // |= 65
 	}
 
-	unit2, ok := s.units.FindUnitOfSideAt(sx, sy, 1-unit.Side)
+	unit2, ok := s.units.FindUnitOfSideAt(sxy, 1-unit.Side)
 	if !ok {
 		panic("")
 	}
 	*message = WeAreAttacking{*unit, unit2, 0 /* placeholder value */, s.scenarioData.Formations}
 	var attackerScore int
 	{
-		tt := s.terrainTypes.terrainTypeAt(unit.X/2, unit.Y)
+		tt := s.terrainTypes.terrainTypeAt(unit.XY.ToMapCoords())
 		var menCoeff int
 		if !unit.FormationTopBit {
 			menCoeff = s.scenarioData.TerrainMenAttack[tt] * s.scenarioData.FormationMenAttack[unit.Formation] * unit.MenCount / 32
@@ -652,7 +652,7 @@ func (s *GameState) performAttack(unit *Unit, sx, sy, weather int, message *Mess
 		}
 		attackerScore = (menCoeff + tankCoeff) * unit.Morale / 256 * (255 - unit.Fatigue) / 128
 		attackerScore = attackerScore * unit.General.Attack / 16
-		attackerScore = attackerScore * s.ai.NeighbourScore(&s.hexes.Arr144, unit.X, unit.Y, unit.Side) / 8
+		attackerScore = attackerScore * s.ai.NeighbourScore(&s.hexes.Arr144, unit.XY, unit.Side) / 8
 		attackerScore++
 	}
 
@@ -661,7 +661,7 @@ func (s *GameState) performAttack(unit *Unit, sx, sy, weather int, message *Mess
 		if s.scenarioData.UnitScores[unit2.Type]&248 > 0 {
 			unit.State2 = true // |= 4
 		}
-		tt2 := s.terrainTypes.terrainTypeAt(unit2.X/2, unit2.Y)
+		tt2 := s.terrainTypes.terrainTypeAt(unit2.XY.ToMapCoords())
 		menCoeff := s.scenarioData.TerrainMenDefence[tt2] * s.scenarioData.FormationMenDefence[unit2.Formation] * unit2.MenCount / 32
 		tankCoeff := s.scenarioData.TerrainTankAttack[tt2] * s.scenarioData.FormationTankDefence[unit2.Formation] * s.scenarioData.Data16Low[unit2.Type] / 2 * unit2.EquipCount / 64
 		defenderScore = (menCoeff + tankCoeff) * unit2.Morale / 256 * (240 - unit2.Fatigue/2) / 128
@@ -669,7 +669,7 @@ func (s *GameState) performAttack(unit *Unit, sx, sy, weather int, message *Mess
 		if unit2.SupplyLevel == 0 {
 			defenderScore = defenderScore * s.scenarioData.Data167 / 8
 		}
-		defenderScore = defenderScore * s.ai.NeighbourScore(&s.hexes.Arr144, unit2.X, unit2.Y, 1-unit.Side) / 8
+		defenderScore = defenderScore * s.ai.NeighbourScore(&s.hexes.Arr144, unit2.XY, 1-unit.Side) / 8
 		defenderScore++
 	}
 
@@ -706,7 +706,7 @@ func (s *GameState) performAttack(unit *Unit, sx, sy, weather int, message *Mess
 	}
 	// function13(sx, sy)
 	// function4(arg1)
-	s.sync.SendUpdate(UnitAttack{sx, sy, arg1})
+	s.sync.SendUpdate(UnitAttack{sxy, arg1})
 
 	menLost2 := Clamp((Rand(unit2.MenCount*arg1, s.rand)+500)/512, 0, unit2.MenCount)
 	s.menLost[1-unit.Side] += menLost2
@@ -720,14 +720,14 @@ func (s *GameState) performAttack(unit *Unit, sx, sy, weather int, message *Mess
 			(s.game == Conflict && s.scenarioData.UnitMask[unit2.Type]&2 == 0)) &&
 		arg1-s.scenarioData.Data0Low[unit2.Type]*2+unit2.Fatigue/4 > 36 {
 		unit2.Morale = Abs(unit2.Morale - 1)
-		oldX, oldY := unit2.X, unit2.Y
-		bestX, bestY := unit2.X, unit2.Y
+		oldXY := unit2.XY
+		bestXY := unit2.XY
 		s.terrainTypes.hideUnit(unit2)
 		if unit2.Fatigue > 128 {
 			unit2SupplyUnit := s.units[unit2.Side][unit2.SupplyUnit]
 			if unit2SupplyUnit.IsInGame {
-				unit2.Morale = Abs(unit2.Morale - s.units.NeighbourUnitCount(unit2.X, unit2.Y, unit.Side)*4)
-				unit2.X, unit2.Y = unit2SupplyUnit.X, unit2SupplyUnit.Y
+				unit2.Morale = Abs(unit2.Morale - s.units.NeighbourUnitCount(unit2.XY, unit.Side)*4)
+				unit2.XY = unit2SupplyUnit.XY
 				unit2.ClearState()
 				unit2.HalfDaysUntilAppear = 6
 				unit2.InvAppearProbability = 6
@@ -745,26 +745,26 @@ func (s *GameState) performAttack(unit *Unit, sx, sy, weather int, message *Mess
 		}
 		bestDefence := -128
 		for i := 0; i <= 6; i++ {
-			nx, ny := s.generic.IthNeighbour(unit2.X, unit2.Y, i)
-			if !s.areUnitCoordsValid(nx, ny) || s.units.IsUnitAt(nx, ny) || s.terrain.IsCityAtUnitCoords(nx, ny) {
+			nxy := s.generic.IthNeighbour(unit2.XY, i)
+			if !s.areUnitCoordsValid(nxy) || s.units.IsUnitAt(nxy) || s.terrain.IsCityAtUnitCoords(nxy) {
 				continue
 			}
-			tt := s.terrainTypes.terrainOrUnitTypeAt(nx/2, ny)
+			tt := s.terrainTypes.terrainOrUnitTypeAt(nxy.ToMapCoords())
 			if s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[tt][unit2.Type] == 0 {
 				continue
 			}
 			r := s.scenarioData.TerrainMenDefence[tt] +
-				s.ai.NeighbourScore(&s.hexes.Arr96, nx, ny, 1-unit.Side)*4
+				s.ai.NeighbourScore(&s.hexes.Arr96, nxy, 1-unit.Side)*4
 			if r > 11 && r >= bestDefence {
 				bestDefence = r
-				bestX, bestY = nx, ny
+				bestXY = nxy
 			}
 		}
-		unit2.X, unit2.Y = bestX, bestY // moved this up comparing to the original code
+		unit2.XY = bestXY // moved this up comparing to the original code
 		if _, ok := (*message).(WeHaveBeenOverrun); !ok {
 			if s.game != Conflict {
 				s.terrainTypes.showUnit(unit2)
-				unit.ObjectiveX, unit.ObjectiveY = unit2.X, unit2.Y
+				unit.Objective = unit2.XY
 			} else {
 				if s.commanderFlags.PlayerCanSeeUnits[1-unit.Side] {
 					s.terrainTypes.showUnit(unit2)
@@ -773,17 +773,17 @@ func (s *GameState) performAttack(unit *Unit, sx, sy, weather int, message *Mess
 				unit2.SeenByEnemy = false // &= 190
 			}
 		}
-		if bestX != oldX || bestY != oldY {
+		if bestXY != oldXY {
 			// unit2 is retreating, unit is chasing (and maybe capturing a city)
 			if _, ok := (*message).(WeHaveBeenOverrun); !ok {
 				*message = WeAreRetreating{unit2}
 			}
-			tt := s.terrainTypes.terrainOrUnitTypeAt(oldX/2, oldY)
+			tt := s.terrainTypes.terrainOrUnitTypeAt(oldXY.ToMapCoords())
 			if arg1 > 60 && (s.game != Conflict || !unit.FormationTopBit) &&
-				s.ai.NeighbourScore(&s.hexes.Arr96, oldX, oldY, unit.Side) > -4 &&
+				s.ai.NeighbourScore(&s.hexes.Arr96, oldXY, unit.Side) > -4 &&
 				s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[tt][unit.Type] > 0 {
 				s.terrainTypes.hideUnit(*unit)
-				unit.X, unit.Y = oldX, oldY
+				unit.XY = oldXY
 				s.terrainTypes.showUnit(*unit)
 				if city, captured := s.function16(*unit); captured {
 					*message = WeHaveCaptured{*unit, city}
@@ -816,7 +816,7 @@ func (s *GameState) performAttack(unit *Unit, sx, sy, weather int, message *Mess
 
 // Has unit captured a city
 func (s *GameState) function16(unit Unit) (City, bool) {
-	if city, ok := s.terrain.FindCityAtUnitCoords(unit.X, unit.Y); ok {
+	if city, ok := s.terrain.FindCityAtUnitCoords(unit.XY); ok {
 		if city.Owner != unit.Side {
 			// msg = 5
 			city.Owner = unit.Side
@@ -886,9 +886,9 @@ func (s *GameState) every12Hours() bool {
 				}
 				unit.HalfDaysUntilAppear--
 				if unit.HalfDaysUntilAppear == 0 {
-					shouldSpawnUnit := !s.units.IsUnitAt(unit.X, unit.Y) &&
+					shouldSpawnUnit := !s.units.IsUnitAt(unit.XY) &&
 						Rand(unit.InvAppearProbability, s.rand) == 0
-					if city, ok := s.terrain.FindCityAtUnitCoords(unit.X, unit.Y); ok && city.Owner != unit.Side {
+					if city, ok := s.terrain.FindCityAtUnitCoords(unit.XY); ok && city.Owner != unit.Side {
 						shouldSpawnUnit = false
 					}
 					if shouldSpawnUnit {
@@ -957,7 +957,7 @@ outerLoop:
 			!supplyUnit.IsInGame || supplyUnit.SupplyLevel == 0 {
 			continue
 		}
-		supplyX, supplyY := supplyUnit.X, supplyUnit.Y
+		supplyXY := supplyUnit.XY
 		if unitVisible {
 			s.terrainTypes.showUnit(supplyUnit)
 		}
@@ -966,7 +966,7 @@ outerLoop:
 			supplyTransportBudget *= 2
 		}
 		for supplyTransportBudget > 0 {
-			dx, dy := unit.X-supplyX, unit.Y-supplyY
+			dx, dy := unit.XY.X-supplyXY.X, unit.XY.Y-supplyXY.Y
 			if Abs(dx)+Abs(dy) < 3 {
 				supplyLevel := s.supplyLevels[unit.Side]
 				if supplyLevel > 0 {
@@ -986,20 +986,21 @@ outerLoop:
 				s.terrainTypes.hideUnit(supplyUnit)
 				break outerLoop
 			} else {
-				var x, y, speed int
+				var speed int
+				var xy UnitCoords
 				// TODO: why changing variant < 2 to variant < 1 has no effect (cost never 0? at least in dday?)
 				for variant := 0; variant < 2; variant++ {
-					x, y, speed = s.FindBestMoveFromTowards(supplyX, supplyY, unit.X, unit.Y, s.scenarioData.MinSupplyType, variant)
+					xy, speed = s.FindBestMoveFromTowards(supplyXY, unit.XY, s.scenarioData.MinSupplyType, variant)
 					if speed != 0 {
 						break
 					}
 				}
 				if unitVisible {
-					s.sync.SendUpdate(SupplyTruckMove{supplyX / 2, supplyY, x / 2, y})
+					s.sync.SendUpdate(SupplyTruckMove{supplyXY.ToMapCoords(), xy.ToMapCoords()})
 					//  function13(x, y) (show truck icon at x, y)
 				}
-				supplyX, supplyY = x, y
-				if s.units.IsUnitOfSideAt(supplyX, supplyY, 1-unit.Side) {
+				supplyXY = xy
+				if s.units.IsUnitOfSideAt(supplyXY, 1-unit.Side) {
 					break
 				}
 				supplyTransportBudget -= 256 / (speed + 1)
@@ -1011,8 +1012,8 @@ outerLoop:
 	if unit.SupplyLevel == 0 {
 		unit.Fatigue = Clamp(unit.Fatigue+64, 0, 255)
 		// todo: does it really work? Aren't the last units on the list all zeroes...
-		if supplyUnit.X != 0 {
-			unit.ObjectiveX, unit.ObjectiveY = supplyUnit.X, supplyUnit.Y
+		if supplyUnit.XY.X != 0 {
+			unit.Objective = supplyUnit.XY
 		}
 	}
 	s.terrainTypes.hideUnit(unit)
@@ -1020,12 +1021,12 @@ outerLoop:
 }
 func (s *GameState) SaveCity(newCity City) {
 	for i, city := range s.terrain.Cities {
-		if city.X == newCity.X && city.Y == newCity.Y {
+		if city.XY == newCity.XY {
 			s.terrain.Cities[i] = newCity
 			return
 		}
 	}
-	panic(fmt.Errorf("Cannot find city at %d,%d", newCity.X, newCity.Y))
+	panic(fmt.Errorf("Cannot find city at %v", newCity.XY))
 }
 
 func (s *GameState) HideAllUnits() {
@@ -1056,40 +1057,37 @@ func (s *GameState) ShowAllVisibleUnits() {
 	}
 }
 
-func (s *GameState) areUnitCoordsValid(x, y int) bool {
-	// When x ==-1 x/2 is 0, which is a valid tile coordinate.
-	return x >= 0 && s.terrainTypes.AreCoordsValid(x/2, y)
+func (s *GameState) areUnitCoordsValid(xy UnitCoords) bool {
+	return s.terrainTypes.AreCoordsValid(xy.ToMapCoords())
 }
 
 // function6
 // Finds best position to move if you want to move from unitX0,unitY0 to unitX1, unitY1 with unit
 // of type unitType. If variant == 0 consider only neighbour fields directly towards the goal,
 // if variant == 1 look at neighbour two fields "more to the side"
-func (s *GameState) FindBestMoveFromTowards(unitX0, unitY0, unitX1, unitY1, unitType, variant int) (int, int, int) {
-	candX1, candY1 := s.generic.FirstNeighbourFromTowards(
-		unitX0, unitY0, unitX1, unitY1, 2*variant)
+func (s *GameState) FindBestMoveFromTowards(unitXY0, unitXY1 UnitCoords, unitType, variant int) (UnitCoords, int) {
+	candXY1 := s.generic.FirstNeighbourFromTowards(unitXY0, unitXY1, 2*variant)
 	var speed1 int
-	if !s.areUnitCoordsValid(candX1, candY1) {
-		candX1, candY1 = unitX0, unitY0
+	if !s.areUnitCoordsValid(candXY1) {
+		candXY1 = unitXY0
 	} else {
-		terrainType1 := s.terrainTypes.terrainOrUnitTypeAt(candX1/2, candY1)
+		terrainType1 := s.terrainTypes.terrainOrUnitTypeAt(candXY1.ToMapCoords())
 		speed1 = s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[terrainType1][unitType]
 	}
 
-	candX2, candY2 := s.generic.FirstNeighbourFromTowards(
-		unitX0, unitY0, unitX1, unitY1, 2*variant+1)
+	candXY2 := s.generic.FirstNeighbourFromTowards(unitXY0, unitXY1, 2*variant+1)
 	var speed2 int
-	if !s.areUnitCoordsValid(candX2, candY2) {
-		candX2, candY2 = unitX0, unitY0
+	if !s.areUnitCoordsValid(candXY2) {
+		candXY2 = unitXY0
 	} else {
-		terrainType2 := s.terrainTypes.terrainOrUnitTypeAt(candX2/2, candY2)
+		terrainType2 := s.terrainTypes.terrainOrUnitTypeAt(candXY2.ToMapCoords())
 		speed2 = s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[terrainType2][unitType]
 	}
 
 	if speed2 > speed1-Rand(2, s.rand) {
-		return candX2, candY2, speed2
+		return candXY2, speed2
 	}
-	return candX1, candY1, speed1
+	return candXY1, speed1
 }
 
 func (s *GameState) everyDay() bool {
@@ -1103,7 +1101,7 @@ func (s *GameState) everyDay() bool {
 			}
 			if unit.IsInGame {
 				flashback = append(flashback, FlashbackUnit{
-					X: unit.X, Y: unit.Y, ColorPalette: unit.ColorPalette, Type: unit.Type})
+					XY: unit.XY, ColorPalette: unit.ColorPalette, Type: unit.Type})
 			}
 		}
 	}

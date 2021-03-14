@@ -14,8 +14,8 @@ func newTerrainTypeMap(terrainMap *Map, generic *Generic) *TerrainTypeMap {
 	}
 }
 
-func (m *TerrainTypeMap) terrainOrUnitTypeAt(x, y int) int {
-	return m.terrainOrUnitTypeAtIndex(m.terrainMap.CoordsToIndex(x, y))
+func (m *TerrainTypeMap) terrainOrUnitTypeAt(xy MapCoords) int {
+	return m.terrainOrUnitTypeAtIndex(m.terrainMap.CoordsToIndex(xy))
 }
 func (m *TerrainTypeMap) terrainOrUnitTypeAtIndex(ix int) int {
 	if ix < 0 || ix >= len(m.units) || m.units[ix] {
@@ -23,31 +23,31 @@ func (m *TerrainTypeMap) terrainOrUnitTypeAtIndex(ix int) int {
 	}
 	return m.generic.TerrainTypes[m.terrainMap.getTileAtIndex(ix)&63]
 }
-func (m *TerrainTypeMap) terrainTypeAt(x, y int) int {
-	return m.terrainTypeAtIndex(m.terrainMap.CoordsToIndex(x, y))
+func (m *TerrainTypeMap) terrainTypeAt(xy MapCoords) int {
+	return m.terrainTypeAtIndex(m.terrainMap.CoordsToIndex(xy))
 }
 func (m *TerrainTypeMap) terrainTypeAtIndex(ix int) int {
 	terrain := m.terrainMap.getTileAtIndex(ix)
-	if terrain & 63 >= 48 {
+	if terrain&63 >= 48 {
 		panic(terrain)
 	}
-	return m.generic.TerrainTypes[terrain & 63]
+	return m.generic.TerrainTypes[terrain&63]
 }
 func (m *TerrainTypeMap) showUnit(unit Unit) {
-	m.ShowUnitAt(unit.X, unit.Y)
+	m.ShowUnitAt(unit.XY)
 }
 func (m *TerrainTypeMap) hideUnit(unit Unit) {
-	m.HideUnitAt(unit.X, unit.Y)
+	m.HideUnitAt(unit.XY)
 }
-func (m *TerrainTypeMap) AreCoordsValid(x, y int) bool {
-	return m.terrainMap.AreCoordsValid(x, y)
+func (m *TerrainTypeMap) AreCoordsValid(xy MapCoords) bool {
+	return m.terrainMap.AreCoordsValid(xy)
 }
-func (m *TerrainTypeMap) ShowUnitAt(x, y int) {
-	m.units[m.terrainMap.CoordsToIndex(x/2, y)] = true
+func (m *TerrainTypeMap) ShowUnitAt(xy UnitCoords) {
+	m.units[m.terrainMap.CoordsToIndex(xy.ToMapCoords())] = true
 }
-func (m *TerrainTypeMap) HideUnitAt(x, y int) {
-	m.units[m.terrainMap.CoordsToIndex(x/2, y)] = false
+func (m *TerrainTypeMap) HideUnitAt(xy UnitCoords) {
+	m.units[m.terrainMap.CoordsToIndex(xy.ToMapCoords())] = false
 }
-func (m *TerrainTypeMap) ContainsUnit(x, y int) bool {
-	return m.units[m.terrainMap.CoordsToIndex(x/2, y)]
+func (m *TerrainTypeMap) ContainsUnit(xy UnitCoords) bool {
+	return m.units[m.terrainMap.CoordsToIndex(xy.ToMapCoords())]
 }

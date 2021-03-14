@@ -42,7 +42,7 @@ type Unit struct {
 	HasLocalCommand      bool // &32 != 0
 	SeenByEnemy          bool // &64 != 0
 	IsInGame             bool // &128 != 0
-	X, Y                 int
+	XY                   UnitCoords
 	MenCount, EquipCount int
 	Formation            int
 	SupplyUnit           int // Index of this unit's supply unit
@@ -64,70 +64,72 @@ type Unit struct {
 	HalfDaysUntilAppear  int
 	InvAppearProbability int
 
-	Fatigue                int
-	ObjectiveX, ObjectiveY int
+	Fatigue   int
+	Objective UnitCoords
 
 	Index int
 }
 type Units [2][]Unit
 
-func (u Units) IsUnitAt(x, y int) bool {
-	return u.IsUnitOfSideAt(x, y, 0) || u.IsUnitOfSideAt(x, y, 1)
+func (u Units) IsUnitAt(xy UnitCoords) bool {
+	return u.IsUnitOfSideAt(xy, 0) || u.IsUnitOfSideAt(xy, 1)
 }
-func (u Units) IsUnitOfSideAt(x, y, side int) bool {
+func (u Units) IsUnitOfSideAt(xy UnitCoords, side int) bool {
 	sideUnits := u[side]
 	for i := range sideUnits {
-		if sideUnits[i].IsInGame && sideUnits[i].X == x && sideUnits[i].Y == y {
+		if sideUnits[i].IsInGame && sideUnits[i].XY == xy {
 			return true
 		}
 	}
 	return false
 }
-func (u Units) FindUnitAt(x, y int) (Unit, bool) {
+func (u Units) FindUnitAt(xy UnitCoords) (Unit, bool) {
 	for _, sideUnits := range u {
 		for i := range sideUnits {
-			if sideUnits[i].IsInGame && sideUnits[i].X == x && sideUnits[i].Y == y {
+			if sideUnits[i].IsInGame && sideUnits[i].XY == xy {
 				return sideUnits[i], true
 			}
 		}
 	}
 	return Unit{}, false
 }
-func (u Units) FindUnitAtMapCoords(x, y int) (Unit, bool) {
+func (u Units) FindUnitAtMapCoords(xy MapCoords) (Unit, bool) {
+	uxy := xy.ToUnitCoords()
 	for _, sideUnits := range u {
 		for i := range sideUnits {
-			if sideUnits[i].IsInGame && sideUnits[i].X/2 == x && sideUnits[i].Y == y {
+			if sideUnits[i].IsInGame && sideUnits[i].XY == uxy {
 				return sideUnits[i], true
 			}
 		}
 	}
 	return Unit{}, false
 }
-func (u Units) FindUnitOfSideAt(x, y, side int) (Unit, bool) {
+func (u Units) FindUnitOfSideAt(xy UnitCoords, side int) (Unit, bool) {
 	sideUnits := u[side]
 	for i := range sideUnits {
-		if sideUnits[i].IsInGame && sideUnits[i].X == x && sideUnits[i].Y == y {
+		if sideUnits[i].IsInGame && sideUnits[i].XY == xy {
 			return sideUnits[i], true
 		}
 	}
 	return Unit{}, false
 }
-func (u Units) FindUnitOfSideAtMapCoords(x, y, side int) (Unit, bool) {
+func (u Units) FindUnitOfSideAtMapCoords(xy MapCoords, side int) (Unit, bool) {
+	uxy := xy.ToUnitCoords()
 	sideUnits := u[side]
 	for i := range sideUnits {
-		if sideUnits[i].IsInGame && sideUnits[i].X/2 == x && sideUnits[i].Y == y {
+		if sideUnits[i].IsInGame && sideUnits[i].XY == uxy {
 			return sideUnits[i], true
 		}
 	}
 	return Unit{}, false
 }
-func (u Units) NeighbourUnitCount(x, y, side int) int {
+func (u Units) NeighbourUnitCount(xy UnitCoords, side int) int {
 	num := 0
 	for _, unit := range u[side] {
 		if !unit.IsInGame {
 			continue
 		}
-		if Abs(unit.X-x)+Abs(2*(unit.Y-y)) < 4 {
+		if Abs(unit.XY.X-xy.X)+Abs(2*(unit.XY.Y-xy.Y)) < 4 {
 			num++
 		}
 	}
@@ -148,12 +150,12 @@ func (u *Unit) ClearState() {
 	u.IsInGame = false
 }
 func (u Unit) Function15_distanceToObjective() int {
-	dx := u.ObjectiveX - u.X
-	dy := u.ObjectiveY - u.Y
-	if Abs(dy) > Abs(dx)/2 {
-		return Abs(dy)
+	dx := Abs(u.Objective.X - u.XY.X)
+	dy := Abs(u.Objective.Y - u.XY.Y)
+	if dy > dx/2 {
+		return dy
 	} else {
-		return (Abs(dx) + Abs(dy) + 1) / 2
+		return (dx + dy + 1) / 2
 	}
 }
 func (u Unit) IsVisible() bool {
@@ -161,7 +163,7 @@ func (u Unit) IsVisible() bool {
 }
 
 type FlashbackUnit struct {
-	X, Y         int
+	XY           UnitCoords
 	ColorPalette int
 	Type         int
 }
@@ -202,8 +204,8 @@ func ParseUnit(data [16]byte, unitTypeNames []string, unitNames []string, genera
 	unit.HasLocalCommand = state&32 != 0
 	unit.SeenByEnemy = state&64 != 0
 	unit.IsInGame = state&128 != 0
-	unit.X = int(data[1])
-	unit.Y = int(data[2])
+	unit.XY.X = int(data[1])
+	unit.XY.Y = int(data[2])
 	unit.MenCount = int(data[3])
 	unit.EquipCount = int(data[4])
 	unit.Formation = int(data[5] & 7) // formation's bit 4 seems unused
@@ -252,8 +254,8 @@ func ParseUnit(data [16]byte, unitTypeNames []string, unitNames []string, genera
 		unit.HalfDaysUntilAppear = int(data[11])
 		unit.InvAppearProbability = int(data[12])
 	} else {
-		unit.ObjectiveX = int(data[11])
-		unit.ObjectiveY = int(data[12])
+		unit.Objective.X = int(data[11])
+		unit.Objective.Y = int(data[12])
 	}
 	unit.SupplyLevel = int(data[14])
 	unit.Morale = int(data[15])
@@ -329,8 +331,8 @@ func (u *Unit) Write(writer io.Writer) error {
 	if u.IsInGame {
 		data[0] |= 128
 	}
-	data[1] = byte(u.X)
-	data[2] = byte(u.Y)
+	data[1] = byte(u.XY.X)
+	data[2] = byte(u.XY.Y)
 	data[3] = byte(u.MenCount)
 	data[4] = byte(u.EquipCount)
 	data[5] = byte(u.Formation) + byte(u.SupplyUnit<<4)
@@ -346,8 +348,8 @@ func (u *Unit) Write(writer io.Writer) error {
 	}
 	data[10] = byte(u.generalIndex)
 	if u.IsInGame {
-		data[11] = byte(u.ObjectiveX)
-		data[12] = byte(u.ObjectiveY)
+		data[11] = byte(u.Objective.X)
+		data[12] = byte(u.Objective.Y)
 	} else {
 		data[11] = byte(u.HalfDaysUntilAppear)
 		data[12] = byte(u.InvAppearProbability)
@@ -367,8 +369,8 @@ func (u FlashbackUnits) Write(writer io.Writer) error {
 	}
 	var data [4]byte
 	for _, unit := range u {
-		data[0] = byte(unit.X)
-		data[1] = byte(unit.Y)
+		data[0] = byte(unit.XY.X)
+		data[1] = byte(unit.XY.Y)
 		data[2] = byte(unit.Type) + byte(unit.ColorPalette<<4)
 		if _, err := writer.Write(data[:]); err != nil {
 			return err
@@ -389,8 +391,7 @@ func (u *FlashbackUnits) Read(reader io.Reader) error {
 			return err
 		}
 		units = append(units, FlashbackUnit{
-			X:            int(data[0]),
-			Y:            int(data[1]),
+			XY:           UnitCoords{int(data[0]), int(data[1])},
 			Type:         int(data[2] & 15),
 			ColorPalette: int(data[2] / 16)})
 	}
@@ -438,7 +439,7 @@ State4: %t
 Has local command: %t
 Seen by enemy: %t
 Is in game: %t
-X,Y: %d,%d
+X,Y: %v
 Formation: %d
 Supply unit: %d
 Formation top bit: %t
@@ -455,6 +456,6 @@ Variants: %08b
 Half-days until appear: %d
 Inv appear probability: %d
 Fatigue: %d
-ObjectiveX,ObjectiveY: %d,%d`,
-		u.Side, u.InContactWithEnemy, u.IsUnderAttack, u.State2, u.HasSupplyLine, u.State4, u.HasLocalCommand, u.SeenByEnemy, u.IsInGame, u.X, u.Y, u.Formation, u.SupplyUnit, u.FormationTopBit, u.TypeName, u.Type, u.ColorPalette, u.Name, u.nameIndex, u.TargetFormation, u.OrderBit4, u.Order, u.General.Name, u.generalIndex, u.SupplyLevel, u.Morale, u.VariantBitmap, u.HalfDaysUntilAppear, u.InvAppearProbability, u.Fatigue, u.ObjectiveX, u.ObjectiveY)
+ObjectiveX,ObjectiveY: %v`,
+		u.Side, u.InContactWithEnemy, u.IsUnderAttack, u.State2, u.HasSupplyLine, u.State4, u.HasLocalCommand, u.SeenByEnemy, u.IsInGame, u.XY, u.Formation, u.SupplyUnit, u.FormationTopBit, u.TypeName, u.Type, u.ColorPalette, u.Name, u.nameIndex, u.TargetFormation, u.OrderBit4, u.Order, u.General.Name, u.generalIndex, u.SupplyLevel, u.Morale, u.VariantBitmap, u.HalfDaysUntilAppear, u.InvAppearProbability, u.Fatigue, u.Objective)
 }

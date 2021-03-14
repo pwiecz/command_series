@@ -48,17 +48,17 @@ func (f *Flashback) Update() error {
 		f.hideUnitsFromDay(f.shownDay)
 		return errors.New("Exit")
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyDown) {
-		curX, curY := f.mapView.GetCursorPosition()
-		f.mapView.SetCursorPosition(curX, curY+1)
+		curXY := f.mapView.GetCursorPosition()
+		f.mapView.SetCursorPosition(lib.MapCoords{curXY.X, curXY.Y + 1})
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyUp) {
-		curX, curY := f.mapView.GetCursorPosition()
-		f.mapView.SetCursorPosition(curX, curY-1)
+		curXY := f.mapView.GetCursorPosition()
+		f.mapView.SetCursorPosition(lib.MapCoords{curXY.X, curXY.Y - 1})
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyRight) {
-		curX, curY := f.mapView.GetCursorPosition()
-		f.mapView.SetCursorPosition(curX+1, curY)
+		curXY := f.mapView.GetCursorPosition()
+		f.mapView.SetCursorPosition(lib.MapCoords{curXY.X + 1, curXY.Y})
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyLeft) {
-		curX, curY := f.mapView.GetCursorPosition()
-		f.mapView.SetCursorPosition(curX-1, curY)
+		curXY := f.mapView.GetCursorPosition()
+		f.mapView.SetCursorPosition(lib.MapCoords{curXY.X - 1, curXY.Y})
 	}
 	return nil
 }
@@ -68,7 +68,7 @@ func (f *Flashback) Draw(screen *ebiten.Image, opts *ebiten.DrawImageOptions) {
 		f.hideUnitsFromDay(f.shownDay)
 		if f.day < len(f.flashback) {
 			for _, unit := range f.flashback[f.day] {
-				f.terrainTypeMap.ShowUnitAt(unit.X, unit.Y)
+				f.terrainTypeMap.ShowUnitAt(unit.XY)
 			}
 		}
 		f.messageBox.ClearRow(0)
@@ -83,6 +83,6 @@ func (f *Flashback) hideUnitsFromDay(day int) {
 		return
 	}
 	for _, unit := range f.flashback[day] {
-		f.terrainTypeMap.HideUnitAt(unit.X, unit.Y)
+		f.terrainTypeMap.HideUnitAt(unit.XY)
 	}
 }

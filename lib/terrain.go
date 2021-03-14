@@ -11,7 +11,7 @@ import (
 type City struct {
 	Owner         int
 	VictoryPoints int
-	X, Y          int
+	XY            UnitCoords
 	VariantBitmap byte
 	Name          string
 }
@@ -25,25 +25,27 @@ type Terrain struct {
 	// (4*(n%16), 4*n/16).
 	Coeffs [16][16]int // Bytes [768-1024]
 }
-func (t Terrain) IsCityAtUnitCoords(x, y int) bool {
+
+func (t Terrain) IsCityAtUnitCoords(xy UnitCoords) bool {
 	for _, city := range t.Cities {
-		if city.VictoryPoints > 0 && city.X == x && city.Y == y {
+		if city.VictoryPoints > 0 && city.XY == xy {
 			return true
 		}
 	}
 	return false
 }
-func (t Terrain) FindCityAtUnitCoords(x, y int) (City, bool) {
+func (t Terrain) FindCityAtUnitCoords(xy UnitCoords) (City, bool) {
 	for _, city := range t.Cities {
-		if city.VictoryPoints > 0 && city.X == x && city.Y == y {
+		if city.VictoryPoints > 0 && city.XY == xy {
 			return city, true
 		}
 	}
 	return City{}, false
 }
-func (t Terrain) FindCityAtMapCoords(x, y int) (City, bool) {
+func (t Terrain) FindCityAtMapCoords(xy MapCoords) (City, bool) {
+	uxy := xy.ToUnitCoords()
 	for _, city := range t.Cities {
-		if city.VictoryPoints > 0 && city.X/2 == x && city.Y == y {
+		if city.VictoryPoints > 0 && city.XY == uxy {
 			return city, true
 		}
 	}
@@ -84,8 +86,7 @@ func ParseCity(data io.Reader) (City, error) {
 	var city City
 	city.Owner = int((cityData[0] & 64) >> 6)
 	city.VictoryPoints = int(cityData[0] & 63)
-	city.X = int(cityData[1])
-	city.Y = int(cityData[2])
+	city.XY = UnitCoords{int(cityData[1]), int(cityData[2])}
 	city.VariantBitmap = cityData[3]
 	name := cityData[4:]
 	for len(name) > 0 && (name[len(name)-1] == 0x20 || name[len(name)-1] == 0) {

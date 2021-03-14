@@ -30,10 +30,11 @@ func (m *OverviewMap) Draw(screen *ebiten.Image, opts *ebiten.DrawImageOptions) 
 		m.image.Fill(lib.RGBPalette[14])
 		for y := 0; y < m.terrainMap.Width; y++ {
 			for x := 0; x < m.terrainMap.Height; x++ {
-				if !m.terrainMap.AreCoordsValid(x, y) {
+				xy := lib.MapCoords{x, y}
+				if !m.terrainMap.AreCoordsValid(xy) {
 					continue
 				}
-				terrainTile := m.terrainMap.GetTile(x, y)
+				terrainTile := m.terrainMap.GetTile(xy)
 				terrainType := m.generic.TerrainTypes[terrainTile%64]
 				col := m.generic.Data60[terrainType/2]
 				if terrainType%2 == 0 {
@@ -61,7 +62,8 @@ func (m *OverviewMap) Draw(screen *ebiten.Image, opts *ebiten.DrawImageOptions) 
 		color := m.scenarioData.SideColor[side]*16 + colors[side]
 		for _, unit := range sideUnits {
 			if m.isUnitVisible(unit) {
-				m.image.Set(unit.X/2, unit.Y, lib.RGBPalette[color])
+				xy := unit.XY.ToMapCoords()
+				m.image.Set(xy.X, xy.Y, lib.RGBPalette[color])
 			}
 		}
 	}

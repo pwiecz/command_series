@@ -10,7 +10,7 @@ import (
 
 type MapView struct {
 	minX, minY, maxX, maxY int // map bounds to draw in map coordinates
-	cursorX, cursorY       int
+	cursorXY               lib.MapCoords
 
 	colors         *colorSchemes
 	mapDrawer      *MapDrawer
@@ -28,7 +28,7 @@ type MapView struct {
 	cursorImage       *ebiten.Image
 	iconAnimationStep int
 	shownIcons        []*ebiten.Image
-	iconX, iconY      int
+	iconXY            lib.MapCoords
 	iconDx, iconDy    float64
 }
 
@@ -54,8 +54,7 @@ func NewMapView(
 		minY:           minY,
 		maxX:           maxX,
 		maxY:           maxY,
-		cursorX:        minX,
-		cursorY:        minY,
+		cursorXY:       lib.MapCoords{minX, minY},
 		icons:          icons,
 		tileWidth:      tileBounds.Dx(),
 		tileHeight:     tileBounds.Dy(),
@@ -69,25 +68,23 @@ func NewMapView(
 	return v
 }
 
-func (v *MapView) ToUnitCoords(imageX, imageY int) (x, y int) {
+func (v *MapView) ToUnitCoords(imageX, imageY int) lib.UnitCoords {
 	imageX += v.visibleBounds.Min.X
 	imageY += v.visibleBounds.Min.Y
 	// Cast to float64 to perform division rounding to floor instead of rounding to zero.
-	y = int(math.Floor(float64(imageY)/8)) + v.minY
-	x = int(math.Floor(float64(imageX+(y%2)*4)/8))*2 - y%2 + v.minX*2
-	return
-
+	y := int(math.Floor(float64(imageY)/8)) + v.minY
+	x := int(math.Floor(float64(imageX+(y%2)*4)/8))*2 - y%2 + v.minX*2
+	return lib.UnitCoords{x, y}
 }
-func (v *MapView) GetCursorPosition() (int, int) {
-	return v.cursorX, v.cursorY
+func (v *MapView) GetCursorPosition() lib.MapCoords {
+	return v.cursorXY
 }
-func (v *MapView) SetCursorPosition(x, y int) {
-	v.cursorX = lib.Clamp(x, v.minX, v.maxX)
-	v.cursorY = lib.Clamp(y, v.minY, v.maxY)
+func (v *MapView) SetCursorPosition(xy lib.MapCoords) {
+	v.cursorXY = lib.MapCoords{lib.Clamp(xy.X, v.minX, v.maxX), lib.Clamp(xy.Y, v.minY, v.maxY)}
 	v.makeCursorVisible()
 }
 func (v *MapView) makeCursorVisible() {
-	cursorScreenX, cursorScreenY := v.MapCoordsToScreenCoords(v.cursorX, v.cursorY)
+	cursorScreenX, cursorScreenY := v.MapCoordsToScreenCoords(v.cursorXY)
 	newBounds := v.visibleBounds
 	if cursorScreenX < 0 {
 		newBounds = newBounds.Add(image.Pt(cursorScreenX, 0))
@@ -119,22 +116,22 @@ func (v *MapView) SetIsNight(isNight bool) {
 	v.mapDrawer.SetIsNight(isNight)
 	v.unitSprites.SetIsNight(isNight)
 }
-func (v *MapView) MapCoordsToScreenCoords(mapX, mapY int) (x, y int) {
-	x, y = v.mapDrawer.MapCoordsToImageCoords(mapX, mapY)
+func (v *MapView) MapCoordsToScreenCoords(mapXY lib.MapCoords) (x, y int) {
+	x, y = v.mapDrawer.MapCoordsToImageCoords(mapXY)
 	x -= v.visibleBounds.Min.X
 	y -= v.visibleBounds.Min.Y
 	return
 }
-func (v *MapView) AreMapCoordsVisible(mapX, mapY int) bool {
-	x, y := v.mapDrawer.MapCoordsToImageCoords(mapX, mapY)
+func (v *MapView) AreMapCoordsVisible(mapXY lib.MapCoords) bool {
+	x, y := v.mapDrawer.MapCoordsToImageCoords(mapXY)
 	return v.AreScreenCoordsVisible(x, y)
 }
 func (v *MapView) AreScreenCoordsVisible(x, y int) bool {
 	return x >= 0 && x < v.visibleBounds.Dx() && y >= 0 && y < v.visibleBounds.Dy()
 }
-func (v *MapView) DrawSpriteBetween(sprite *ebiten.Image, mapX0, mapY0, mapX1, mapY1 int, alpha float64, screen *ebiten.Image, options *ebiten.DrawImageOptions) {
-	x0, y0 := v.MapCoordsToScreenCoords(mapX0, mapY0)
-	x1, y1 := v.MapCoordsToScreenCoords(mapX1, mapY1)
+func (v *MapView) DrawSpriteBetween(sprite *ebiten.Image, mapXY0, mapXY1 lib.MapCoords, alpha float64, screen *ebiten.Image, options *ebiten.DrawImageOptions) {
+	x0, y0 := v.MapCoordsToScreenCoords(mapXY0)
+	x1, y1 := v.MapCoordsToScreenCoords(mapXY1)
 	x, y := float64(x0)+float64(x1-x0)*alpha, float64(y0)+float64(y1-y0)*alpha
 	v.drawSpriteAtCoords(sprite, x, y, screen, options)
 }
@@ -164,10 +161,10 @@ func (v *MapView) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
 	screen.DrawImage(v.subImage, options)
 	for _, sideUnits := range v.units {
 		for _, unit := range sideUnits {
-			if !unit.IsInGame || !v.terrainTypeMap.ContainsUnit(unit.X, unit.Y) {
+			if !unit.IsInGame || !v.terrainTypeMap.ContainsUnit(unit.XY) {
 				continue
 			}
-			x, y := v.MapCoordsToScreenCoords(unit.X/2, unit.Y)
+			x, y := v.MapCoordsToScreenCoords(unit.XY.ToMapCoords())
 			if !v.AreScreenCoordsVisible(x, y) {
 				continue
 			}
@@ -183,32 +180,30 @@ func (v *MapView) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
 		opts.GeoM.Scale(2, 1)
 		v.cursorImage.DrawImage(cursorSprite, &opts)
 	}
-	cursorX, cursorY := v.MapCoordsToScreenCoords(v.cursorX, v.cursorY)
+	cursorX, cursorY := v.MapCoordsToScreenCoords(v.cursorXY)
 	v.drawSpriteAtCoords(v.cursorImage, float64(cursorX-6), float64(cursorY-2), screen, options)
-	if len(v.shownIcons) > 0 && v.AreMapCoordsVisible(v.iconX, v.iconY) {
-		iconX, iconY := v.MapCoordsToScreenCoords(v.iconX, v.iconY)
+	if len(v.shownIcons) > 0 && v.AreMapCoordsVisible(v.iconXY) {
+		iconX, iconY := v.MapCoordsToScreenCoords(v.iconXY)
 		icon := v.shownIcons[(v.iconAnimationStep/4)%len(v.shownIcons)]
 		v.drawSpriteAtCoords(icon, float64(iconX)+v.iconDx, float64(iconY)+v.iconDy, screen, options)
 		v.iconAnimationStep++
 	}
 	return
 }
-func (v *MapView) ShowIcon(icon lib.IconType, x, y int, dx, dy float64) {
+func (v *MapView) ShowIcon(icon lib.IconType, xy lib.MapCoords, dx, dy float64) {
 	v.shownIcons = append(v.shownIcons[:0], v.GetSpriteFromIcon(icon))
 	v.iconAnimationStep = 0
-	v.iconX = x
-	v.iconY = y
+	v.iconXY = xy
 	v.iconDx = dx
 	v.iconDy = dy
 }
-func (v *MapView) ShowAnimatedIcon(icons []lib.IconType, x, y int, dx, dy float64) {
+func (v *MapView) ShowAnimatedIcon(icons []lib.IconType, xy lib.MapCoords, dx, dy float64) {
 	v.shownIcons = v.shownIcons[:0]
 	for _, icon := range icons {
 		v.shownIcons = append(v.shownIcons, v.GetSpriteFromIcon(icon))
 	}
 	v.iconAnimationStep = 0
-	v.iconX = x
-	v.iconY = y
+	v.iconXY = xy
 	v.iconDx = dx
 	v.iconDy = dy
 }

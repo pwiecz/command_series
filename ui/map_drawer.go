@@ -64,15 +64,15 @@ func (d *MapDrawer) SetIsNight(isNight bool) {
 		d.isDirty = true
 	}
 }
-func (d *MapDrawer) drawTileAt(tileNum byte, mapX, mapY int, screen *ebiten.Image) {
-	x, y := d.MapCoordsToImageCoords(mapX, mapY)
+func (d *MapDrawer) drawTileAt(tileNum byte, mapXY lib.MapCoords, screen *ebiten.Image) {
+	x, y := d.MapCoordsToImageCoords(mapXY)
 	var opts ebiten.DrawImageOptions
 	opts.GeoM.Translate(float64(x), float64(y))
 	screen.DrawImage(d.GetSpriteFromTileNum(tileNum), &opts)
 }
-func (d *MapDrawer) MapCoordsToImageCoords(mapX, mapY int) (x, y int) {
-	x = (mapX-d.minX)*d.tileWidth + (mapY%2)*d.tileWidth/2
-	y = (mapY - d.minY) * d.tileHeight
+func (d *MapDrawer) MapCoordsToImageCoords(mapXY lib.MapCoords) (x, y int) {
+	x = (mapXY.X-d.minX)*d.tileWidth + (mapXY.Y%2)*d.tileWidth/2
+	y = (mapXY.Y - d.minY) * d.tileHeight
 	return
 }
 func (d *MapDrawer) GetSpriteFromTileNum(tileNum byte) *ebiten.Image {
@@ -91,8 +91,8 @@ func (d *MapDrawer) Draw() {
 				if x >= d.terrainMap.Width-y%2 {
 					break
 				}
-				tileNum := d.terrainMap.GetTile(x, y)
-				d.drawTileAt(tileNum, x, y, d.image)
+				tileNum := d.terrainMap.GetTile(lib.MapCoords{x, y})
+				d.drawTileAt(tileNum, lib.MapCoords{x, y}, d.image)
 			}
 		}
 		d.isDirty = false
