@@ -373,9 +373,8 @@ nextUnit:
 		goto nextUnit
 	}
 	arg1 = s.ai.UpdateUnitObjective(&unit, weather)
-	//l21:
+	// l21:
 	s.ai.update = unit.Side
-	message = nil
 	if unit.SupplyLevel == 0 {
 		message = WeHaveExhaustedSupplies{unit}
 	}
@@ -598,8 +597,7 @@ func (s *GameState) performUnitMovement(unit *Unit, message *MessageFromUnit, ar
 		if unit.Function15_distanceToObjective() == 0 {
 			unit.ObjectiveX = 0
 			unit.TargetFormation = s.scenarioData.function10(unit.Order, 1)
-			if (unit.Order == Defend || unit.Order == Move) &&
-				!unit.HasLocalCommand {
+			if (unit.Order == Defend || unit.Order == Move) && !unit.HasLocalCommand {
 				*message = WeHaveReachedOurObjective{*unit}
 			}
 		}
@@ -776,7 +774,7 @@ func (s *GameState) performAttack(unit *Unit, sx, sy, weather int, message *Mess
 			}
 		}
 		if bestX != oldX || bestY != oldY {
-			// unit2 is retreating, unit one is chasing (and maybe capturing a city)
+			// unit2 is retreating, unit is chasing (and maybe capturing a city)
 			if _, ok := (*message).(WeHaveBeenOverrun); !ok {
 				*message = WeAreRetreating{unit2}
 			}
@@ -796,7 +794,7 @@ func (s *GameState) performAttack(unit *Unit, sx, sy, weather int, message *Mess
 		}
 		unit2.Formation = s.scenarioData.Data176[1][0]
 		unit2.Order = OrderType((s.scenarioData.Data176[1][0] + 1) % 4)
-		unit2.HasSupplyLine = false // |= 32
+		unit2.HasLocalCommand = true // |= 32
 	}
 
 	a := arg1
@@ -909,11 +907,11 @@ func (s *GameState) every12Hours() bool {
 
 	for _, sideUnits := range s.units {
 		for i, unit := range sideUnits {
-			if unit.HasSupplyLine { // (has supply line)
-				if unit.MenCount <= s.scenarioData.MenCountLimit[unit.Type] {
+			if unit.HasSupplyLine { // (& 136) ^ 136 > 0
+				if unit.MenCount < s.scenarioData.MenCountLimit[unit.Type] {
 					unit.MenCount += Rand(s.scenarioData.MenReplacementRate[unit.Side]+32, s.rand) / 32
 				}
-				if unit.EquipCount <= s.scenarioData.EquipCountLimit[unit.Type] {
+				if unit.EquipCount < s.scenarioData.EquipCountLimit[unit.Type] {
 					unit.EquipCount += Rand(s.scenarioData.EquipReplacementRate[unit.Side]+32, s.rand) / 32
 				}
 			}
