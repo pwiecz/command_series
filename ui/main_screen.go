@@ -340,8 +340,20 @@ func (s *MainScreen) Update() error {
 		for _, touchID := range inpututil.JustPressedTouchIDs() {
 			touchX, touchY := ebiten.TouchPosition(touchID)
 			x, y := s.screenCoordsToUnitCoords(touchX, touchY)
-			if s.mapView.AreMapCoordsVisible(x, y) {
+			if s.mapView.AreMapCoordsVisible(x/2, y) {
 				s.mapView.SetCursorPosition(x/2, y)
+				break
+			}
+		}
+		for _, touchID := range ebiten.TouchIDs() {
+			if inpututil.TouchPressDuration(touchID) > 30 {
+				touchX, touchY := ebiten.TouchPosition(touchID)
+				x, y := s.screenCoordsToUnitCoords(touchX, touchY)
+				if s.mapView.AreMapCoordsVisible(x/2, y) {
+					s.mapView.SetCursorPosition(x/2, y)
+					s.pickOrder(x, y)
+					break
+				}
 			}
 		}
 	}

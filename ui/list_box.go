@@ -78,6 +78,20 @@ func (l *ListBox) Update() {
 				break
 			}
 		}
+	} else {
+	outerLoop:
+		for _, touchID := range inpututil.JustPressedTouchIDs() {
+			touchX, touchY := ebiten.TouchPosition(touchID)
+			for i, row := range l.rows {
+				if row.ContainsPoint(touchX, touchY) {
+					l.selectedItem = i + l.topItem
+					l.onEnter(l.items[l.selectedItem])
+					modified = true
+					break outerLoop
+				}
+			}
+		}
+
 	}
 	if modified {
 		for i := 0; i < len(l.rows); i++ {
