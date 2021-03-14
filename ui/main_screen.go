@@ -230,6 +230,7 @@ func (s *MainScreen) Update() error {
 				s.options.UnitDisplay = 1 - s.options.UnitDisplay
 			case SwitchSides:
 				s.playerSide = 1 - s.playerSide
+				s.orderedUnit = nil
 				s.gameState.SwitchSides()
 				s.mapView.HideIcon()
 				s.messageBox.Clear()
