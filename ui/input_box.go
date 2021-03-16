@@ -83,7 +83,7 @@ func (i *InputBox) Update() {
 	}
 	if modified {
 		i.label.Clear()
-		i.label.SetText(i.text, 0, false)
+		i.label.SetText(i.text, 0)
 		i.label.SetCharInverted(i.cursorPosition, true)
 	}
 }

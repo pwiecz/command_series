@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"strings"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/pwiecz/command_series/lib"
 )
@@ -41,11 +43,14 @@ func (b *MessageBox) ClearRow(y int) {
 	}
 	b.rows[y].Clear()
 }
-func (b *MessageBox) Print(str string, x, y int, inverted bool) {
-	if y >= len(b.rows) {
-		return
+func (b *MessageBox) Print(str string, x, y int) {
+	for _, line := range strings.Split(str, "\n") {
+		if y >= len(b.rows) {
+			return
+		}
+		b.rows[y].SetText(line, x)
+		y++
 	}
-	b.rows[y].SetText(str, x, inverted)
 }
 
 func (b *MessageBox) Draw(screen *ebiten.Image) {

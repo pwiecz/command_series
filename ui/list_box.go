@@ -100,12 +100,12 @@ func (l *ListBox) Update() {
 			if itemIx < len(l.items) {
 				text := l.items[itemIx]
 				if itemIx == l.selectedItem {
-					l.rows[i].SetText(text, 0, true)
+					l.rows[i].SetText("*"+text+"*", 0)
 					for x := len(text); x < l.width; x++ {
 						l.rows[i].SetCharInverted(x, true)
 					}
 				} else {
-					l.rows[i].SetText(text, 0, false)
+					l.rows[i].SetText(text, 0)
 				}
 			}
 		}

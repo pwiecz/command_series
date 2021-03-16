@@ -359,14 +359,14 @@ nextUnit:
 		panic(fmt.Errorf("%s@(%v):%v", unit.FullName(), unit.XY, unit))
 	}
 	var arg1 int
-	if unit.MenCount+unit.EquipCount < 7 || unit.Fatigue == 255 {
+	if unit.MenCount+unit.TankCount < 7 || unit.Fatigue == 255 {
 		s.terrainTypes.hideUnit(unit)
 		message = WeMustSurrender{unit}
 		unit.ClearState()
 		unit.HalfDaysUntilAppear = 0
 		s.citiesHeld[1-unit.Side] += s.scenarioData.UnitScores[unit.Type]
 		s.menLost[unit.Side] += unit.MenCount
-		s.tanksLost[unit.Side] += unit.EquipCount
+		s.tanksLost[unit.Side] += unit.TankCount
 		goto end
 	}
 	if !s.scenarioData.UnitCanMove[unit.Type] {
@@ -524,7 +524,7 @@ func (s *GameState) performUnitMovement(unit *Unit, message *MessageFromUnit, ar
 			if d32&64 > 0 { // in CiV (some scenarios) artillery or mortars
 				if s.game != Conflict || unit.Formation == 0 {
 					sxy = unit.Objective
-					tt := s.terrainTypes.terrainOrUnitTypeAt(sxy.ToMapCoords())
+					tt := s.terrainTypes.terrainOrUnitTypeAt(sxy)
 					moveSpeed = s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[tt][unit.Type]
 					*arg1 = tt // shouldn't have any impact
 					mvAdd = 1
@@ -633,12 +633,12 @@ func (s *GameState) performAttack(unit *Unit, sxy UnitCoords, weather int, messa
 	*message = WeAreAttacking{*unit, unit2, 0 /* placeholder value */, s.scenarioData.Formations}
 	var attackerScore int
 	{
-		tt := s.terrainTypes.terrainTypeAt(unit.XY.ToMapCoords())
+		tt := s.terrainTypes.terrainTypeAt(unit.XY)
 		var menCoeff int
 		if !unit.FormationTopBit {
 			menCoeff = s.scenarioData.TerrainMenAttack[tt] * s.scenarioData.FormationMenAttack[unit.Formation] * unit.MenCount / 32
 		}
-		tankCoeff := s.scenarioData.TerrainTankAttack[tt] * s.scenarioData.FormationTankAttack[unit.Formation] * s.scenarioData.Data16High[unit.Type] / 2 * unit.EquipCount / 64
+		tankCoeff := s.scenarioData.TerrainTankAttack[tt] * s.scenarioData.FormationTankAttack[unit.Formation] * s.scenarioData.Data16High[unit.Type] / 2 * unit.TankCount / 64
 		susceptibleToWeather := (s.scenarioData.Data32[unit.Type] & 8) != 0
 		if s.game == Conflict {
 			susceptibleToWeather = (s.scenarioData.Data32[unit.Type] & 32) != 0
@@ -661,9 +661,9 @@ func (s *GameState) performAttack(unit *Unit, sxy UnitCoords, weather int, messa
 		if s.scenarioData.UnitScores[unit2.Type]&248 > 0 {
 			unit.State2 = true // |= 4
 		}
-		tt2 := s.terrainTypes.terrainTypeAt(unit2.XY.ToMapCoords())
+		tt2 := s.terrainTypes.terrainTypeAt(unit2.XY)
 		menCoeff := s.scenarioData.TerrainMenDefence[tt2] * s.scenarioData.FormationMenDefence[unit2.Formation] * unit2.MenCount / 32
-		tankCoeff := s.scenarioData.TerrainTankAttack[tt2] * s.scenarioData.FormationTankDefence[unit2.Formation] * s.scenarioData.Data16Low[unit2.Type] / 2 * unit2.EquipCount / 64
+		tankCoeff := s.scenarioData.TerrainTankAttack[tt2] * s.scenarioData.FormationTankDefence[unit2.Formation] * s.scenarioData.Data16Low[unit2.Type] / 2 * unit2.TankCount / 64
 		defenderScore = (menCoeff + tankCoeff) * unit2.Morale / 256 * (240 - unit2.Fatigue/2) / 128
 		defenderScore = defenderScore * unit2.General.Defence / 16
 		if unit2.SupplyLevel == 0 {
@@ -682,9 +682,9 @@ func (s *GameState) performAttack(unit *Unit, sxy UnitCoords, weather int, messa
 		menLost := Clamp((Rand(unit.MenCount*arg1, s.rand)+255)/512, 0, unit.MenCount)
 		s.menLost[unit.Side] += menLost
 		unit.MenCount -= menLost
-		tanksLost := Clamp((Rand(unit.EquipCount*arg1, s.rand)+255)/512, 0, unit.EquipCount)
+		tanksLost := Clamp((Rand(unit.TankCount*arg1, s.rand)+255)/512, 0, unit.TankCount)
 		s.tanksLost[unit.Side] += tanksLost
-		unit.EquipCount -= tanksLost
+		unit.TankCount -= tanksLost
 		if arg1 < 24 {
 			unit.Morale = Clamp(unit.Morale+1, 0, 250)
 		}
@@ -711,9 +711,9 @@ func (s *GameState) performAttack(unit *Unit, sxy UnitCoords, weather int, messa
 	menLost2 := Clamp((Rand(unit2.MenCount*arg1, s.rand)+500)/512, 0, unit2.MenCount)
 	s.menLost[1-unit.Side] += menLost2
 	unit2.MenCount -= menLost2
-	tanksLost2 := Clamp((Rand(unit2.EquipCount*arg1, s.rand)+255)/512, 0, unit2.EquipCount)
+	tanksLost2 := Clamp((Rand(unit2.TankCount*arg1, s.rand)+255)/512, 0, unit2.TankCount)
 	s.tanksLost[1-unit.Side] += tanksLost2
-	unit2.EquipCount -= tanksLost2
+	unit2.TankCount -= tanksLost2
 	unit2.SupplyLevel = Clamp(unit2.SupplyLevel-s.scenarioData.Data163, 0, 255)
 	if s.scenarioData.UnitCanMove[unit2.Type] &&
 		((s.game != Conflict && !unit.FormationTopBit) ||
@@ -746,10 +746,10 @@ func (s *GameState) performAttack(unit *Unit, sxy UnitCoords, weather int, messa
 		bestDefence := -128
 		for i := 0; i <= 6; i++ {
 			nxy := s.generic.IthNeighbour(unit2.XY, i)
-			if !s.areUnitCoordsValid(nxy) || s.units.IsUnitAt(nxy) || s.terrain.IsCityAtUnitCoords(nxy) {
+			if !s.areUnitCoordsValid(nxy) || s.units.IsUnitAt(nxy) || s.terrain.IsCityAt(nxy) {
 				continue
 			}
-			tt := s.terrainTypes.terrainOrUnitTypeAt(nxy.ToMapCoords())
+			tt := s.terrainTypes.terrainOrUnitTypeAt(nxy)
 			if s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[tt][unit2.Type] == 0 {
 				continue
 			}
@@ -778,7 +778,7 @@ func (s *GameState) performAttack(unit *Unit, sxy UnitCoords, weather int, messa
 			if _, ok := (*message).(WeHaveBeenOverrun); !ok {
 				*message = WeAreRetreating{unit2}
 			}
-			tt := s.terrainTypes.terrainOrUnitTypeAt(oldXY.ToMapCoords())
+			tt := s.terrainTypes.terrainOrUnitTypeAt(oldXY)
 			if arg1 > 60 && (s.game != Conflict || !unit.FormationTopBit) &&
 				s.ai.NeighbourScore(&s.hexes.Arr96, oldXY, unit.Side) > -4 &&
 				s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[tt][unit.Type] > 0 {
@@ -816,7 +816,7 @@ func (s *GameState) performAttack(unit *Unit, sxy UnitCoords, weather int, messa
 
 // Has unit captured a city
 func (s *GameState) function16(unit Unit) (City, bool) {
-	if city, ok := s.terrain.FindCityAtUnitCoords(unit.XY); ok {
+	if city, ok := s.terrain.FindCityAt(unit.XY); ok {
 		if city.Owner != unit.Side {
 			// msg = 5
 			city.Owner = unit.Side
@@ -888,7 +888,7 @@ func (s *GameState) every12Hours() bool {
 				if unit.HalfDaysUntilAppear == 0 {
 					shouldSpawnUnit := !s.units.IsUnitAt(unit.XY) &&
 						Rand(unit.InvAppearProbability, s.rand) == 0
-					if city, ok := s.terrain.FindCityAtUnitCoords(unit.XY); ok && city.Owner != unit.Side {
+					if city, ok := s.terrain.FindCityAt(unit.XY); ok && city.Owner != unit.Side {
 						shouldSpawnUnit = false
 					}
 					if shouldSpawnUnit {
@@ -911,8 +911,8 @@ func (s *GameState) every12Hours() bool {
 				if unit.MenCount < s.scenarioData.MenCountLimit[unit.Type] {
 					unit.MenCount += Rand(s.scenarioData.MenReplacementRate[unit.Side]+32, s.rand) / 32
 				}
-				if unit.EquipCount < s.scenarioData.EquipCountLimit[unit.Type] {
-					unit.EquipCount += Rand(s.scenarioData.EquipReplacementRate[unit.Side]+32, s.rand) / 32
+				if unit.TankCount < s.scenarioData.TankCountLimit[unit.Type] {
+					unit.TankCount += Rand(s.scenarioData.TankReplacementRate[unit.Side]+32, s.rand) / 32
 				}
 			}
 			sideUnits[i] = unit
@@ -1071,7 +1071,7 @@ func (s *GameState) FindBestMoveFromTowards(unitXY0, unitXY1 UnitCoords, unitTyp
 	if !s.areUnitCoordsValid(candXY1) {
 		candXY1 = unitXY0
 	} else {
-		terrainType1 := s.terrainTypes.terrainOrUnitTypeAt(candXY1.ToMapCoords())
+		terrainType1 := s.terrainTypes.terrainOrUnitTypeAt(candXY1)
 		speed1 = s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[terrainType1][unitType]
 	}
 
@@ -1080,7 +1080,7 @@ func (s *GameState) FindBestMoveFromTowards(unitXY0, unitXY1 UnitCoords, unitTyp
 	if !s.areUnitCoordsValid(candXY2) {
 		candXY2 = unitXY0
 	} else {
-		terrainType2 := s.terrainTypes.terrainOrUnitTypeAt(candXY2.ToMapCoords())
+		terrainType2 := s.terrainTypes.terrainOrUnitTypeAt(candXY2)
 		speed2 = s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[terrainType2][unitType]
 	}
 

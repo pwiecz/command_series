@@ -55,7 +55,7 @@ type Data struct {
 	FormationChangeSpeed           [2][8]int  // Data[216:232]
 	ResupplyRate                   [2]int     // Data[232,233]
 	MenReplacementRate             [2]int     // Data[234,235]
-	EquipReplacementRate           [2]int     // Data[236,237]
+	TankReplacementRate            [2]int     // Data[236,237]
 	SideColor                      [2]int     // Data[248,249] the value*16 is the hue corresponding to the given side
 	Data252                        [2]int     // Data[252:254] per side
 	MoveSpeedPerTerrainTypeAndUnit [8][16]int // Data[255:383]
@@ -64,7 +64,7 @@ type Data struct {
 	DaytimePalette  [8]byte        // Data[400:408]
 	NightPalette    [8]byte        // Data[408:416]
 	MenCountLimit   [16]int        // Data[416:432]
-	EquipCountLimit [16]int        // Data[432:448]
+	TankCountLimit  [16]int        // Data[432:448]
 	DataUpdates     [21]DataUpdate // Data[448:511]
 	UnitTypes       []string
 	Strings1        []string
@@ -188,8 +188,8 @@ func ParseData(data []byte) (*Data, error) {
 	scenario.ResupplyRate[1] = int(data[233])
 	scenario.MenReplacementRate[0] = int(data[234])
 	scenario.MenReplacementRate[1] = int(data[235])
-	scenario.EquipReplacementRate[0] = int(data[236])
-	scenario.EquipReplacementRate[1] = int(data[237])
+	scenario.TankReplacementRate[0] = int(data[236])
+	scenario.TankReplacementRate[1] = int(data[237])
 	scenario.SideColor[0] = int(data[248])
 	scenario.SideColor[1] = int(data[249])
 	scenario.Data252[0] = int(data[252])
@@ -206,7 +206,7 @@ func ParseData(data []byte) (*Data, error) {
 		scenario.MenCountLimit[i] = int(limit)
 	}
 	for i, limit := range data[432:448] {
-		scenario.EquipCountLimit[i] = int(limit)
+		scenario.TankCountLimit[i] = int(limit)
 	}
 	for i := 0; i < 21; i++ {
 		scenario.DataUpdates[i].Day = int(data[448+i*3])
@@ -366,9 +366,9 @@ func (s *Data) UpdateData(offset byte, value byte) {
 	case offset == 235:
 		s.MenReplacementRate[1] = int(value)
 	case offset == 236:
-		s.EquipReplacementRate[0] = int(value)
+		s.TankReplacementRate[0] = int(value)
 	case offset == 237:
-		s.EquipReplacementRate[1] = int(value)
+		s.TankReplacementRate[1] = int(value)
 	case InRange(int(offset), 248, 250):
 		s.SideColor[offset-248] = int(value)
 	case offset == 252:
@@ -442,7 +442,7 @@ func (d *Data) WriteFirst255Bytes(writer io.Writer) error {
 	for i := 0; i < 2; i++ {
 		data[232+i] = byte(d.ResupplyRate[i])
 		data[234+i] = byte(d.MenReplacementRate[i])
-		data[236+i] = byte(d.EquipReplacementRate[i])
+		data[236+i] = byte(d.TankReplacementRate[i])
 		data[248+i] = byte(d.SideColor[i])
 		data[252+i] = byte(d.Data252[i])
 	}

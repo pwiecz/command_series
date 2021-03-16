@@ -23,7 +23,7 @@ func TestParseEncodeParseDataFirst255Bytes(t *testing.T) {
 	data.DaytimePalette = scenarioData.Data.DaytimePalette
 	data.NightPalette = scenarioData.Data.NightPalette
 	data.MenCountLimit = scenarioData.Data.MenCountLimit
-	data.EquipCountLimit = scenarioData.Data.EquipCountLimit
+	data.TankCountLimit = scenarioData.Data.TankCountLimit
 	data.DataUpdates = scenarioData.Data.DataUpdates
 	data.UnitTypes = scenarioData.Data.UnitTypes
 	data.Strings1 = scenarioData.Data.Strings1

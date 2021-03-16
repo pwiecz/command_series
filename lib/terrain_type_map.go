@@ -14,8 +14,8 @@ func newTerrainTypeMap(terrainMap *Map, generic *Generic) *TerrainTypeMap {
 	}
 }
 
-func (m *TerrainTypeMap) terrainOrUnitTypeAt(xy MapCoords) int {
-	return m.terrainOrUnitTypeAtIndex(m.terrainMap.CoordsToIndex(xy))
+func (m *TerrainTypeMap) terrainOrUnitTypeAt(xy UnitCoords) int {
+	return m.terrainOrUnitTypeAtIndex(m.terrainMap.CoordsToIndex(xy.ToMapCoords()))
 }
 func (m *TerrainTypeMap) terrainOrUnitTypeAtIndex(ix int) int {
 	if ix < 0 || ix >= len(m.units) || m.units[ix] {
@@ -23,8 +23,8 @@ func (m *TerrainTypeMap) terrainOrUnitTypeAtIndex(ix int) int {
 	}
 	return m.generic.TerrainTypes[m.terrainMap.getTileAtIndex(ix)&63]
 }
-func (m *TerrainTypeMap) terrainTypeAt(xy MapCoords) int {
-	return m.terrainTypeAtIndex(m.terrainMap.CoordsToIndex(xy))
+func (m *TerrainTypeMap) terrainTypeAt(xy UnitCoords) int {
+	return m.terrainTypeAtIndex(m.terrainMap.CoordsToIndex(xy.ToMapCoords()))
 }
 func (m *TerrainTypeMap) terrainTypeAtIndex(ix int) int {
 	terrain := m.terrainMap.getTileAtIndex(ix)

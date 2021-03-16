@@ -24,7 +24,7 @@ func NewButton(text string, x, y float64, width, height int, font *lib.Font) *Bu
 
 func (b *Button) SetText(text string) {
 	b.label.Clear()
-	b.label.SetText(text, 0, false)
+	b.label.SetText(text, 0)
 }
 func (b *Button) Draw(dst *ebiten.Image) {
 	b.label.Draw(dst)

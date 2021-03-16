@@ -91,7 +91,7 @@ func NewMainScreen(g *Game, options *lib.Options, audioPlayer *AudioPlayer, rand
 		&g.gameData.Icons.Sprites, &g.scenarioData.Data.DaytimePalette, &g.scenarioData.Data.NightPalette)
 	s.mapView.SetCursorPosition(lib.MapCoords{scenario.MinX + 10, scenario.MinY + 9})
 	s.messageBox = NewMessageBox(0, 22, 336, 40, g.gameData.Sprites.GameFont)
-	s.messageBox.Print("PREPARE FOR BATTLE!", 12, 1, false)
+	s.messageBox.Print("PREPARE FOR BATTLE!", 12, 1)
 	s.statusBar = NewMessageBox(0, 62, 376, 8, g.gameData.Sprites.GameFont)
 	s.statusBar.SetTextColor(16)
 	s.statusBar.SetRowBackground(0, 30)
@@ -180,9 +180,9 @@ func (s *MainScreen) Update() error {
 				s.idleTicksLeft = 0
 				s.statusBar.Clear()
 				if s.isFrozen {
-					s.statusBar.Print("FROZEN", 2, 0, false)
+					s.statusBar.Print("FROZEN", 2, 0)
 				} else {
-					s.statusBar.Print("UNFROZEN", 2, 0, false)
+					s.statusBar.Print("UNFROZEN", 2, 0)
 				}
 			case StatusReport:
 				if !s.gameOver {
@@ -234,8 +234,8 @@ func (s *MainScreen) Update() error {
 				s.gameState.SwitchSides()
 				s.mapView.HideIcon()
 				s.messageBox.Clear()
-				s.messageBox.Print(s.scenarioData.Data.Sides[s.playerSide]+" PLAYER:", 2, 0, false)
-				s.messageBox.Print("PRESS \"T\" TO CONTINUE", 2, 1, false)
+				s.messageBox.Print(s.scenarioData.Data.Sides[s.playerSide]+" PLAYER:", 2, 0)
+				s.messageBox.Print("PRESS \"T\" TO CONTINUE", 2, 1)
 				if !s.areUnitsHidden {
 					s.toggleHideUnits()
 				}
@@ -379,7 +379,7 @@ loop:
 		case lib.Initialized:
 			s.idleTicksLeft = 60
 			s.statusBar.Clear()
-			s.statusBar.Print(s.dateTimeString(), 2, 0, false)
+			s.statusBar.Print(s.dateTimeString(), 2, 0)
 			break loop
 		case lib.MessageFromUnit:
 			unit := message.Unit()
@@ -400,14 +400,14 @@ loop:
 		case lib.Reinforcements:
 			if message.Sides[s.playerSide] {
 				s.messageBox.Clear()
-				s.messageBox.Print("REINFORCEMENTS!", 2, 1, false)
+				s.messageBox.Print("REINFORCEMENTS!", 2, 1)
 				s.idleTicksLeft = 100
 			}
 			break loop
 		case lib.GameOver:
 			s.gameOver = true
 			s.showStatusReport()
-			s.statusBar.Print("GAME OVER, PRESS '?' FOR RESULTS.", 2, 0, false)
+			s.statusBar.Print("GAME OVER, PRESS '?' FOR RESULTS.", 2, 0)
 			s.sync.Stop()
 			break loop
 		case lib.UnitMove:
@@ -424,21 +424,20 @@ loop:
 			}
 		case lib.WeatherForecast:
 			s.messageBox.Clear()
-			s.messageBox.Print(fmt.Sprintf("WEATHER FORECAST: %s", s.scenarioData.Data.Weather[message.Weather]), 2, 0, false)
+			s.messageBox.Print(fmt.Sprintf("WEATHER FORECAST: %s", s.scenarioData.Data.Weather[message.Weather]), 2, 0)
 		case lib.SupplyDistributionStart:
 			s.mapView.HideIcon()
-			s.messageBox.Print(" SUPPLY DISTRIBUTION ", 2, 1, true)
+			s.messageBox.Print("* SUPPLY DISTRIBUTION *", 2, 1)
 		case lib.SupplyDistributionEnd:
 		case lib.DailyUpdate:
-			s.messageBox.Print(fmt.Sprintf("%d DAYS REMAINING.", message.DaysRemaining), 2, 2, false)
-			s.messageBox.Print("SUPPLY LEVEL:", 2, 3, true)
+			s.messageBox.Print(fmt.Sprintf("%d DAYS REMAINING.", message.DaysRemaining), 2, 2)
 			supplyLevels := []string{"CRITICAL", "SUFFICIENT", "AMPLE"}
-			s.messageBox.Print(supplyLevels[message.SupplyLevel], 16, 3, false)
+			s.messageBox.Print(fmt.Sprintf("*SUPPLY LEVEL:* %s", supplyLevels[message.SupplyLevel]), 2, 3)
 			s.idleTicksLeft = s.options.Speed.DelayTicks()
 			break loop
 		case lib.TimeChanged:
 			s.statusBar.Clear()
-			s.statusBar.Print(s.dateTimeString(), 2, 0, false)
+			s.statusBar.Print(s.dateTimeString(), 2, 0)
 			if s.gameState.Hour() == 18 && s.gameState.Minute() == 0 {
 				s.showStatusReport()
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
@@ -452,15 +451,14 @@ loop:
 
 func (s *MainScreen) showMessageFromUnit(message lib.MessageFromUnit) {
 	s.messageBox.Clear()
-	s.messageBox.Print("MESSAGE FROM ...", 2, 0, true)
+	s.messageBox.Print("*MESSAGE FROM ...*", 2, 0)
 	messageUnit := message.Unit()
 	// The unit might have moved after sending the message.
 	unit := s.scenarioData.Units[messageUnit.Side][messageUnit.Index]
-	unitName := fmt.Sprintf("%s:", unit.FullName())
-	s.messageBox.Print(unitName, 2, 1, false)
+	s.messageBox.Print(fmt.Sprintf("%s:", unit.FullName()), 2, 1)
 	lines := strings.Split("\""+message.String()+"\"", "\n")
 	for i, line := range lines {
-		s.messageBox.Print(line, 2, 2+i, false)
+		s.messageBox.Print(line, 2, 2+i)
 	}
 	if s.areUnitCoordsVisible(unit.XY) {
 		s.mapView.ShowIcon(message.Icon(), unit.XY.ToMapCoords(), 0, -5)
@@ -476,11 +474,11 @@ func (s *MainScreen) areUnitCoordsVisible(xy lib.UnitCoords) bool {
 }
 func (s *MainScreen) tryGiveOrderAtMapCoords(xy lib.MapCoords, order lib.OrderType) {
 	s.messageBox.Clear()
-	if unit, ok := s.scenarioData.Units.FindUnitOfSideAtMapCoords(xy, s.playerSide); ok {
+	if unit, ok := s.scenarioData.Units.FindUnitOfSideAt(xy.ToUnitCoords(), s.playerSide); ok {
 		s.giveOrder(unit, order)
 		s.orderedUnit = &unit
 	} else {
-		s.messageBox.Print("NO FRIENDLY UNIT.", 2, 0, false)
+		s.messageBox.Print("NO FRIENDLY UNIT.", 2, 0)
 	}
 }
 func (s *MainScreen) giveOrder(unit lib.Unit, order lib.OrderType) {
@@ -489,22 +487,22 @@ func (s *MainScreen) giveOrder(unit lib.Unit, order lib.OrderType) {
 	switch order {
 	case lib.Reserve:
 		unit.Objective.X = 0
-		s.messageBox.Print("RESERVE", 2, 0, false)
+		s.messageBox.Print("RESERVE", 2, 0)
 	case lib.Attack:
 		unit.Objective.X = 0
-		s.messageBox.Print("ATTACKING", 2, 0, false)
+		s.messageBox.Print("ATTACKING", 2, 0)
 	case lib.Defend:
 		unit.Objective = unit.XY
-		s.messageBox.Print("DEFENDING", 2, 0, false)
+		s.messageBox.Print("DEFENDING", 2, 0)
 	case lib.Move:
-		s.messageBox.Print("MOVE WHERE ?", 2, 0, false)
+		s.messageBox.Print("MOVE WHERE ?", 2, 0)
 	}
 	s.scenarioData.Units[unit.Side][unit.Index] = unit
 }
 func (s *MainScreen) pickOrder(xy lib.UnitCoords) {
 	s.messageBox.Clear()
 	if unit, ok := s.scenarioData.Units.FindUnitOfSideAt(xy, s.playerSide); !ok {
-		s.messageBox.Print("NO FRIENDLY UNIT.", 2, 0, false)
+		s.messageBox.Print("NO FRIENDLY UNIT.", 2, 0)
 	} else {
 		commands := []string{"MOVE", "ATTACK", "DEFEND", "RESERVE", "CANCEL"}
 		s.listBox = NewListBox(4*8, 22, 7, 5, commands, s.gameData.Sprites.GameFont, func(command string) { s.orderPicked(command, unit) })
@@ -532,7 +530,7 @@ func (s *MainScreen) orderPicked(command string, unit lib.Unit) {
 func (s *MainScreen) trySetObjective(xy lib.MapCoords) {
 	if s.orderedUnit == nil {
 		s.messageBox.Clear()
-		s.messageBox.Print("GIVE ORDERS FIRST!", 2, 0, false)
+		s.messageBox.Print("GIVE ORDERS FIRST!", 2, 0)
 		return
 	}
 	s.setObjective(s.scenarioData.Units[s.orderedUnit.Side][s.orderedUnit.Index], xy.ToUnitCoords())
@@ -542,12 +540,11 @@ func (s *MainScreen) setObjective(unit lib.Unit, xy lib.UnitCoords) {
 	unit.Objective = xy
 	unit.HasLocalCommand = false
 	s.messageBox.Clear()
-	s.messageBox.Print("WHO ", 2, 0, true)
-	s.messageBox.Print(unit.FullName(), 7, 0, false)
-	s.messageBox.Print("OBJECTIVE HERE.", 2, 1, false)
+	s.messageBox.Print(fmt.Sprintf("*WHO * %s", unit.FullName()), 2, 0)
+	s.messageBox.Print("OBJECTIVE HERE.", 2, 1)
 	distance := unit.Function15_distanceToObjective()
 	if distance > 0 {
-		s.messageBox.Print(fmt.Sprintf("DISTANCE: %d MILES.", distance*s.scenarioData.Data.HexSizeInMiles), 2, 2, false)
+		s.messageBox.Print(fmt.Sprintf("DISTANCE: %d MILES.", distance*s.scenarioData.Data.HexSizeInMiles), 2, 2)
 	}
 	s.scenarioData.Units[unit.Side][unit.Index] = unit
 	s.orderedUnit = nil
@@ -557,7 +554,7 @@ func (s *MainScreen) showUnitInfo() {
 		return
 	}
 	cursorXY := s.mapView.GetCursorPosition()
-	unit, ok := s.scenarioData.Units.FindUnitAtMapCoords(cursorXY)
+	unit, ok := s.scenarioData.Units.FindUnitAt(cursorXY.ToUnitCoords())
 	if !ok {
 		return
 	}
@@ -569,70 +566,55 @@ func (s *MainScreen) showUnitInfo() {
 	}
 
 	if unit.Side != s.playerSide && !unit.InContactWithEnemy {
-		s.messageBox.Print(" NO INFORMATION ", 2, 0, true)
+		s.messageBox.Print("* NO INFORMATION *", 2, 0)
 		return
 	}
-	var nextRow int
+	text := ""
 	if unit.Side != s.playerSide {
-		s.messageBox.Print(" ENEMY UNIT ", 2, 0, true)
-		nextRow++
+		text += "* ENEMY UNIT *\n"
 	}
-	s.messageBox.Print("WHO ", 2, nextRow, true)
-	s.messageBox.Print(unit.FullName(), 7, nextRow, false)
-	nextRow++
-
-	s.messageBox.Print("    ", 2, nextRow, true)
-	var menStr string
+	text += "*WHO * " + unit.FullName() + "\n"
+	text += "*    * "
 	men := unit.MenCount
 	if unit.Side != s.playerSide {
 		men -= men % 10
 	}
 	if men > 0 {
-		menStr = fmt.Sprintf("%d MEN, ", men*s.scenarioData.Data.MenMultiplier)
+		text += fmt.Sprintf("%d MEN, ", men*s.scenarioData.Data.MenMultiplier)
 	}
-	tanks := unit.EquipCount
+	tanks := unit.TankCount
 	if unit.Side != s.playerSide {
 		tanks -= tanks % 10
 	}
 	if tanks > 0 {
-		menStr += fmt.Sprintf("%d %s, ", tanks*s.scenarioData.Data.TanksMultiplier, s.scenarioData.Data.Equipments[unit.Type])
+		text += fmt.Sprintf("%d %s, ", tanks*s.scenarioData.Data.TanksMultiplier, s.scenarioData.Data.Equipments[unit.Type])
 	}
-	s.messageBox.Print(menStr, 7, nextRow, false)
-	nextRow++
+	text += "\n"
 
 	if unit.Side == s.playerSide {
-		s.messageBox.Print("    ", 2, nextRow, true)
+		text += "*    * "
 		supplyDays := unit.SupplyLevel / (s.scenarioData.Data.AvgDailySupplyUse + s.scenarioData.Data.Data163)
 		if s.gameData.Game != lib.Crusade {
 			supplyDays /= 2
 		}
-		supplyStr := fmt.Sprintf("%d DAYS SUPPLY.", supplyDays)
+		text += fmt.Sprintf("%d DAYS SUPPLY.", supplyDays)
 		if !unit.HasSupplyLine {
-			supplyStr += " (NO SUPPLY LINE!)"
+			text += " (NO SUPPLY LINE!)"
 		}
-		s.messageBox.Print(supplyStr, 7, nextRow, false)
-		nextRow++
+		text += "\n"
 	}
 
-	s.messageBox.Print("FORM", 2, nextRow, true)
-	formationStr := s.scenarioData.Data.Formations[unit.Formation]
-	s.messageBox.Print(formationStr, 7, nextRow, false)
+	text += "*FORM* " + s.scenarioData.Data.Formations[unit.Formation]
 	if unit.Side != s.playerSide {
+		s.messageBox.Print(text, 2, 0)
 		return
 	}
-	s.messageBox.Print("EXP", 7+len(formationStr)+1, nextRow, true)
-	expStr := s.scenarioData.Data.Experience[unit.Morale/27]
-	s.messageBox.Print(expStr, 7+len(formationStr)+5, nextRow, false)
-	s.messageBox.Print("EFF", 7+len(formationStr)+5+len(expStr)+1, nextRow, true)
-	s.messageBox.Print(fmt.Sprintf("%d", 10*((256-unit.Fatigue)/25)), 7+len(formationStr)+5+len(expStr)+5, nextRow, false)
-	nextRow++
-
-	s.messageBox.Print("ORDR", 2, nextRow, true)
-	orderStr := unit.Order.String()
+	text += " *EXP* " + s.scenarioData.Data.Experience[unit.Morale/27] + " *EFF* " +
+		fmt.Sprintf("%d", 10*((256-unit.Fatigue)/25)) + "\n*ORDR* " + unit.Order.String()
 	if unit.HasLocalCommand {
-		orderStr += " (LOCAL COMMAND)"
+		text += " (LOCAL COMMAND)"
 	}
-	s.messageBox.Print(orderStr, 7, nextRow, false)
+	s.messageBox.Print(text, 2, 0)
 }
 func numberToGeneralRating(num int) string {
 	if num < 10 {
@@ -646,79 +628,50 @@ func (s *MainScreen) showGeneralInfo() {
 		return
 	}
 	cursorXY := s.mapView.GetCursorPosition()
-	unit, ok := s.scenarioData.Units.FindUnitAtMapCoords(cursorXY)
+	unit, ok := s.scenarioData.Units.FindUnitAt(cursorXY.ToUnitCoords())
 	if !ok {
 		return
 	}
 	s.messageBox.Clear()
 	if unit.Side != s.playerSide {
-		s.messageBox.Print(" NO INFORMATION ", 2, 0, true)
+		s.messageBox.Print("* NO INFORMATION *", 2, 0)
 		return
 	}
 	general := unit.General
-	s.messageBox.Print("GENERAL ", 2, 0, true)
-	s.messageBox.Print(general.Name, 11, 0, false)
-	s.messageBox.Print("("+s.scenarioData.Data.Sides[unit.Side]+")", 23, 0, false)
-	s.messageBox.Print("ATTACK  ", 2, 1, true)
-	s.messageBox.Print(numberToGeneralRating(general.Attack), 11, 1, false)
-	s.messageBox.Print("DEFEND  ", 2, 2, true)
-	s.messageBox.Print(numberToGeneralRating(general.Defence), 11, 2, false)
-	s.messageBox.Print("MOVEMENT", 2, 3, true)
-	s.messageBox.Print(numberToGeneralRating(general.Movement), 11, 3, false)
+	s.messageBox.Print(fmt.Sprintf("*GENERAL * %-12s(%s)", general.Name, s.scenarioData.Data.Sides[unit.Side]), 2, 0)
+	s.messageBox.Print("*ATTACK  * "+numberToGeneralRating(general.Attack), 2, 1)
+	s.messageBox.Print("*DEFEND  * "+numberToGeneralRating(general.Defence), 2, 2)
+	s.messageBox.Print("*MOVEMENT* "+numberToGeneralRating(general.Movement), 2, 3)
 }
 func (s *MainScreen) showCityInfo() {
 	s.messageBox.Clear()
 	cursorXY := s.mapView.GetCursorPosition()
-	city, ok := s.scenarioData.Terrain.FindCityAtMapCoords(cursorXY)
+	city, ok := s.scenarioData.Terrain.FindCityAt(cursorXY.ToUnitCoords())
 	if !ok {
-		s.messageBox.Print("NONE", 2, 0, false)
+		s.messageBox.Print("NONE", 2, 0)
 		return
 	}
-	s.messageBox.Print(city.Name, 2, 0, false)
-	s.messageBox.Print(fmt.Sprintf("%d VICTORY POINTS, %s", city.VictoryPoints, s.scenarioData.Data.Sides[city.Owner]), 2, 1, false)
+	s.messageBox.Print(city.Name, 2, 0)
+	msg := fmt.Sprintf("%d VICTORY POINTS, %s", city.VictoryPoints, s.scenarioData.Data.Sides[city.Owner])
+	s.messageBox.Print(msg, 2, 1)
 }
 func (s *MainScreen) showStatusReport() {
 	s.messageBox.Clear()
 	if s.gameData.Game != lib.Conflict {
-		s.messageBox.Print("STATUS REPORT", 2, 0, true)
-		s.messageBox.Print(s.scenarioData.Data.Sides[0], 16, 0, false)
-		s.messageBox.Print(s.scenarioData.Data.Sides[1], 26, 0, false)
+		s.messageBox.Print(fmt.Sprintf("*STATUS REPORT* %-10s%-10s", s.scenarioData.Data.Sides[0], s.scenarioData.Data.Sides[1]), 2, 0)
+		s.messageBox.Print(fmt.Sprintf("* TROOPS LOST * %-10d%-10d", s.gameState.MenLost(0), s.gameState.MenLost(1)), 2, 1)
+		s.messageBox.Print(fmt.Sprintf("* TANKS  LOST * %-10d%-10d", s.gameState.TanksLost(0), s.gameState.TanksLost(1)), 2, 2)
+		s.messageBox.Print(fmt.Sprintf("* CITIES HELD * %-10d%-10d", s.gameState.CitiesHeld(0), s.gameState.CitiesHeld(1)), 2, 3)
 	} else {
-		s.messageBox.Print(" STATUS REPORT ", 2, 0, true)
-		s.messageBox.Print(s.scenarioData.Data.Sides[0], 19, 0, false)
-		s.messageBox.Print(s.scenarioData.Data.Sides[1], 29, 0, false)
-	}
-	if s.gameData.Game != lib.Conflict {
-		s.messageBox.Print(" TROOPS LOST ", 2, 1, true)
-		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.MenLost(0)), 16, 1, false)
-		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.MenLost(1)), 26, 1, false)
-	} else {
-		s.messageBox.Print(" CASUALTIES    ", 2, 1, true)
-		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.MenLost(0)), 19, 1, false)
-		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.MenLost(1)), 29, 1, false)
-	}
-	if s.gameData.Game != lib.Conflict {
-		s.messageBox.Print(" TANKS  LOST ", 2, 2, true)
-		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.TanksLost(0)), 16, 2, false)
-		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.TanksLost(1)), 26, 2, false)
-	} else {
-		s.messageBox.Print(" MATERIEL      ", 2, 2, true)
-		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.TanksLost(0)), 19, 2, false)
-		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.TanksLost(1)), 29, 2, false)
-	}
-	if s.gameData.Game != lib.Conflict {
-		s.messageBox.Print(" CITIES HELD ", 2, 3, true)
-		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.CitiesHeld(0)), 16, 3, false)
-		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.CitiesHeld(1)), 26, 3, false)
-	} else {
-		s.messageBox.Print(" TERRITORY     ", 2, 3, true)
-		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.CitiesHeld(0)), 19, 3, false)
-		s.messageBox.Print(fmt.Sprintf("%d", s.gameState.CitiesHeld(1)), 29, 3, false)
+		s.messageBox.Print(fmt.Sprintf("* STATUS REPORT *  %-10s%-10s", s.scenarioData.Data.Sides[0], s.scenarioData.Data.Sides[1]), 2, 0)
+		s.messageBox.Print(fmt.Sprintf("* CASUALTIES    *  %-10d%-10d", s.gameState.MenLost(0), s.gameState.MenLost(1)), 2, 1)
+		s.messageBox.Print(fmt.Sprintf("* MATERIEL      *  %-10d%-10d", s.gameState.TanksLost(0), s.gameState.MenLost(1)), 2, 2)
+		s.messageBox.Print(fmt.Sprintf("* TERRITORY     *  %-10d%-10d", s.gameState.CitiesHeld(0), s.gameState.CitiesHeld(1)), 2, 3)
 	}
 	winningSide, advantage := s.gameState.WinningSideAndAdvantage()
 	advantageStrs := []string{"SLIGHT", "MARGINAL", "TACTICAL", "DECISIVE", "TOTAL"}
 	winningSideStr := s.scenarioData.Data.Sides[winningSide]
-	s.messageBox.Print(fmt.Sprintf("%s %s ADVANTAGE.", advantageStrs[advantage], winningSideStr), 2, 4, false)
+	s.messageBox.Print(fmt.Sprintf("%s %s ADVANTAGE.", advantageStrs[advantage], winningSideStr), 2, 4)
 }
 func (s *MainScreen) toggleHideUnits() {
 	if s.areUnitsHidden {
@@ -761,7 +714,7 @@ func (s *MainScreen) changeGameSpeed(faster bool) {
 		s.options.Speed = s.options.Speed.Slower()
 	}
 	s.messageBox.Clear()
-	s.messageBox.Print("SPEED: "+s.options.Speed.String(), 2, 0, false)
+	s.messageBox.Print("SPEED: "+s.options.Speed.String(), 2, 0)
 }
 
 func (s *MainScreen) dateTimeString() string {
@@ -782,8 +735,8 @@ func (s *MainScreen) screenCoordsToUnitCoords(screenX, screenY int) lib.UnitCoor
 
 func (s *MainScreen) saveGame() {
 	s.messageBox.Clear()
-	s.messageBox.Print("(PRESS ESCAPE TO CANCEL)", 2, 1, false)
-	s.messageBox.Print("SAVE SCENARIO NAME: ?", 2, 2, false)
+	s.messageBox.Print("(PRESS ESCAPE TO CANCEL)", 2, 1)
+	s.messageBox.Print("SAVE SCENARIO NAME: ?", 2, 2)
 	s.inputBox = NewInputBox(23*8., 22+2*8., 8, s.gameData.Sprites.GameFont, func(filename string) { s.saveGameToFile(filename) })
 }
 func (s *MainScreen) saveGameToFile(filename string) {
@@ -792,62 +745,62 @@ func (s *MainScreen) saveGameToFile(filename string) {
 		s.messageBox.Clear()
 		return
 	}
-	s.messageBox.Print(filename, 23, 2, false)
+	s.messageBox.Print(filename, 23, 2)
 	dir, err := saveDir(s.gameData.Scenarios[s.selectedScenario].FilePrefix)
 	if err != nil {
-		s.messageBox.Print("DISK ERROR: 1", 2, 4, false)
+		s.messageBox.Print("DISK ERROR: 1", 2, 4)
 		return
 	}
 	if err := os.MkdirAll(dir, 0700); err != nil {
-		s.messageBox.Print("DISK ERROR: 2", 2, 4, false)
+		s.messageBox.Print("DISK ERROR: 2", 2, 4)
 		return
 	}
 	file, err := os.Create(filepath.Join(dir, filename+".sav"))
 	if err != nil {
-		s.messageBox.Print("DISK ERROR: 3", 2, 4, false)
+		s.messageBox.Print("DISK ERROR: 3", 2, 4)
 		return
 	}
 	defer file.Close()
 	scenarioFilePrefix := s.gameData.Scenarios[s.selectedScenario].FilePrefix
 	if _, err := file.Write([]byte(scenarioFilePrefix)); err != nil {
-		s.messageBox.Print("DISK ERROR: 4", 2, 4, false)
+		s.messageBox.Print("DISK ERROR: 4", 2, 4)
 		return
 	}
 	if _, err := file.Write([]byte{0}); err != nil {
-		s.messageBox.Print("DISK ERROR: 5", 2, 4, false)
+		s.messageBox.Print("DISK ERROR: 5", 2, 4)
 		return
 	}
 	if err := binary.Write(file, binary.LittleEndian, uint8(s.selectedScenario)); err != nil {
-		s.messageBox.Print("DISK ERROR: 6", 2, 4, false)
+		s.messageBox.Print("DISK ERROR: 6", 2, 4)
 		return
 	}
 	if err := binary.Write(file, binary.LittleEndian, uint8(s.selectedVariant)); err != nil {
-		s.messageBox.Print("DISK ERROR: 7", 2, 4, false)
+		s.messageBox.Print("DISK ERROR: 7", 2, 4)
 		return
 	}
 	if err := s.options.Write(file); err != nil {
-		s.messageBox.Print("DISK ERROR: 8", 2, 4, false)
+		s.messageBox.Print("DISK ERROR: 8", 2, 4)
 		return
 	}
 	if err := s.gameState.Save(file); err != nil {
-		s.messageBox.Print("DISK ERROR: 10", 2, 4, false)
+		s.messageBox.Print("DISK ERROR: 10", 2, 4)
 		return
 	}
-	s.messageBox.Print("COMPLETED", 2, 4, false)
+	s.messageBox.Print("COMPLETED", 2, 4)
 }
 func (s *MainScreen) loadGame() {
 	s.messageBox.Clear()
 	saveFiles := listSaveFiles(s.gameData.Scenarios[s.selectedScenario].FilePrefix)
 	if len(saveFiles) == 0 {
-		s.messageBox.Print("NO SAVEFILES FOUND", 2, 1, false)
+		s.messageBox.Print("NO SAVEFILES FOUND", 2, 1)
 		return
 	}
 	saveNames := make([]string, 0, len(saveFiles))
 	for _, filename := range saveFiles {
 		saveNames = append(saveNames, strings.TrimSuffix(filename, ".sav"))
 	}
-	s.messageBox.Print("(PRESS ESCAPE TO CANCEL)", 2, 1, false)
-	s.messageBox.Print("LOAD SCENARIO NAME: ?", 2, 2, false)
+	s.messageBox.Print("(PRESS ESCAPE TO CANCEL)", 2, 1)
+	s.messageBox.Print("LOAD SCENARIO NAME: ?", 2, 2)
 	listLen := len(saveNames)
 	if listLen > 8 {
 		listLen = 8
@@ -864,31 +817,31 @@ func (s *MainScreen) loadGameFromFile(filename string) {
 		s.messageBox.Clear()
 		return
 	}
-	s.messageBox.Print(filename, 23, 2, false)
+	s.messageBox.Print(filename, 23, 2)
 	dir, err := saveDir(s.gameData.Scenarios[s.selectedScenario].FilePrefix)
 	if err != nil {
-		s.messageBox.Print("DISK ERROR: 1", 2, 4, false)
+		s.messageBox.Print("DISK ERROR: 1", 2, 4)
 		return
 	}
 	file, err := os.Open(filepath.Join(dir, filename+".sav"))
 	if err != nil {
-		s.messageBox.Print("CANNOT OPEN SAVEFILE", 2, 4, false)
+		s.messageBox.Print("CANNOT OPEN SAVEFILE", 2, 4)
 		return
 	}
 	defer file.Close()
 	reader := bufio.NewReader(file)
 	prefix, err := reader.ReadString(0)
 	if err != nil {
-		s.messageBox.Print("DISK ERROR: 3", 2, 4, false)
+		s.messageBox.Print("DISK ERROR: 3", 2, 4)
 		return
 	}
 	var selectedScenario, selectedVariant uint8
 	if err := binary.Read(reader, binary.LittleEndian, &selectedScenario); err != nil {
-		s.messageBox.Print("DISK ERROR: 4", 2, 4, false)
+		s.messageBox.Print("DISK ERROR: 4", 2, 4)
 		return
 	}
 	if err := binary.Read(reader, binary.LittleEndian, &selectedVariant); err != nil {
-		s.messageBox.Print("DISK ERROR: 5", 2, 5, false)
+		s.messageBox.Print("DISK ERROR: 5", 2, 5)
 		return
 	}
 	// strip the 0 delimiter from the end of the prefix
@@ -903,26 +856,25 @@ func (s *MainScreen) loadGameFromFile(filename string) {
 		}
 	}
 	if !scenarioFound || int(selectedScenario) != s.selectedScenario {
-		s.messageBox.Print("WARNING:", 2, 4, true)
-		s.messageBox.Print(" SCENARIO MISMATCH", 12, 4, false)
+		s.messageBox.Print("*WARNING:*   SCENARIO MISMATCH", 2, 4)
 		return
 	}
 	if err := s.options.Read(reader); err != nil {
-		s.messageBox.Print("DISK ERROR: 6", 2, 4, false)
+		s.messageBox.Print("DISK ERROR: 6", 2, 4)
 		return
 	}
 	if !s.areUnitsHidden {
 		s.toggleHideUnits()
 	}
 	if err := s.gameState.Load(reader); err != nil {
-		s.messageBox.Print("DISK ERROR: 7", 2, 4, false)
+		s.messageBox.Print("DISK ERROR: 7", 2, 4)
 		return
 	}
 	if _, err := reader.ReadByte(); err != io.EOF {
-		s.messageBox.Print("DISK ERROR: 8", 2, 4, false)
+		s.messageBox.Print("DISK ERROR: 8", 2, 4)
 	}
-	s.messageBox.Print("COMPLETED", 2, 3, false)
-	s.messageBox.Print("PRESS \"T\" TO CONTINUE", 2, 4, false)
+	s.messageBox.Print("COMPLETED", 2, 3)
+	s.messageBox.Print("PRESS \"T\" TO CONTINUE", 2, 4)
 
 }
 

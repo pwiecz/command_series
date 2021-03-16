@@ -31,11 +31,10 @@ func NewLabel(text string, x, y float64, width, height int, font *lib.Font) *Lab
 		dirty:           true,
 		cells:           make([]labelCell, numCells),
 		targetCells:     make([]labelCell, numCells)}
-	l.SetText(text, 0, false)
-	for x := len(text); x < numCells; x++ {
+	for x := 0; x < numCells; x++ {
 		l.targetCells[x].rune = ' '
-
 	}
+	l.SetText(text, 0)
 	return l
 }
 func (l *Label) SetBackgroundColor(color int) {
@@ -58,15 +57,24 @@ func (l *Label) Clear() {
 		l.targetCells[i].inverted = false
 	}
 }
-func (l *Label) SetText(text string, x int, inverted bool) {
+func (l *Label) SetText(text string, x int) {
+	inverted := false
+	escape := false
 	for _, r := range text {
 		if x >= len(l.targetCells) {
 			return
 		}
-		l.targetCells[x].rune = r
-		l.targetCells[x].inverted = inverted
-		l.dirty = true
-		x++
+		if r == '\\' && !escape {
+			escape = true
+		} else if r == '*' && !escape {
+			inverted = !inverted
+		} else {
+			l.targetCells[x].rune = r
+			l.targetCells[x].inverted = inverted
+			l.dirty = true
+			escape = false
+			x++
+		}
 	}
 }
 func (l *Label) ContainsPoint(x, y int) bool {

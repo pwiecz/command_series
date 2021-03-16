@@ -26,7 +26,7 @@ type Terrain struct {
 	Coeffs [16][16]int // Bytes [768-1024]
 }
 
-func (t Terrain) IsCityAtUnitCoords(xy UnitCoords) bool {
+func (t Terrain) IsCityAt(xy UnitCoords) bool {
 	for _, city := range t.Cities {
 		if city.VictoryPoints > 0 && city.XY == xy {
 			return true
@@ -34,18 +34,9 @@ func (t Terrain) IsCityAtUnitCoords(xy UnitCoords) bool {
 	}
 	return false
 }
-func (t Terrain) FindCityAtUnitCoords(xy UnitCoords) (City, bool) {
+func (t Terrain) FindCityAt(xy UnitCoords) (City, bool) {
 	for _, city := range t.Cities {
 		if city.VictoryPoints > 0 && city.XY == xy {
-			return city, true
-		}
-	}
-	return City{}, false
-}
-func (t Terrain) FindCityAtMapCoords(xy MapCoords) (City, bool) {
-	uxy := xy.ToUnitCoords()
-	for _, city := range t.Cities {
-		if city.VictoryPoints > 0 && city.XY == uxy {
 			return city, true
 		}
 	}

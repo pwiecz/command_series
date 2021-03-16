@@ -43,7 +43,7 @@ type Unit struct {
 	SeenByEnemy          bool // &64 != 0
 	IsInGame             bool // &128 != 0
 	XY                   UnitCoords
-	MenCount, EquipCount int
+	MenCount, TankCount int
 	Formation            int
 	SupplyUnit           int // Index of this unit's supply unit
 	FormationTopBit      bool
@@ -93,31 +93,10 @@ func (u Units) FindUnitAt(xy UnitCoords) (Unit, bool) {
 	}
 	return Unit{}, false
 }
-func (u Units) FindUnitAtMapCoords(xy MapCoords) (Unit, bool) {
-	uxy := xy.ToUnitCoords()
-	for _, sideUnits := range u {
-		for i := range sideUnits {
-			if sideUnits[i].IsInGame && sideUnits[i].XY == uxy {
-				return sideUnits[i], true
-			}
-		}
-	}
-	return Unit{}, false
-}
 func (u Units) FindUnitOfSideAt(xy UnitCoords, side int) (Unit, bool) {
 	sideUnits := u[side]
 	for i := range sideUnits {
 		if sideUnits[i].IsInGame && sideUnits[i].XY == xy {
-			return sideUnits[i], true
-		}
-	}
-	return Unit{}, false
-}
-func (u Units) FindUnitOfSideAtMapCoords(xy MapCoords, side int) (Unit, bool) {
-	uxy := xy.ToUnitCoords()
-	sideUnits := u[side]
-	for i := range sideUnits {
-		if sideUnits[i].IsInGame && sideUnits[i].XY == uxy {
 			return sideUnits[i], true
 		}
 	}
@@ -207,7 +186,7 @@ func ParseUnit(data [16]byte, unitTypeNames []string, unitNames []string, genera
 	unit.XY.X = int(data[1])
 	unit.XY.Y = int(data[2])
 	unit.MenCount = int(data[3])
-	unit.EquipCount = int(data[4])
+	unit.TankCount = int(data[4])
 	unit.Formation = int(data[5] & 7) // formation's bit 4 seems unused
 	unit.SupplyUnit = int((data[5] / 16) & 7)
 	unit.FormationTopBit = data[5]&128 != 0
@@ -334,7 +313,7 @@ func (u *Unit) Write(writer io.Writer) error {
 	data[1] = byte(u.XY.X)
 	data[2] = byte(u.XY.Y)
 	data[3] = byte(u.MenCount)
-	data[4] = byte(u.EquipCount)
+	data[4] = byte(u.TankCount)
 	data[5] = byte(u.Formation) + byte(u.SupplyUnit<<4)
 	if u.FormationTopBit {
 		data[5] |= 128
