@@ -23,6 +23,7 @@ func NewFinalResult(result, difficulty, rank int, font *lib.Font, onRestartGame 
 		NewLabel("PLAY BALANCE: "+difficultyStrings[difficulty], 56, 123, 300, 8, font),
 		NewLabel("YOUR RANK:    "+rankStrings[rank], 56, 134, 300, 8, font)}
 	for _, label := range text {
+		label.SetTextColor(0)
 		label.SetBackgroundColor(15)
 	}
 
