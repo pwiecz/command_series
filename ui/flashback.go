@@ -20,13 +20,10 @@ type Flashback struct {
 
 func NewFlashback(mapView *MapView, messageBox *MessageBox, flashback lib.FlashbackHistory, terrainTypeMap *lib.TerrainTypeMap) *Flashback {
 	messageBox.Clear()
-	messageBox.Print("FLASHBACK: DAY 1", 2, 0, false)
-	messageBox.Print(" F2 ", 2, 1, true)
-	messageBox.Print("NEXT DAY", 7, 1, false)
-	messageBox.Print(" F3 ", 2, 2, true)
-	messageBox.Print("PREVIOUS DAY", 7, 2, false)
-	messageBox.Print(" F4 ", 2, 3, true)
-	messageBox.Print("RETURN TO GAME", 7, 3, false)
+	messageBox.Print("FLASHBACK: DAY 1", 2, 0)
+	messageBox.Print("* F2 * NEXT DAY", 2, 1)
+	messageBox.Print("* F3 * PREVIOUS DAY", 2, 2)
+	messageBox.Print("* F4 * RETURN TO GAME", 2, 3)
 	return &Flashback{
 		mapView:        mapView,
 		messageBox:     messageBox,
@@ -72,7 +69,7 @@ func (f *Flashback) Draw(screen *ebiten.Image, opts *ebiten.DrawImageOptions) {
 			}
 		}
 		f.messageBox.ClearRow(0)
-		f.messageBox.Print(fmt.Sprintf("FLASHBACK: DAY %d", f.day+1), 2, 0, false)
+		f.messageBox.Print(fmt.Sprintf("FLASHBACK: DAY %d", f.day+1), 2, 0)
 		f.shownDay = f.day
 	}
 	f.mapView.Draw(screen, opts)
