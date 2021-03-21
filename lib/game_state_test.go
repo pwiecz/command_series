@@ -42,11 +42,11 @@ func TestRegression_Basic(t *testing.T) {
 		}
 	}
 
-	expectedNumMessages := 1552
+	expectedNumMessages := 1556
 	if numMessages != expectedNumMessages {
 		t.Errorf("Expecting %d messages, got %d", expectedNumMessages, numMessages)
 	}
-	expectedNumMessagesFromUnit := 77
+	expectedNumMessagesFromUnit := 75
 	if numMessagesFromUnit != expectedNumMessagesFromUnit {
 		t.Errorf("Expecting %d messages from a unit, got %d", expectedNumMessagesFromUnit, numMessagesFromUnit)
 	}
@@ -89,11 +89,11 @@ func TestRegression_Side1Player(t *testing.T) {
 		}
 	}
 
-	expectedNumMessages := 4616
+	expectedNumMessages := 4476
 	if numMessages != expectedNumMessages {
 		t.Errorf("Expecting %d messages, got %d", expectedNumMessages, numMessages)
 	}
-	expectedNumMessagesFromUnit := 117
+	expectedNumMessagesFromUnit := 101
 	if numMessagesFromUnit != expectedNumMessagesFromUnit {
 		t.Errorf("Expecting %d messages from a unit, got %d", expectedNumMessagesFromUnit, numMessagesFromUnit)
 	}
@@ -138,11 +138,11 @@ func TestRegression_TwoPlayers(t *testing.T) {
 		}
 	}
 
-	expectedNumMessages := 15378
+	expectedNumMessages := 15402
 	if numMessages != expectedNumMessages {
 		t.Errorf("Expecting %d messages, got %d", expectedNumMessages, numMessages)
 	}
-	expectedNumMessagesFromUnit := 84
+	expectedNumMessagesFromUnit := 190
 	if numMessagesFromUnit != expectedNumMessagesFromUnit {
 		t.Errorf("Expecting %d messages from a unit, got %d", expectedNumMessagesFromUnit, numMessagesFromUnit)
 	}
@@ -185,16 +185,16 @@ func TestRegression_RegressionPanicInCampaign(t *testing.T) {
 		}
 	}
 
-	expectedNumMessages := 456476
+	expectedNumMessages := 442118
 	if numMessages != expectedNumMessages {
 		t.Errorf("Expecting %d messages, got %d", expectedNumMessages, numMessages)
 	}
-	expectedNumMessagesFromUnit := 3846
+	expectedNumMessagesFromUnit := 3404
 	if numMessagesFromUnit != expectedNumMessagesFromUnit {
 		t.Errorf("Expecting %d messages from a unit, got %d", expectedNumMessagesFromUnit, numMessagesFromUnit)
 	}
 
-	expectedResult, expectedBalance, expectedRank := 3, 2, 3
+	expectedResult, expectedBalance, expectedRank := 4, 2, 4
 	result, balance, rank := gameState.FinalResults()
 	if result != expectedResult || balance != expectedBalance || rank != expectedRank {
 		t.Errorf("Expecting %d,%d,%d final results, got %d,%d,%d",
@@ -233,16 +233,16 @@ func TestRegression_Conflict_FullIntelligence(t *testing.T) {
 		}
 	}
 
-	expectedNumMessages := 41721
+	expectedNumMessages := 43926
 	if numMessages != expectedNumMessages {
 		t.Errorf("Expecting %d messages, got %d", expectedNumMessages, numMessages)
 	}
-	expectedNumMessagesFromUnit := 1086
+	expectedNumMessagesFromUnit := 1328
 	if numMessagesFromUnit != expectedNumMessagesFromUnit {
 		t.Errorf("Expecting %d messages from a unit, got %d", expectedNumMessagesFromUnit, numMessagesFromUnit)
 	}
 
-	expectedResult, expectedBalance, expectedRank := 4, 2, 4
+	expectedResult, expectedBalance, expectedRank := 3, 2, 3
 	result, balance, rank := gameState.FinalResults()
 	if result != expectedResult || balance != expectedBalance || rank != expectedRank {
 		t.Errorf("Expecting %d,%d,%d final results, got %d,%d,%d",

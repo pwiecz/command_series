@@ -444,35 +444,18 @@ nextUnit:
 			unit.Formation != s.scenarioData.Data176[0][2] {
 			goto end
 		}
-		if unit.FormationTopBit {
-			s.terrainTypes.hideUnit(unit)
-			if !s.sync.SendUpdate(UnitMove{unit, unit.XY.ToMapCoords(), sxy.ToMapCoords()}) {
-				quit = true
-				return
-			}
-			s.terrainTypes.showUnit(unit)
-			if s.game == Conflict {
-				unit.InContactWithEnemy = true
-				unit.SeenByEnemy = true // |= 65
-			}
-			// function14
-		} else {
-			susceptibleToWeather := s.scenarioData.Data32[unit.Type]&8 != 0
-			if susceptibleToWeather && weather > 3 {
-				// [53767] = 0
-				goto end
-			}
-			// function27
-		}
 		// [53767] = 0
-		s.performAttack(&unit, sxy, weather, &message)
+		if s.performAttack(&unit, sxy, weather, &message) {
+			quit = true
+			return
+		}
 	}
 end: // l3
 	for unit.Formation != unit.TargetFormation {
 		dir := Sign(unit.Formation - unit.TargetFormation)
 		speed := s.scenarioData.FormationChangeSpeed[(dir+1)/2][unit.Formation]
 		if speed > Rand(15, s.rand) {
-			unit.FormationTopBit = false
+			unit.LongRangeAttack = false
 			unit.Formation -= dir
 		}
 		if speed&16 == 0 {
@@ -501,7 +484,7 @@ func (s *GameState) performUnitMovement(unit *Unit, message *MessageFromUnit, ar
 		attackRange := (d32 & 31) * 2
 		if distance > 0 && distance <= attackRange && unit.Order == Attack {
 			sxy = unit.Objective
-			unit.FormationTopBit = true
+			unit.LongRangeAttack = true
 			*arg1 = 7
 			return // goto l2
 		}
@@ -620,7 +603,28 @@ func (s *GameState) performUnitMovement(unit *Unit, message *MessageFromUnit, ar
 	return
 }
 
-func (s *GameState) performAttack(unit *Unit, sxy UnitCoords, weather int, message *MessageFromUnit) {
+func (s *GameState) performAttack(unit *Unit, sxy UnitCoords, weather int, message *MessageFromUnit) (shouldQuit bool) {
+	if !unit.LongRangeAttack {
+		s.terrainTypes.hideUnit(*unit)
+		if !s.sync.SendUpdate(UnitMove{*unit, unit.XY.ToMapCoords(), sxy.ToMapCoords()}) {
+			shouldQuit = true
+			return
+		}
+		s.terrainTypes.showUnit(*unit)
+		if s.game == Conflict {
+			unit.InContactWithEnemy = true
+			unit.SeenByEnemy = true // |= 65
+		}
+		// function14
+	} else {
+		susceptibleToWeather := s.scenarioData.Data32[unit.Type]&8 != 0
+		if susceptibleToWeather && weather > 3 {
+			// [53767] = 0
+			return // goto end
+		}
+		// function27
+	}
+
 	if s.game != Conflict {
 		unit.InContactWithEnemy = true
 		unit.SeenByEnemy = true // |= 65
@@ -635,7 +639,7 @@ func (s *GameState) performAttack(unit *Unit, sxy UnitCoords, weather int, messa
 	{
 		tt := s.terrainTypes.terrainTypeAt(unit.XY)
 		var menCoeff int
-		if !unit.FormationTopBit {
+		if !unit.LongRangeAttack {
 			menCoeff = s.scenarioData.TerrainMenAttack[tt] * s.scenarioData.FormationMenAttack[unit.Formation] * unit.MenCount / 32
 		}
 		tankCoeff := s.scenarioData.TerrainTankAttack[tt] * s.scenarioData.FormationTankAttack[unit.Formation] * s.scenarioData.Data16High[unit.Type] / 2 * unit.TankCount / 64
@@ -643,7 +647,7 @@ func (s *GameState) performAttack(unit *Unit, sxy UnitCoords, weather int, messa
 		if s.game == Conflict {
 			susceptibleToWeather = (s.scenarioData.Data32[unit.Type] & 32) != 0
 		}
-		if unit.FormationTopBit && susceptibleToWeather {
+		if unit.LongRangeAttack && susceptibleToWeather {
 			// long range unit
 			if weather > 3 {
 				return //goto end
@@ -678,7 +682,7 @@ func (s *GameState) performAttack(unit *Unit, sxy UnitCoords, weather int, messa
 		arg1 += weather
 	}
 	arg1 = Clamp(arg1, 0, 63)
-	if !unit.FormationTopBit || s.scenarioData.Data32[unit.Type]&128 == 0 {
+	if !unit.LongRangeAttack || s.scenarioData.Data32[unit.Type]&128 == 0 {
 		menLost := Clamp((Rand(unit.MenCount*arg1, s.rand)+255)/512, 0, unit.MenCount)
 		s.menLost[unit.Side] += menLost
 		unit.MenCount -= menLost
@@ -716,7 +720,7 @@ func (s *GameState) performAttack(unit *Unit, sxy UnitCoords, weather int, messa
 	unit2.TankCount -= tanksLost2
 	unit2.SupplyLevel = Clamp(unit2.SupplyLevel-s.scenarioData.Data163, 0, 255)
 	if s.scenarioData.UnitCanMove[unit2.Type] &&
-		((s.game != Conflict && !unit.FormationTopBit) ||
+		((s.game != Conflict && !unit.LongRangeAttack) ||
 			(s.game == Conflict && s.scenarioData.UnitMask[unit2.Type]&2 == 0)) &&
 		arg1-s.scenarioData.Data0Low[unit2.Type]*2+unit2.Fatigue/4 > 36 {
 		unit2.Morale = Abs(unit2.Morale - 1)
@@ -779,7 +783,7 @@ func (s *GameState) performAttack(unit *Unit, sxy UnitCoords, weather int, messa
 				*message = WeAreRetreating{unit2}
 			}
 			tt := s.terrainTypes.terrainOrUnitTypeAt(oldXY)
-			if arg1 > 60 && (s.game != Conflict || !unit.FormationTopBit) &&
+			if arg1 > 60 && (s.game != Conflict || !unit.LongRangeAttack) &&
 				s.ai.NeighbourScore(&s.hexes.Arr96, oldXY, unit.Side) > -4 &&
 				s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[tt][unit.Type] > 0 {
 				s.terrainTypes.hideUnit(*unit)
@@ -811,7 +815,7 @@ func (s *GameState) performAttack(unit *Unit, sxy UnitCoords, weather int, messa
 		// update arg1 value if the message is still WeAreAttacking
 		*message = WeAreAttacking{attack.unit, attack.enemy, arg1, attack.formationNames}
 	}
-
+	return
 }
 
 // Has unit captured a city

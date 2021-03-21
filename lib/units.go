@@ -33,32 +33,32 @@ const (
 )
 
 type Unit struct {
-	Side                 int  // 0 or 1
-	InContactWithEnemy   bool // &1 != 0
-	IsUnderAttack        bool // &2 != 0
-	State2               bool // &4 != 0
-	HasSupplyLine        bool // &8 == 0
-	State4               bool // &16 != 0
-	HasLocalCommand      bool // &32 != 0
-	SeenByEnemy          bool // &64 != 0
-	IsInGame             bool // &128 != 0
-	XY                   UnitCoords
+	Side                int  // 0 or 1
+	InContactWithEnemy  bool // &1 != 0
+	IsUnderAttack       bool // &2 != 0
+	State2              bool // &4 != 0
+	HasSupplyLine       bool // &8 == 0
+	State4              bool // &16 != 0
+	HasLocalCommand     bool // &32 != 0
+	SeenByEnemy         bool // &64 != 0
+	IsInGame            bool // &128 != 0
+	XY                  UnitCoords
 	MenCount, TankCount int
-	Formation            int
-	SupplyUnit           int // Index of this unit's supply unit
-	FormationTopBit      bool
-	Type                 int
-	TypeName             string
-	ColorPalette         int
-	nameIndex            int
-	Name                 string
-	TargetFormation      int
-	OrderBit4            bool
-	Order                OrderType
-	generalIndex         int
-	General              General
-	SupplyLevel          int
-	Morale               int
+	Formation           int
+	SupplyUnit          int // Index of this unit's supply unit
+	LongRangeAttack     bool
+	Type                int
+	TypeName            string
+	ColorPalette        int
+	nameIndex           int
+	Name                string
+	TargetFormation     int
+	OrderBit4           bool
+	Order               OrderType
+	generalIndex        int
+	General             General
+	SupplyLevel         int
+	Morale              int
 
 	VariantBitmap        byte
 	HalfDaysUntilAppear  int
@@ -189,7 +189,7 @@ func ParseUnit(data [16]byte, unitTypeNames []string, unitNames []string, genera
 	unit.TankCount = int(data[4])
 	unit.Formation = int(data[5] & 7) // formation's bit 4 seems unused
 	unit.SupplyUnit = int((data[5] / 16) & 7)
-	unit.FormationTopBit = data[5]&128 != 0
+	unit.LongRangeAttack = data[5]&128 != 0
 	unit.VariantBitmap = data[6]
 	unit.Fatigue = int(data[6])
 	unit.Type = int(data[7] & 15)
@@ -315,7 +315,7 @@ func (u *Unit) Write(writer io.Writer) error {
 	data[3] = byte(u.MenCount)
 	data[4] = byte(u.TankCount)
 	data[5] = byte(u.Formation) + byte(u.SupplyUnit<<4)
-	if u.FormationTopBit {
+	if u.LongRangeAttack {
 		data[5] |= 128
 	}
 	data[6] = byte(u.Fatigue)
@@ -421,7 +421,7 @@ Is in game: %t
 X,Y: %v
 Formation: %d
 Supply unit: %d
-Formation top bit: %t
+Long range attack: %t
 Type: %s (%d)
 ColorPalette: %d
 Name: %s (%d)
@@ -436,5 +436,5 @@ Half-days until appear: %d
 Inv appear probability: %d
 Fatigue: %d
 ObjectiveX,ObjectiveY: %v`,
-		u.Side, u.InContactWithEnemy, u.IsUnderAttack, u.State2, u.HasSupplyLine, u.State4, u.HasLocalCommand, u.SeenByEnemy, u.IsInGame, u.XY, u.Formation, u.SupplyUnit, u.FormationTopBit, u.TypeName, u.Type, u.ColorPalette, u.Name, u.nameIndex, u.TargetFormation, u.OrderBit4, u.Order, u.General.Name, u.generalIndex, u.SupplyLevel, u.Morale, u.VariantBitmap, u.HalfDaysUntilAppear, u.InvAppearProbability, u.Fatigue, u.Objective)
+		u.Side, u.InContactWithEnemy, u.IsUnderAttack, u.State2, u.HasSupplyLine, u.State4, u.HasLocalCommand, u.SeenByEnemy, u.IsInGame, u.XY, u.Formation, u.SupplyUnit, u.LongRangeAttack, u.TypeName, u.Type, u.ColorPalette, u.Name, u.nameIndex, u.TargetFormation, u.OrderBit4, u.Order, u.General.Name, u.generalIndex, u.SupplyLevel, u.Morale, u.VariantBitmap, u.HalfDaysUntilAppear, u.InvAppearProbability, u.Fatigue, u.Objective)
 }
