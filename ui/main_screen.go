@@ -189,7 +189,7 @@ func (s *MainScreen) Update() error {
 					s.showStatusReport()
 					s.idleTicksLeft = s.options.Speed.DelayTicks()
 				} else {
-					result, balance, rank := s.gameState.FinalResults()
+					result, balance, rank := s.gameState.FinalResults(s.playerSide)
 					s.onGameOver(result, balance, rank)
 				}
 			case UnitInfo:

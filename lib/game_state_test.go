@@ -52,7 +52,7 @@ func TestRegression_Basic(t *testing.T) {
 	}
 
 	expectedResult, expectedBalance, expectedRank := 0, 2, 0
-	result, balance, rank := gameState.FinalResults()
+	result, balance, rank := gameState.FinalResults(0)
 	if result != expectedResult || balance != expectedBalance || rank != expectedRank {
 		t.Errorf("Expecting %d,%d,%d final results, got %d,%d,%d",
 			expectedResult, expectedBalance, expectedRank, result, balance, rank)
@@ -99,7 +99,7 @@ func TestRegression_Side1Player(t *testing.T) {
 	}
 
 	expectedResult, expectedBalance, expectedRank := 8, 2, 8
-	result, balance, rank := gameState.FinalResults()
+	result, balance, rank := gameState.FinalResults(0)
 	if result != expectedResult || balance != expectedBalance || rank != expectedRank {
 		t.Errorf("Expecting %d,%d,%d final results, got %d,%d,%d",
 			expectedResult, expectedBalance, expectedRank, result, balance, rank)
@@ -148,7 +148,7 @@ func TestRegression_TwoPlayers(t *testing.T) {
 	}
 
 	expectedResult, expectedBalance, expectedRank := 0, 2, 0
-	result, balance, rank := gameState.FinalResults()
+	result, balance, rank := gameState.FinalResults(0)
 	if result != expectedResult || balance != expectedBalance || rank != expectedRank {
 		t.Errorf("Expecting %d,%d,%d final results, got %d,%d,%d",
 			expectedResult, expectedBalance, expectedRank, result, balance, rank)
@@ -195,7 +195,7 @@ func TestRegression_RegressionPanicInCampaign(t *testing.T) {
 	}
 
 	expectedResult, expectedBalance, expectedRank := 0, 2, 0
-	result, balance, rank := gameState.FinalResults()
+	result, balance, rank := gameState.FinalResults(0)
 	if result != expectedResult || balance != expectedBalance || rank != expectedRank {
 		t.Errorf("Expecting %d,%d,%d final results, got %d,%d,%d",
 			expectedResult, expectedBalance, expectedRank, result, balance, rank)
@@ -243,7 +243,7 @@ func TestRegression_Conflict_FullIntelligence(t *testing.T) {
 	}
 
 	expectedResult, expectedBalance, expectedRank := 4, 2, 4
-	result, balance, rank := gameState.FinalResults()
+	result, balance, rank := gameState.FinalResults(0)
 	if result != expectedResult || balance != expectedBalance || rank != expectedRank {
 		t.Errorf("Expecting %d,%d,%d final results, got %d,%d,%d",
 			expectedResult, expectedBalance, expectedRank, result, balance, rank)

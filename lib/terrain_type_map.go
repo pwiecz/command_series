@@ -15,6 +15,9 @@ func newTerrainTypeMap(terrainMap *Map, generic *Generic) *TerrainTypeMap {
 }
 
 func (m *TerrainTypeMap) terrainOrUnitTypeAt(xy UnitCoords) int {
+	if !m.AreCoordsValid(xy.ToMapCoords()) {
+		return 7
+	}
 	return m.terrainOrUnitTypeAtIndex(m.terrainMap.CoordsToIndex(xy.ToMapCoords()))
 }
 func (m *TerrainTypeMap) terrainOrUnitTypeAtIndex(ix int) int {
