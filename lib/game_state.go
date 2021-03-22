@@ -496,7 +496,6 @@ func (s *GameState) performUnitMovement(unit *Unit, message *MessageFromUnit, ar
 				return // goto l2
 			}
 			unit.TargetFormation = s.scenarioData.function10(unit.Order, 0)
-			// If unit is player controlled or its command is local
 			if !s.commanderFlags.PlayerControlled[unit.Side] || unit.HasLocalCommand {
 				// If it's next to its objective to defend and it's in contact with enemy
 				if distance == 1 && unit.Order == Defend && unit.InContactWithEnemy {
@@ -549,7 +548,7 @@ func (s *GameState) performUnitMovement(unit *Unit, message *MessageFromUnit, ar
 		if s.game == Conflict {
 			totalMoveCost = 1023
 		}
-		if s.scenarioData.UnitMask[unit.Type]&4 != 0 {
+		if s.scenarioData.UnitMask[unit.Type]&4 == 0 {
 			if s.game != Conflict {
 				totalMoveCost += weather * 128
 			} else {
