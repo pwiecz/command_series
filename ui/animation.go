@@ -8,7 +8,7 @@ import (
 type Animation interface {
 	Update()
 	Done() bool
-	Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions)
+	Draw(screen *ebiten.Image)
 }
 
 type UnitAnimation struct {
@@ -53,14 +53,14 @@ func (a *UnitAnimation) Update() {
 func (a *UnitAnimation) Done() bool {
 	return a.elapsed >= a.frames
 }
-func (a *UnitAnimation) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
+func (a *UnitAnimation) Draw(screen *ebiten.Image) {
 	alpha := float64(a.elapsed) / float64(a.frames)
 	// Delay creating sprite to be sure that mapView.isNight is up to date.
 	// Otherwise e.g. sprite may be using daytime palette at night.
 	if a.sprite == nil {
 		a.sprite = a.mapView.GetSpriteForUnit(a.unit)
 	}
-	a.mapView.DrawSpriteBetween(a.sprite, a.xy0, a.xy1, alpha, screen, options)
+	a.mapView.DrawSpriteBetween(a.sprite, a.xy0, a.xy1, alpha, screen)
 }
 
 type IconAnimation struct {
@@ -91,9 +91,9 @@ func (a *IconAnimation) Update() {
 func (a *IconAnimation) Done() bool {
 	return a.elapsed >= a.frames
 }
-func (a *IconAnimation) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
+func (a *IconAnimation) Draw(screen *ebiten.Image) {
 	alpha := float64(a.elapsed) / float64(a.frames)
-	a.mapView.DrawSpriteBetween(a.sprite, a.xy0, a.xy1, alpha, screen, options)
+	a.mapView.DrawSpriteBetween(a.sprite, a.xy0, a.xy1, alpha, screen)
 }
 
 type IconsAnimation struct {
@@ -126,5 +126,4 @@ func (a *IconsAnimation) Update() {
 func (a *IconsAnimation) Done() bool {
 	return a.elapsed/3 >= len(a.icons)-1
 }
-func (a *IconsAnimation) Draw(screen *ebiten.Image, options *ebiten.DrawImageOptions) {
-}
+func (a *IconsAnimation) Draw(screen *ebiten.Image) {}

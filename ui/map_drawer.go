@@ -10,16 +10,11 @@ import (
 type MapDrawer struct {
 	terrainMap             *lib.Map
 	minX, minY, maxX, maxY int // map bounds to draw in map coordinates
-	image                  *ebiten.Image
-	isDirty                bool
-	subImage               *ebiten.Image
-
-	tileWidth, tileHeight int
-
-	isNight    int // 0 or 1
-	colors     *colorSchemes
-	tiles      *[48]*image.Paletted
-	tileImages [2][4][48]*ebiten.Image
+	images                 [2]*ebiten.Image
+	tileWidth, tileHeight  int
+	colors                 *colorSchemes
+	tiles                  *[48]*image.Paletted
+	tileImages             [2][4][48]*ebiten.Image
 }
 
 func NewMapDrawer(
@@ -28,76 +23,79 @@ func NewMapDrawer(
 	tiles *[48]*image.Paletted,
 	colors *colorSchemes) *MapDrawer {
 	tileBounds := tiles[0].Bounds()
-	tileWidth := tileBounds.Dx()
-	tileHeight := tileBounds.Dy()
 	return &MapDrawer{
 		terrainMap: terrainMap,
 		minX:       minX,
 		minY:       minY,
 		maxX:       maxX,
 		maxY:       maxY,
-		image:      ebiten.NewImage((maxX-minX+1)*tileWidth+tileWidth/2, (maxY-minY+1)*tileHeight),
-		isDirty:    true,
 		tiles:      tiles,
-		tileWidth:  tileWidth,
-		tileHeight: tileHeight,
+		tileWidth:  tileBounds.Dx(),
+		tileHeight: tileBounds.Dy(),
 		colors:     colors}
 }
 
-func (d *MapDrawer) getTileImage(colorScheme, tileNum byte) *ebiten.Image {
-	tileImage := d.tileImages[d.isNight][colorScheme][tileNum]
+func (d *MapDrawer) GetMapImage(isNight bool) *ebiten.Image {
+	isNightIx := 0
+	if isNight {
+		isNightIx = 1
+	}
+	if d.images[isNightIx] != nil {
+		return d.images[isNightIx]
+	}
+	d.images[isNightIx] = d.drawMapImage(isNight)
+	return d.images[isNightIx]
+}
+func (d *MapDrawer) drawMapImage(isNight bool) *ebiten.Image {
+	image := ebiten.NewImage((d.maxX-d.minX+1)*d.tileWidth+d.tileWidth/2, (d.maxY-d.minY+1)*d.tileHeight)
+	if isNight {
+		image.Fill(lib.RGBPalette[d.colors.nightPalette[2]])
+	} else {
+		image.Fill(lib.RGBPalette[d.colors.daytimePalette[2]])
+	}
+	for y := d.minY; y <= d.maxY; y++ {
+		if y >= d.terrainMap.Height {
+			break
+		}
+		for x := d.minX; x <= d.maxX; x++ {
+			if x >= d.terrainMap.Width-y%2 {
+				break
+			}
+			tileNum := d.terrainMap.GetTile(lib.MapCoords{x, y})
+			d.drawTileAt(tileNum, isNight, lib.MapCoords{x, y}, image)
+		}
+	}
+	return image
+}
+
+func (d *MapDrawer) getTileImage(colorScheme, tileNum byte, isNight bool) *ebiten.Image {
+	isNightIx := 0
+	if isNight {
+		isNightIx = 1
+	}
+	tileImage := d.tileImages[isNightIx][colorScheme][tileNum]
 	if tileImage == nil {
 		tile := d.tiles[tileNum]
-		tile.Palette = d.colors.GetBackgroundForegroundColors(colorScheme, d.isNight != 0)
+		tile.Palette = d.colors.GetBackgroundForegroundColors(colorScheme, isNight)
 		tileImage = ebiten.NewImageFromImage(tile)
-		d.tileImages[d.isNight][colorScheme][tileNum] = tileImage
+		d.tileImages[isNightIx][colorScheme][tileNum] = tileImage
 	}
 	return tileImage
 }
-func (d *MapDrawer) SetIsNight(isNight bool) {
-	if isNight != (d.isNight != 0) {
-		if isNight {
-			d.isNight = 1
-		} else {
-			d.isNight = 0
-		}
-		d.isDirty = true
-	}
-}
-func (d *MapDrawer) drawTileAt(tileNum byte, mapXY lib.MapCoords, screen *ebiten.Image) {
+func (d *MapDrawer) drawTileAt(tileNum byte, isNight bool, mapXY lib.MapCoords, screen *ebiten.Image) {
 	x, y := d.MapCoordsToImageCoords(mapXY)
 	var opts ebiten.DrawImageOptions
 	opts.GeoM.Translate(float64(x), float64(y))
-	screen.DrawImage(d.GetSpriteFromTileNum(tileNum), &opts)
+	screen.DrawImage(d.GetSpriteFromTileNum(tileNum, isNight), &opts)
 }
 func (d *MapDrawer) MapCoordsToImageCoords(mapXY lib.MapCoords) (x, y int) {
 	x = (mapXY.X-d.minX)*d.tileWidth + (mapXY.Y%2)*d.tileWidth/2
 	y = (mapXY.Y - d.minY) * d.tileHeight
 	return
 }
-func (d *MapDrawer) GetSpriteFromTileNum(tileNum byte) *ebiten.Image {
+func (d *MapDrawer) GetSpriteFromTileNum(tileNum byte, isNight bool) *ebiten.Image {
 	if tileNum&63 < 48 {
-		return d.getTileImage(tileNum/64, tileNum%64)
+		return d.getTileImage(tileNum/64, tileNum%64, isNight)
 	}
 	panic(tileNum)
-}
-func (d *MapDrawer) Draw() {
-	if d.isDirty {
-		for y := d.minY; y <= d.maxY; y++ {
-			if y >= d.terrainMap.Height {
-				break
-			}
-			for x := d.minX; x <= d.maxX; x++ {
-				if x >= d.terrainMap.Width-y%2 {
-					break
-				}
-				tileNum := d.terrainMap.GetTile(lib.MapCoords{x, y})
-				d.drawTileAt(tileNum, lib.MapCoords{x, y}, d.image)
-			}
-		}
-		d.isDirty = false
-	}
-}
-func (d *MapDrawer) GetSubImage(bounds image.Rectangle) *ebiten.Image {
-	return d.image.SubImage(bounds).(*ebiten.Image)
 }

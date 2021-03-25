@@ -83,7 +83,7 @@ func NewMainScreen(g *Game, options *lib.Options, audioPlayer *AudioPlayer, rand
 	}
 	s.gameState = lib.NewGameState(rand, g.gameData, g.scenarioData, g.selectedScenario, g.selectedVariant, s.playerSide, s.options, s.sync)
 	s.mapView = NewMapView(
-		160, 19*8,
+		8, 72, 320, 19*8,
 		g.gameData.Map, s.gameState.TerrainTypeMap(), g.scenarioData.Units,
 		scenario.MinX, scenario.MinY, scenario.MaxX, scenario.MaxY,
 		&g.gameData.Sprites.TerrainTiles,
@@ -730,7 +730,8 @@ func (s *MainScreen) dateTimeString() string {
 }
 
 func (s *MainScreen) screenCoordsToUnitCoords(screenX, screenY int) lib.UnitCoords {
-	return s.mapView.ToUnitCoords((screenX-8)/2, screenY-72)
+	//return s.mapView.ToUnitCoords((screenX-8)/2, screenY-72)
+	return s.mapView.ScreenCoordsToUnitCoords(screenX, screenY)
 }
 
 func (s *MainScreen) saveGame() {
@@ -887,13 +888,14 @@ func (s *MainScreen) Draw(screen *ebiten.Image) {
 		s.overviewMap.Draw(screen, &opts)
 		return
 	}
-
 	if !s.gameState.IsNight() {
+		screen.Fill(lib.RGBPalette[s.scenarioData.Data.DaytimePalette[2]])
 		s.leftRect.SetColor(int(s.scenarioData.Data.DaytimePalette[2]))
 		s.rightRect.SetColor(int(s.scenarioData.Data.DaytimePalette[2]))
 		s.bottomRect.SetColor(int(s.scenarioData.Data.DaytimePalette[2]))
 		s.separatorRect.SetColor(int(s.scenarioData.Data.DaytimePalette[0]))
 	} else {
+		screen.Fill(lib.RGBPalette[s.scenarioData.Data.NightPalette[2]])
 		s.leftRect.SetColor(int(s.scenarioData.Data.NightPalette[2]))
 		s.rightRect.SetColor(int(s.scenarioData.Data.NightPalette[2]))
 		s.bottomRect.SetColor(int(s.scenarioData.Data.NightPalette[2]))
@@ -902,15 +904,12 @@ func (s *MainScreen) Draw(screen *ebiten.Image) {
 	s.mapView.SetIsNight(s.gameState.IsNight())
 	s.mapView.SetUnitDisplay(s.options.UnitDisplay)
 
-	opts := ebiten.DrawImageOptions{}
-	opts.GeoM.Scale(2, 1)
-	opts.GeoM.Translate(8, 72)
 	if s.flashback != nil {
-		s.flashback.Draw(screen, &opts)
+		s.flashback.Draw(screen)
 	} else {
-		s.mapView.Draw(screen, &opts)
+		s.mapView.Draw(screen)
 		if s.animation != nil {
-			s.animation.Draw(screen, &opts)
+			s.animation.Draw(screen)
 		}
 	}
 

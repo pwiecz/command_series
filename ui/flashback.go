@@ -60,7 +60,7 @@ func (f *Flashback) Update() error {
 	return nil
 }
 
-func (f *Flashback) Draw(screen *ebiten.Image, opts *ebiten.DrawImageOptions) {
+func (f *Flashback) Draw(screen *ebiten.Image) {
 	if f.day != f.shownDay {
 		f.hideUnitsFromDay(f.shownDay)
 		if f.day < len(f.flashback) {
@@ -72,7 +72,7 @@ func (f *Flashback) Draw(screen *ebiten.Image, opts *ebiten.DrawImageOptions) {
 		f.messageBox.Print(fmt.Sprintf("FLASHBACK: DAY %d", f.day+1), 2, 0)
 		f.shownDay = f.day
 	}
-	f.mapView.Draw(screen, opts)
+	f.mapView.Draw(screen)
 }
 
 func (f *Flashback) hideUnitsFromDay(day int) {
