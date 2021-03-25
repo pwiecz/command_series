@@ -41,7 +41,7 @@ func (m *OverviewMap) Draw(screen *ebiten.Image, opts *ebiten.DrawImageOptions) 
 					col /= 16
 				}
 				// The logic of picking colors is a hack made to match the original look.
-				// There's some logic behind the colors, chosen but the condition itself is just pure hack.
+				// There's some logic behind the colors chosen, but the condition itself is just pure hack.
 				if col&15 == 6 {
 					m.image.Set(x, y, lib.RGBPalette[134])
 				} else {

@@ -9,7 +9,10 @@ import (
 
 // Representation of data parsed from GENERIC.DTA file.
 type Generic struct {
+	// Mapping form a result of neighbour location formula, to neighbour index in the array below.
 	DirectionToNeighbourIndex map[int]int // Data[0:19]
+	// Offset towards neighbour tiles in 12 directions.
+	// With 2 options to the left of the direction, 2 options to the right.
 	Neighbours                [4][12]int  // Data[20:44], Data[128:152]
 	// Offsets on a 2-byte square map 4x4.
 	// First 0 offset to the origin field itself,
@@ -29,6 +32,8 @@ type Generic struct {
 	// then to 4 neighbours in diagonal direction,
 	// then offsets to fields with distance 2 from the origin.
 	smallMapOffsets [25]int // Bytes [189:214]
+	// First two indices are positions on a 2x2 square, the third one is one of 9 neighbouring
+	// squares on 3x3 square tiling.
 	Data214         [2][2][9]int
 }
 

@@ -91,7 +91,7 @@ func (v *MapView) makeCursorVisible() {
 	for {
 		cursorScreenX, cursorScreenY := v.MapCoordsToScreenCoords(v.cursorXY)
 		// It's ok for cursor to be half width to the left from the edge,
-		//  so one AreScreenCoordsVisible is not enough.
+		// so one AreScreenCoordsVisible is not enough.
 		if v.AreScreenCoordsVisible(cursorScreenX, cursorScreenY) ||
 			v.AreScreenCoordsVisible(cursorScreenX+v.tileWidth/2*v.zoomX, cursorScreenY) {
 			break
