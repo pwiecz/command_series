@@ -91,7 +91,7 @@ func (d *Data) function10(order OrderType, offset int) int {
 // At Day change byte at Offset of the scenario data to Value.
 type DataUpdate struct {
 	Day    int
-	Offset byte
+	Offset int
 	Value  byte
 }
 
@@ -110,94 +110,8 @@ func ParseData(data []byte) (*Data, error) {
 		return nil, fmt.Errorf("Unexpected data file expecting >512, got %d", len(data))
 	}
 	scenario := &Data{}
-	for i, v := range data[0:16] {
-		scenario.Data0Low[i] = int(int8(v*16)) / 16
-		scenario.Data0High[i] = int(int8(v&240)) / 16
-	}
-	for i, v := range data[16:32] {
-		scenario.Data16Low[i] = int(v & 15)
-		scenario.Data16High[i] = int(v / 16)
-	}
-	for i, v := range data[32:48] {
-		scenario.Data32[i] = int(v)
-	}
-	for i, v := range data[48:64] {
-		scenario.UnitScores[i] = int(v)
-	}
-	for i, v := range data[64:80] {
-		scenario.RecoveryRate[i] = int(v)
-	}
-	copy(scenario.UnitMask[:], data[80:])
-	for i, v := range scenario.UnitMask {
-		scenario.UnitUsesSupplies[i] = v&8 == 0
-		scenario.UnitCanMove[i] = v&64 == 0
-	}
-	for i, v := range data[96:104] {
-		scenario.TerrainMenAttack[i] = int(v)
-	}
-	for i, v := range data[104:112] {
-		scenario.TerrainTankAttack[i] = int(v)
-	}
-	for i, v := range data[112:120] {
-		scenario.TerrainMenDefence[i] = int(v)
-	}
-	for i, v := range data[120:128] {
-		scenario.TerrainTankDefence[i] = int(v)
-	}
-	for i, v := range data[128:136] {
-		scenario.FormationMenAttack[i] = int(v)
-	}
-	for i, v := range data[136:144] {
-		scenario.FormationTankAttack[i] = int(v)
-	}
-	for i, v := range data[144:152] {
-		scenario.FormationMenDefence[i] = int(v)
-	}
-	for i, v := range data[152:160] {
-		scenario.FormationTankDefence[i] = int(v)
-	}
-	scenario.MinSupplyType = int(data[160])
-	scenario.HexSizeInMiles = int(data[161])
-	scenario.Data162 = int(data[162])
-	scenario.Data163 = int(data[163])
-	scenario.MaxResupplyAmount = int(data[164])
-	scenario.MaxSupplyTransportCost = int(data[165])
-	scenario.AvgDailySupplyUse = int(data[166])
-	scenario.Data167 = int(data[167])
-	scenario.MinutesPerTick = int(data[168])
-	scenario.UnitUpdatesPerTimeIncrement = int(data[169])
-	scenario.MenMultiplier = int(data[170])
-	scenario.TanksMultiplier = int(data[171])
-	scenario.Data173 = int(data[173])
-	scenario.Data174 = int(data[174])
-	scenario.Data175 = int(data[175])
-	for i, v := range data[176:190] {
-		scenario.Data176[i/4][i%4] = int(v)
-	}
-	for i, v := range data[192:200] {
-		scenario.Data192[i] = int(v)
-	}
-	for i, v := range data[200:216] {
-		scenario.Data200Low[i] = int(v & 7)
-		scenario.UnitResupplyPerType[i] = (int((v & 240) >> 1))
-	}
-	for i, v := range data[216:232] {
-		scenario.FormationChangeSpeed[i/8][i%8] = int(v)
-	}
-	scenario.ResupplyRate[0] = int(data[232])
-	scenario.ResupplyRate[1] = int(data[233])
-	scenario.MenReplacementRate[0] = int(data[234])
-	scenario.MenReplacementRate[1] = int(data[235])
-	scenario.TankReplacementRate[0] = int(data[236])
-	scenario.TankReplacementRate[1] = int(data[237])
-	scenario.SideColor[0] = int(data[248])
-	scenario.SideColor[1] = int(data[249])
-	scenario.Data252[0] = int(data[252])
-	scenario.Data252[1] = int(data[253])
-	for terrainType := 0; terrainType < 8; terrainType++ {
-		for unitType, cost := range data[255+16*terrainType : 255+16*(terrainType+1)] {
-			scenario.MoveSpeedPerTerrainTypeAndUnit[terrainType][unitType] = int(cost)
-		}
+	for i, value := range data[0:383] {
+		scenario.UpdateData(i, value)
 	}
 	copy(scenario.PossibleWeather[:], data[384:])
 	copy(scenario.DaytimePalette[:], data[400:])
@@ -210,7 +124,7 @@ func ParseData(data []byte) (*Data, error) {
 	}
 	for i := 0; i < 21; i++ {
 		scenario.DataUpdates[i].Day = int(data[448+i*3])
-		scenario.DataUpdates[i].Offset = data[448+1+i*3]
+		scenario.DataUpdates[i].Offset = int(data[448+1+i*3])
 		scenario.DataUpdates[i].Value = data[448+2+i*3]
 	}
 
@@ -284,39 +198,42 @@ func ParseData(data []byte) (*Data, error) {
 	return scenario, nil
 }
 
-func (s *Data) UpdateData(offset byte, value byte) {
+func (s *Data) UpdateData(offset int, value byte) {
+	if offset >= 383 {
+		panic(fmt.Errorf("Invalid offset %d", offset))
+	}
 	switch {
-	case InRange(int(offset), 0, 16):
+	case InRange(offset, 0, 16):
 		s.Data0Low[offset] = int(int8(value*16)) / 16
 		s.Data0High[offset] = int(int8(value&240)) / 16
-	case InRange(int(offset), 16, 32):
+	case InRange(offset, 16, 32):
 		s.Data16Low[offset-16] = int(value & 15)
 		s.Data16High[offset-16] = int(value / 16)
-	case InRange(int(offset), 32, 48):
+	case InRange(offset, 32, 48):
 		s.Data32[offset-32] = int(value)
-	case InRange(int(offset), 48, 64):
+	case InRange(offset, 48, 64):
 		s.UnitScores[offset-48] = int(value)
-	case InRange(int(offset), 64, 80):
+	case InRange(offset, 64, 80):
 		s.RecoveryRate[offset-64] = int(value)
-	case InRange(int(offset), 80, 96):
+	case InRange(offset, 80, 96):
 		s.UnitMask[offset-80] = value
 		s.UnitUsesSupplies[offset-80] = value&8 == 0
 		s.UnitCanMove[offset-80] = value&64 == 0
-	case InRange(int(offset), 96, 104):
+	case InRange(offset, 96, 104):
 		s.TerrainMenAttack[offset-96] = int(value)
-	case InRange(int(offset), 104, 112):
+	case InRange(offset, 104, 112):
 		s.TerrainTankAttack[offset-104] = int(value)
-	case InRange(int(offset), 112, 120):
+	case InRange(offset, 112, 120):
 		s.TerrainMenDefence[offset-112] = int(value)
-	case InRange(int(offset), 120, 128):
+	case InRange(offset, 120, 128):
 		s.TerrainTankDefence[offset-120] = int(value)
-	case InRange(int(offset), 128, 136):
+	case InRange(offset, 128, 136):
 		s.FormationMenAttack[offset-128] = int(value)
-	case InRange(int(offset), 136, 144):
+	case InRange(offset, 136, 144):
 		s.FormationTankAttack[offset-136] = int(value)
-	case InRange(int(offset), 144, 152):
+	case InRange(offset, 144, 152):
 		s.FormationMenDefence[offset-144] = int(value)
-	case InRange(int(offset), 152, 160):
+	case InRange(offset, 152, 160):
 		s.FormationTankDefence[offset-152] = int(value)
 	case offset == 160:
 		s.MinSupplyType = int(value)
@@ -348,14 +265,14 @@ func (s *Data) UpdateData(offset byte, value byte) {
 		s.Data174 = int(value)
 	case offset == 175:
 		s.Data175 = int(value)
-	case InRange(int(offset), 176, 190):
+	case InRange(offset, 176, 190):
 		s.Data176[(offset-176)/4][(offset-176)%4] = int(value)
-	case InRange(int(offset), 192, 200):
+	case InRange(offset, 192, 200):
 		s.Data192[offset-192] = int(value)
-	case InRange(int(offset), 200, 216):
+	case InRange(offset, 200, 216):
 		s.Data200Low[offset-200] = int(value & 7)
 		s.UnitResupplyPerType[offset-200] = int((value & 240) >> 1)
-	case InRange(int(offset), 216, 232):
+	case InRange(offset, 216, 232):
 		s.FormationChangeSpeed[(offset-216)/8][(offset-216)%8] = int(value)
 	case offset == 232:
 		s.ResupplyRate[0] = int(value)
@@ -369,7 +286,7 @@ func (s *Data) UpdateData(offset byte, value byte) {
 		s.TankReplacementRate[0] = int(value)
 	case offset == 237:
 		s.TankReplacementRate[1] = int(value)
-	case InRange(int(offset), 248, 250):
+	case InRange(offset, 248, 250):
 		s.SideColor[offset-248] = int(value)
 	case offset == 252:
 		s.Data252[0] = int(value)
@@ -387,7 +304,7 @@ func (d *Data) ReadFirst255Bytes(reader io.Reader) error {
 		return err
 	}
 	for i, v := range data {
-		d.UpdateData(byte(i), v)
+		d.UpdateData(i, v)
 	}
 	return nil
 }

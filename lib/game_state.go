@@ -26,7 +26,6 @@ type GameState struct {
 	commanderFlags                   *CommanderFlags
 	unitsUpdated                     int
 	numUnitsToUpdatePerTimeIncrement int
-	lastUpdatedUnit                  int
 
 	flashback FlashbackHistory
 
@@ -66,7 +65,6 @@ func NewGameState(rand *rand.Rand, gameData *GameData, scenarioData *ScenarioDat
 	s.isNight = s.hour < 5+sunriseOffset || s.hour > 20-sunriseOffset
 	s.supplyLevels = scenario.StartSupplyLevels
 	s.numUnitsToUpdatePerTimeIncrement = scenarioData.Data.UnitUpdatesPerTimeIncrement / 2
-	s.lastUpdatedUnit = 127
 	s.scenarioData = scenarioData.Data
 	s.units = scenarioData.Units
 	s.terrain = scenarioData.Terrain
@@ -177,7 +175,7 @@ func (s *GameState) Save(writer io.Writer) error {
 	saveData.SelectedVariant = uint8(s.selectedVariant)
 	saveData.UnitsUpdated = uint8(s.unitsUpdated)
 	saveData.NumUnitsToUpdatePerTimeIncrement = uint8(s.numUnitsToUpdatePerTimeIncrement)
-	saveData.LastUpdatedUnit = uint8(s.lastUpdatedUnit)
+	saveData.LastUpdatedUnit = uint8(s.ai.lastUpdatedUnit)
 	saveData.Update = uint8(s.ai.update)
 
 	for i := 0; i < 2; i++ {
@@ -261,7 +259,7 @@ func (s *GameState) Load(reader io.Reader) error {
 	s.selectedVariant = int(saveData.SelectedVariant)
 	s.unitsUpdated = int(saveData.UnitsUpdated)
 	s.numUnitsToUpdatePerTimeIncrement = int(saveData.NumUnitsToUpdatePerTimeIncrement)
-	s.lastUpdatedUnit = int(saveData.LastUpdatedUnit)
+	s.ai.lastUpdatedUnit = int(saveData.LastUpdatedUnit)
 	s.ai.update = int(saveData.Update)
 
 	for i := 0; i < 2; i++ {
@@ -292,7 +290,7 @@ func (s *GameState) SwitchSides() {
 func (s *GameState) Update() bool {
 	s.unitsUpdated++
 	for ; s.unitsUpdated <= s.numUnitsToUpdatePerTimeIncrement; s.unitsUpdated++ {
-		message, quit := s.updateUnit()
+		message, quit := s.ai.UpdateUnit(s.weather, s.isNight, s.sync)
 		if quit {
 			return false
 		}
@@ -339,133 +337,6 @@ func (s *GameState) Update() bool {
 		}
 	}
 	return true
-}
-
-func (s *GameState) updateUnit() (message MessageFromUnit, quit bool) {
-	weather := s.weather
-	if s.isNight {
-		weather += 8
-	}
-nextUnit:
-	s.lastUpdatedUnit = (s.lastUpdatedUnit + 1) % 128
-	unit := s.units[s.lastUpdatedUnit/64][s.lastUpdatedUnit%64]
-	if !unit.IsInGame {
-		goto nextUnit
-	}
-	if !s.areUnitCoordsValid(unit.XY) {
-		panic(fmt.Errorf("%s@(%v):%v", unit.FullName(), unit.XY, unit))
-	}
-	var arg1 int
-	if unit.MenCount+unit.TankCount < 7 || unit.Fatigue == 255 {
-		s.terrainTypes.hideUnit(unit)
-		message = WeMustSurrender{unit}
-		unit.ClearState()
-		unit.HalfDaysUntilAppear = 0
-		s.score.CitiesHeld[1-unit.Side] += s.scenarioData.UnitScores[unit.Type]
-		s.score.MenLost[unit.Side] += unit.MenCount
-		s.score.TanksLost[unit.Side] += unit.TankCount
-		goto end
-	}
-	if !s.scenarioData.UnitCanMove[unit.Type] {
-		goto nextUnit
-	}
-	arg1 = s.ai.UpdateUnitObjective(&unit, weather)
-	if unit.SupplyLevel == 0 {
-		message = WeHaveExhaustedSupplies{unit}
-	}
-	{
-		sxy, shouldQuit := s.ai.PerformUnitMovement(&unit, &message, &arg1, weather, s.sync)
-		if shouldQuit {
-			quit = true
-			return
-		}
-		unit.SupplyLevel = Clamp(unit.SupplyLevel-2, 0, 255)
-		wasInContactWithEnemy := unit.InContactWithEnemy
-
-		unit.InContactWithEnemy = false
-		unit.IsUnderAttack = false
-		unit.State2 = false
-		unit.State4 = false // &= 232
-		if Rand(s.scenarioData.Data252[unit.Side], s.rand) == 0 {
-			unit.SeenByEnemy = false // &= ~64
-		}
-		if s.game == Conflict && Rand(s.scenarioData.Data175, s.rand)/8 > 0 {
-			unit.SeenByEnemy = true // |= 64
-		}
-		for i := 0; i < 6; i++ {
-			nxy := s.generic.IthNeighbour(unit.XY, i)
-			if unit2, ok := s.units.FindUnitOfSideAt(nxy, 1-unit.Side); ok {
-				unit2.InContactWithEnemy = true
-				unit2.SeenByEnemy = true // |= 65
-				s.terrainTypes.showUnit(unit2)
-				s.units[unit2.Side][unit2.Index] = unit2
-				if s.scenarioData.UnitScores[unit2.Type] > 8 {
-					if !s.commanderFlags.PlayerControlled[unit.Side] {
-						sxy = unit2.XY
-						unit.Order = Attack
-						arg1 = 7
-						// arg2 = i
-					}
-				}
-				// in CiE one of supply units or an air wing.
-				// in DitD also minefield or artillery
-				// in CiV supply units or bombers (not fighters nor artillery)
-				if s.scenarioData.UnitMask[unit2.Type]&128 == 0 {
-					unit.State4 = true // |= 16
-				}
-				if s.scenarioData.UnitCanMove[unit2.Type] {
-					unit.InContactWithEnemy = true
-					unit.SeenByEnemy = true // |= 65
-					if unit.Side == 0 {
-					}
-					if !wasInContactWithEnemy {
-						message = WeAreInContactWithEnemy{unit}
-					}
-				}
-			}
-		}
-		s.ai.Function29_showUnit(unit)
-		//	l11:
-		if unit.Objective.X == 0 || unit.Order != Attack || arg1 < 7 {
-			goto end
-		}
-		if unit.Function15_distanceToObjective() == 1 && s.units.IsUnitOfSideAt(sxy, unit.Side) {
-			unit.Objective.X = 0
-			goto end
-		}
-		unit.TargetFormation = s.scenarioData.function10(unit.Order, 2)
-		if unit.Fatigue > 64 || unit.SupplyLevel == 0 ||
-			!s.units.IsUnitOfSideAt(sxy, 1-unit.Side) ||
-			unit.Formation != s.scenarioData.Data176[0][2] {
-			goto end
-		}
-		// [53767] = 0
-		if s.ai.PerformAttack(&unit, sxy, weather, &message, s.sync) {
-			quit = true
-			return
-		}
-	}
-end: // l3
-	for unit.Formation != unit.TargetFormation {
-		dir := Sign(unit.Formation - unit.TargetFormation)
-		speed := s.scenarioData.FormationChangeSpeed[(dir+1)/2][unit.Formation]
-		if speed > Rand(15, s.rand) {
-			unit.LongRangeAttack = false
-			unit.Formation -= dir
-		}
-		if speed&16 == 0 {
-			break
-		}
-	}
-	{
-		recovery := s.scenarioData.RecoveryRate[unit.Type]
-		if !unit.InContactWithEnemy && unit.HasSupplyLine { // &9 == 0
-			recovery *= 2
-		}
-		unit.Fatigue = Clamp(unit.Fatigue-recovery, 0, 255)
-	}
-	s.units[unit.Side][unit.Index] = unit
-	return
 }
 
 func (s *GameState) everyHour() bool {
@@ -587,10 +458,6 @@ func (s *GameState) ShowAllVisibleUnits() {
 			}
 		}
 	}
-}
-
-func (s *GameState) areUnitCoordsValid(xy UnitCoords) bool {
-	return s.terrainTypes.AreCoordsValid(xy.ToMapCoords())
 }
 
 func (s *GameState) everyDay() bool {
