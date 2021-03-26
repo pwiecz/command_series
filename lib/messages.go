@@ -143,6 +143,6 @@ type SupplyDistributionEnd struct{}
 
 type DailyUpdate struct {
 	DaysRemaining int
-	SupplyLevel   int
+	SupplyLevels  [2]int
 }
 type TimeChanged struct{}

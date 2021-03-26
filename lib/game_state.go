@@ -22,7 +22,6 @@ type GameState struct {
 	isNight      bool
 	supplyLevels [2]int
 
-	playerSide                       int // remove it from here
 	commanderFlags                   *CommanderFlags
 	unitsUpdated                     int
 	numUnitsToUpdatePerTimeIncrement int
@@ -48,7 +47,7 @@ type GameState struct {
 	allUnitsHidden bool
 }
 
-func NewGameState(rand *rand.Rand, gameData *GameData, scenarioData *ScenarioData, scenarioNum, variantNum int, playerSide int, options *Options, sync *MessageSync) *GameState {
+func NewGameState(rand *rand.Rand, gameData *GameData, scenarioData *ScenarioData, scenarioNum, variantNum int, options *Options, sync *MessageSync) *GameState {
 	scenario := &gameData.Scenarios[scenarioNum]
 	variant := &scenarioData.Variants[variantNum]
 	sunriseOffset := Abs(6-scenario.StartMonth) / 2
@@ -74,7 +73,6 @@ func NewGameState(rand *rand.Rand, gameData *GameData, scenarioData *ScenarioDat
 	s.generals = scenarioData.Generals
 	s.variants = scenarioData.Variants
 	s.selectedVariant = variantNum
-	s.playerSide = playerSide
 	s.commanderFlags = newCommanderFlags(options)
 	s.score = newScore(s.game, *variant, scenarioData.Data, s.commanderFlags, options)
 	s.ai = newAI(rand, s.commanderFlags, gameData, scenarioData, s.score)
@@ -125,7 +123,6 @@ type saveData struct {
 	Weather                  uint8
 	IsNight                  bool
 
-	PlayerSide     uint8
 	CommanderFlags uint8
 
 	SupplyLevels, MenLost, TanksLost, CitiesHeld [2]uint16
@@ -163,7 +160,6 @@ func (s *GameState) Save(writer io.Writer) error {
 	saveData.DaysElapsed = uint8(s.daysElapsed)
 	saveData.Weather = uint8(s.weather)
 	saveData.IsNight = s.isNight
-	saveData.PlayerSide = uint8(s.playerSide)
 	saveData.CommanderFlags = s.commanderFlags.Serialize()
 	saveData.SupplyLevels = [2]uint16{uint16(s.supplyLevels[0]), uint16(s.supplyLevels[1])}
 	saveData.MenLost = [2]uint16{uint16(s.score.MenLost[0]), uint16(s.score.MenLost[1])}
@@ -247,7 +243,6 @@ func (s *GameState) Load(reader io.Reader) error {
 	s.daysElapsed = int(saveData.DaysElapsed)
 	s.weather = int(saveData.Weather)
 	s.isNight = saveData.IsNight
-	s.playerSide = int(saveData.PlayerSide)
 	s.commanderFlags.Deserialize(saveData.CommanderFlags)
 	s.supplyLevels = [2]int{int(saveData.SupplyLevels[0]), int(saveData.SupplyLevels[1])}
 	s.score.MenLost = [2]int{int(saveData.MenLost[0]), int(saveData.MenLost[1])}
@@ -284,7 +279,6 @@ func (s *GameState) Load(reader io.Reader) error {
 	return nil
 }
 func (s *GameState) SwitchSides() {
-	s.playerSide = 1 - s.playerSide
 	s.commanderFlags.SwitchSides()
 }
 func (s *GameState) Update() bool {
@@ -493,7 +487,7 @@ func (s *GameState) everyDay() bool {
 	}
 	s.sync.SendUpdate(DailyUpdate{
 		DaysRemaining: s.variants[s.selectedVariant].LengthInDays - s.daysElapsed + 1,
-		SupplyLevel:   Clamp(s.supplyLevels[s.playerSide]/256, 0, 2)})
+		SupplyLevels:  s.supplyLevels})
 	s.ai.update = 3
 	return true
 }

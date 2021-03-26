@@ -12,7 +12,7 @@ func createTestGameState(filename string, scenarioNum, variantNum int, options O
 		t.Fatal("Error reading game data,", err)
 	}
 
-	return NewGameState(rand, gameData, scenarioData, scenarioNum, variantNum, 0, &options, messageSync)
+	return NewGameState(rand, gameData, scenarioData, scenarioNum, variantNum, &options, messageSync)
 }
 
 func TestRegression_Basic(t *testing.T) {

@@ -17,7 +17,6 @@ import (
 
 type MainScreen struct {
 	selectedScenario int
-	selectedVariant  int
 	scenarioData     *lib.ScenarioData
 	gameData         *lib.GameData
 	options          *lib.Options
@@ -68,7 +67,6 @@ func NewMainScreen(g *Game, options *lib.Options, audioPlayer *AudioPlayer, rand
 	}
 	s := &MainScreen{
 		selectedScenario: g.selectedScenario,
-		selectedVariant:  g.selectedVariant,
 		gameData:         g.gameData,
 		scenarioData:     g.scenarioData,
 		options:          options,
@@ -81,7 +79,7 @@ func NewMainScreen(g *Game, options *lib.Options, audioPlayer *AudioPlayer, rand
 	} else {
 		s.playerSide = 1
 	}
-	s.gameState = lib.NewGameState(rand, g.gameData, g.scenarioData, g.selectedScenario, g.selectedVariant, s.playerSide, s.options, s.sync)
+	s.gameState = lib.NewGameState(rand, g.gameData, g.scenarioData, g.selectedScenario, g.selectedVariant, s.options, s.sync)
 	s.mapView = NewMapView(
 		8, 72, 320, 19*8,
 		g.gameData.Map, s.gameState.TerrainTypeMap(), g.scenarioData.Units,
@@ -431,8 +429,9 @@ loop:
 		case lib.SupplyDistributionEnd:
 		case lib.DailyUpdate:
 			s.messageBox.Print(fmt.Sprintf("%d DAYS REMAINING.", message.DaysRemaining), 2, 2)
-			supplyLevels := []string{"CRITICAL", "SUFFICIENT", "AMPLE"}
-			s.messageBox.Print(fmt.Sprintf("*SUPPLY LEVEL:* %s", supplyLevels[message.SupplyLevel]), 2, 3)
+			supplyLevelNames := []string{"CRITICAL", "SUFFICIENT", "AMPLE"}
+			supplyLevel := lib.Clamp(message.SupplyLevels[s.playerSide]/256, 0, 2)
+			s.messageBox.Print(fmt.Sprintf("*SUPPLY LEVEL:* %s", supplyLevelNames[supplyLevel]), 2, 3)
 			s.idleTicksLeft = s.options.Speed.DelayTicks()
 			break loop
 		case lib.TimeChanged:
@@ -775,7 +774,7 @@ func (s *MainScreen) saveGameToFile(filename string) {
 		s.messageBox.Print("DISK ERROR: 6", 2, 4)
 		return
 	}
-	if err := binary.Write(file, binary.LittleEndian, uint8(s.selectedVariant)); err != nil {
+	if err := binary.Write(file, binary.LittleEndian, uint8(s.playerSide)); err != nil {
 		s.messageBox.Print("DISK ERROR: 7", 2, 4)
 		return
 	}
@@ -784,7 +783,7 @@ func (s *MainScreen) saveGameToFile(filename string) {
 		return
 	}
 	if err := s.gameState.Save(file); err != nil {
-		s.messageBox.Print("DISK ERROR: 10", 2, 4)
+		s.messageBox.Print("DISK ERROR: 9", 2, 4)
 		return
 	}
 	s.messageBox.Print("COMPLETED", 2, 4)
@@ -836,12 +835,12 @@ func (s *MainScreen) loadGameFromFile(filename string) {
 		s.messageBox.Print("DISK ERROR: 3", 2, 4)
 		return
 	}
-	var selectedScenario, selectedVariant uint8
+	var selectedScenario, playerSide uint8
 	if err := binary.Read(reader, binary.LittleEndian, &selectedScenario); err != nil {
 		s.messageBox.Print("DISK ERROR: 4", 2, 4)
 		return
 	}
-	if err := binary.Read(reader, binary.LittleEndian, &selectedVariant); err != nil {
+	if err := binary.Read(reader, binary.LittleEndian, &playerSide); err != nil {
 		s.messageBox.Print("DISK ERROR: 5", 2, 5)
 		return
 	}
@@ -860,6 +859,7 @@ func (s *MainScreen) loadGameFromFile(filename string) {
 		s.messageBox.Print("*WARNING:*   SCENARIO MISMATCH", 2, 4)
 		return
 	}
+	s.playerSide = int(playerSide)
 	if err := s.options.Read(reader); err != nil {
 		s.messageBox.Print("DISK ERROR: 6", 2, 4)
 		return
