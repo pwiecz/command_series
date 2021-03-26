@@ -233,11 +233,11 @@ func TestRegression_Conflict_FullIntelligence(t *testing.T) {
 		}
 	}
 
-	expectedNumMessages := 41287
+	expectedNumMessages := 43043
 	if numMessages != expectedNumMessages {
 		t.Errorf("Expecting %d messages, got %d", expectedNumMessages, numMessages)
 	}
-	expectedNumMessagesFromUnit := 1304
+	expectedNumMessagesFromUnit := 1278
 	if numMessagesFromUnit != expectedNumMessagesFromUnit {
 		t.Errorf("Expecting %d messages from a unit, got %d", expectedNumMessagesFromUnit, numMessagesFromUnit)
 	}

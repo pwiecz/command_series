@@ -605,10 +605,10 @@ func (s *AI) bestAttackObjective(unit Unit, weather int, numEnemyNeighbours int)
 	return
 }
 
-func (s *AI) bestDefenceObjective(unit Unit) (objXY UnitCoords, score int) {
+func (s *AI) bestDefenceObjective(unit Unit) (UnitCoords, int) {
 	// temperarily hide the unit while we compute sth
 	s.units[unit.Side][unit.Index].IsInGame = false
-	score = -17536 // 48000
+	score := -17536 // 48000
 	var bestI int
 	// Score for i==6 (zero offset - the unit's position).
 	var v_6 int
@@ -621,8 +621,9 @@ func (s *AI) bestDefenceObjective(unit Unit) (objXY UnitCoords, score int) {
 		if (nxy == unit.XY) || !s.ContainsVisibleUnit(nxy) {
 			if tt := s.terrainTypes.terrainTypeAt(nxy); tt < 7 {
 				r := s.scenarioData.TerrainMenDefence[tt]
+				v = r
 				if s.game != Conflict {
-					v = r + s.NeighbourScore(&s.hexes.Arr0, nxy, unit.Side)*2
+					v += s.NeighbourScore(&s.hexes.Arr0, nxy, unit.Side)*2
 				}
 				if city, ok := s.terrain.FindCityAt(nxy); ok {
 					if !s.units.IsUnitOfSideAt(nxy, unit.Side) {
@@ -652,8 +653,7 @@ func (s *AI) bestDefenceObjective(unit Unit) (objXY UnitCoords, score int) {
 	if v+v_6 > score {
 		bestI = 6
 	}
-	objXY = s.generic.IthNeighbour(unit.XY, bestI)
-	return
+	return s.generic.IthNeighbour(unit.XY, bestI), score
 }
 
 func (s *AI) areUnitCoordsValid(xy UnitCoords) bool {
