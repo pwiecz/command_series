@@ -625,7 +625,7 @@ func (s *AI) bestDefenceObjective(unit Unit) (objXY UnitCoords, score int) {
 					v = r + s.NeighbourScore(&s.hexes.Arr0, nxy, unit.Side)*2
 				}
 				if city, ok := s.terrain.FindCityAt(nxy); ok {
-					if s.units.IsUnitOfSideAt(nxy, unit.Side) {
+					if !s.units.IsUnitOfSideAt(nxy, unit.Side) {
 						v += city.VictoryPoints
 					}
 				}
