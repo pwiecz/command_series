@@ -2,7 +2,6 @@ package lib
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
 	"math/rand"
 )
@@ -99,6 +98,15 @@ func NewGameState(rand *rand.Rand, gameData *GameData, scenarioData *ScenarioDat
 		if city.VariantBitmap&(1<<variantNum) != 0 {
 			city.VictoryPoints = 0
 			s.terrain.Cities[i] = city
+		}
+	}
+	// A bugfix for a bug in the original games - in CiE/Campaign Utah Beach
+	// is initially occupied by an allied unit, but it's marked as a German city.
+	for _, sideUnits := range s.units {
+		for _, unit := range sideUnits {
+			if unit.IsInGame {
+				s.ai.function16(unit)
+			}
 		}
 	}
 	s.ShowAllVisibleUnits()
@@ -492,7 +500,7 @@ func (s *GameState) everyDay() bool {
 	return true
 }
 
-func monthLength(month, year int) int {
+/*func monthLength(month, year int) int {
 	switch month {
 	case 1, 3, 5, 7, 8, 10, 12:
 		return 31
@@ -511,7 +519,7 @@ func monthLength(month, year int) int {
 		return 28
 	}
 	panic(fmt.Errorf("Unexpected month number %d", month))
-}
+}*/
 
 func (s *GameState) WinningSideAndAdvantage() (winningSide int, advantage int) {
 	return s.score.WinningSideAndAdvantage()

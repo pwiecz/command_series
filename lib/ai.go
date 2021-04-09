@@ -268,7 +268,7 @@ func (s *AI) reinitSmallMapsAndSuch(currentSide int) {
 	for _, sideUnits := range s.units {
 		for _, unit := range sideUnits {
 			if !unit.IsInGame || s.scenarioData.UnitMask[unit.Type]&16 != 0 {
-				continue
+				continue  // goto l23
 			}
 			sx, sy := unit.XY.X/8, unit.XY.Y/4
 			if !InRange(sx, 0, 16) || !InRange(sy, 0, 16) {
@@ -280,7 +280,7 @@ func (s *AI) reinitSmallMapsAndSuch(currentSide int) {
 			} else {
 				//v16 += unit.MenCount + unit.TankCount
 				if !s.commanderFlags.PlayerHasIntelligence[currentSide] && !unit.SeenByEnemy {
-					continue
+					continue  // goto l23
 				}
 			}
 			v30 := unit.MenCount + unit.TankCount
@@ -319,8 +319,7 @@ func (s *AI) reinitSmallMapsAndSuch(currentSide int) {
 					}
 				}
 			}
-			//l23:
-
+			// l23:
 		}
 	}
 	// function18()
