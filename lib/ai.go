@@ -97,7 +97,7 @@ nextUnit:
 			unit.SeenByEnemy = true // |= 64
 		}
 		for i := 0; i < 6; i++ {
-			nxy := s.generic.IthNeighbour(unit.XY, i)
+			nxy := IthNeighbour(unit.XY, i)
 			if unit2, ok := s.units.FindUnitOfSideAt(nxy, 1-unit.Side); ok {
 				unit2.InContactWithEnemy = true
 				unit2.SeenByEnemy = true // |= 65
@@ -308,7 +308,7 @@ func (s *AI) reinitSmallMapsAndSuch(currentSide int) {
 				// Last index on a "circle" with given radius.
 				lastNeighbour := (Abs(radius) - Sign(Abs(radius))) * 4
 				for i := 0; i <= lastNeighbour; i++ {
-					dx, dy := s.generic.SmallMapOffsets(i)
+					dx, dy := SmallMapOffsets(i)
 					x, y := sx+dx, sy+dy
 					if !InRange(x, 0, 16) || !InRange(y, 0, 16) {
 						continue
@@ -337,7 +337,7 @@ func (s *AI) reinitSmallMapsAndSuch(currentSide int) {
 		s.map3[city.Owner][sx][sy]++
 		for i := 1; i <= influence; i++ {
 			for j := 0; j <= (i-1)*4; j++ {
-				dx, dy := s.generic.SmallMapOffsets(j)
+				dx, dy := SmallMapOffsets(j)
 				x, y := sx+dx, sy+dy
 				if !InRange(x, 0, 16) || !InRange(y, 0, 16) {
 					continue
@@ -397,7 +397,7 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 		// Num enemy troops nearby (neighbouring "small" map fields).
 		numEnemyTroops := 0
 		for i := 0; i < 9; i++ {
-			dx, dy := s.generic.SmallMapOffsets(i)
+			dx, dy := SmallMapOffsets(i)
 			if InRange(sx+dx, 0, 16) && InRange(dy+sy, 0, 16) {
 				numEnemyTroops += s.map0[1-unit.Side][sx+dx][sy+dy]
 			}
@@ -411,7 +411,7 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 			bestI := 0
 			bestX, bestY := 0, 0
 			for i := 0; i < 9; i++ {
-				dx, dy := s.generic.TinyMapOffsets(i)
+				dx, dy := TinyMapOffsets(i)
 				x, y := tx+dx, ty+dy
 				if !InRange(x, 0, 4) || !InRange(y, 0, 4) {
 					continue
@@ -465,7 +465,7 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 			// save a copy of the unit, as we're going to modify it.
 			unitCopy := *unit
 			for i := 1; i <= 9; i++ {
-				dx, dy := s.generic.SmallMapOffsets(i - 1)
+				dx, dy := SmallMapOffsets(i - 1)
 				if !InRange(sx+dx, 0, 16) || !InRange(sy+dy, 0, 16) {
 					continue
 				}
@@ -479,7 +479,7 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 				v52 := (enemyUnitsInArea + s.map3[1-unit.Side][sx+dx][sy+dy]) / 2
 				enemyUnitsAround := s.map0[1-unit.Side][sx+dx][sy+dy] / 2
 				for j := 0; j <= 7; j++ {
-					ddx, ddy := s.generic.SmallMapOffsets(j + 1)
+					ddx, ddy := SmallMapOffsets(j + 1)
 					if !InRange(sx+dx+ddx, 0, 16) || !InRange(sy+dy+ddy, 0, 16) {
 						continue
 					}
@@ -684,7 +684,8 @@ func (s *AI) bestAttackObjective(unit Unit, weather int, numEnemyNeighbours int)
 	}
 	for i := v; i <= 18; i++ {
 		score := 16001
-		nxy := UnitCoords{unit.XY.X + s.generic.Dx152[i], unit.XY.Y + s.generic.Dy153[i]}
+		dx, dy := LongRangeHexNeighbourOffset(i)
+		nxy := UnitCoords{unit.XY.X + dx, unit.XY.Y + dy}
 		if !s.areUnitCoordsValid(nxy) {
 			continue
 		}
@@ -752,7 +753,7 @@ func (s *AI) bestDefenceObjective(unit Unit) (UnitCoords, int) {
 	// Score for i==6 (zero offset - the unit's position).
 	var v_6 int
 	for i := 0; i <= 6; i++ {
-		nxy := s.generic.IthNeighbour(unit.XY, i)
+		nxy := IthNeighbour(unit.XY, i)
 		if !s.areUnitCoordsValid(nxy) {
 			continue
 		}
@@ -792,7 +793,7 @@ func (s *AI) bestDefenceObjective(unit Unit) (UnitCoords, int) {
 	if v+v_6 > score {
 		bestI = 6
 	}
-	return s.generic.IthNeighbour(unit.XY, bestI), score
+	return IthNeighbour(unit.XY, bestI), score
 }
 
 func (s *AI) areUnitCoordsValid(xy UnitCoords) bool {
@@ -805,7 +806,7 @@ func (s *AI) NeighbourScore(arr *[6][8]int, xy UnitCoords, side int) int {
 	// Count of neighbour tiles with given type
 	var neighbourTypeCount [6]int
 	for i := 0; i < 6; i++ {
-		nxy := s.generic.IthNeighbour(xy, i)
+		nxy := IthNeighbour(xy, i)
 		var neighbourType int
 		if s.units.IsUnitOfSideAt(nxy, 1-side) {
 			neighbourType = 2
@@ -813,9 +814,9 @@ func (s *AI) NeighbourScore(arr *[6][8]int, xy UnitCoords, side int) int {
 			neighbourType = 1
 		} else {
 			// neighbours to the left of nx,ny
-			n0xy := s.generic.IthNeighbour(xy, (i+5)%6)
+			n0xy := IthNeighbour(xy, (i+5)%6)
 			// neighbours to the right of nx,ny
-			n1xy := s.generic.IthNeighbour(xy, (i+1)%6)
+			n1xy := IthNeighbour(xy, (i+1)%6)
 			neighbourIsEnemy := s.units.IsUnitOfSideAt(n0xy, 1-side) || s.units.IsUnitOfSideAt(n1xy, 1-side)
 			neighbourIsFriend := s.units.IsUnitOfSideAt(n0xy, side) || s.units.IsUnitOfSideAt(n1xy, side)
 			if neighbourIsEnemy && neighbourIsFriend {
@@ -1118,7 +1119,7 @@ func (s *AI) performAttack(unit *Unit, sxy UnitCoords, weather int, message *Mes
 		}
 		bestDefence := -128
 		for i := 0; i <= 6; i++ {
-			nxy := s.generic.IthNeighbour(unit2.XY, i)
+			nxy := IthNeighbour(unit2.XY, i)
 			if !s.areUnitCoordsValid(nxy) || s.units.IsUnitAt(nxy) || s.terrain.IsCityAt(nxy) {
 				continue
 			}
@@ -1282,7 +1283,7 @@ outerLoop:
 // of type unitType. If variant == 0 consider only neighbour fields directly towards the goal,
 // if variant == 1 look at neighbour two fields "more to the side"
 func (s *AI) findBestMoveFromTowards(unitXY0, unitXY1 UnitCoords, unitType, variant int) (UnitCoords, int) {
-	candXY1 := s.generic.FirstNeighbourFromTowards(unitXY0, unitXY1, 2*variant)
+	candXY1 := FirstNeighbourFromTowards(unitXY0, unitXY1, 2*variant)
 	var speed1 int
 	if !s.areUnitCoordsValid(candXY1) {
 		candXY1 = unitXY0
@@ -1291,7 +1292,7 @@ func (s *AI) findBestMoveFromTowards(unitXY0, unitXY1 UnitCoords, unitType, vari
 		speed1 = s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[terrainType1][unitType]
 	}
 
-	candXY2 := s.generic.FirstNeighbourFromTowards(unitXY0, unitXY1, 2*variant+1)
+	candXY2 := FirstNeighbourFromTowards(unitXY0, unitXY1, 2*variant+1)
 	var speed2 int
 	if !s.areUnitCoordsValid(candXY2) {
 		candXY2 = unitXY0

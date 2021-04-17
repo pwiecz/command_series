@@ -5,97 +5,188 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"math"
+	"sort"
 )
 
 // Representation of data parsed from GENERIC.DTA file.
 type Generic struct {
-	// Mapping form a result of neighbour location formula, to neighbour index in the array below.
-	DirectionToNeighbourIndex map[int]int // Data[0:19]
-	// Offset towards neighbour tiles in 12 directions.
-	// With 2 options to the left of the direction, 2 options to the right.
-	Neighbours                [4][12]int  // Data[20:44], Data[128:152]
-	// Offsets on a 2-byte square map 4x4.
-	// First 0 offset to the origin field itself,
-	// then to its 4 neighbours in cardinal directions,
-	// then to its 4 neighbours in diagonal direction.
-	tinyMapOffsets [9]int // Bytes [44:52]
-	MapOffsets     [7]int // Bytes [53:60]
-	Data60         [4]int
-	TerrainTypes   [64]int // Bytes [64:128]
-	Dx152          [19]int //
-	Dy153          [19]int // Bytes [152:190] (Dx, Dy interleaved, overlaps following arrays)
-	Dx             [7]int  //
-	Dy             [7]int  // Bytes [176:190] (Dx,Dy interleaved, overlaps following array)
-	// Offsets on a square map 16x16.
-	// First 0 offset to the origin field itself,
-	// then to its 4 neighbours in cardinal directions,
-	// then to 4 neighbours in diagonal direction,
-	// then offsets to fields with distance 2 from the origin.
-	smallMapOffsets [25]int // Bytes [189:214]
+	// Terrain colors on the overview map.
+	Data60       [4]int
+	TerrainTypes [64]int // Bytes [64:128]
 	// First two indices are positions on a 2x2 square, the third one is one of 9 neighbouring
 	// squares on 3x3 square tiling.
-	Data214         [2][2][9]int
+	Data214 [2][2][9]int
 }
 
-func CoordsToMapAddress(x, y int) int {
-	return y*64 + x/2 - y/2
-}
-
-func signInt(v int) int {
-	if v > 0 {
-		return 1
+// directionIndex assigns number 0..11 to a direction (dx, dy).
+// Numbers are assigned consecutively around the origin.
+// Odd numbers are assigned to directions exactly diagonal or horizontal.
+// Even numbers are assigned to ranges of directions between the odd-numbered directions.
+func directionIndex(dx, dy int) int {
+	if dy < 0 {
+		if dx < dy {
+			return 0
+		} else if dx == dy {
+			return 1
+		} else if dx < -dy {
+			return 2
+		} else if dx == -dy {
+			return 3
+		} else { // dx > -dy
+			return 4
+		}
+	} else if dy > 0 {
+		if dx < -dy {
+			return 10
+		} else if dx == -dy {
+			return 9
+		} else if dx < dy {
+			return 8
+		} else if dx == dy {
+			return 7
+		} else { // dx > dy
+			return 6
+		}
+	} else { // dy == 0
+		if dx > 0 {
+			return 5
+		} else if dx < 0 {
+			return 11
+		} else { // dx == 0
+			return 0
+		}
 	}
-	if v < 0 {
-		return -1
-	}
-	return 0
 }
 
 // First neighbouring tile met when going from x0,y0 towards x1,y1.
 // If variant is 0 or 1, pick one of the most direct directions.
 // If variant is 2 or 3, pick one of the less direct directions.
-func (g Generic) FirstNeighbourFromTowards(xy0, xy1 UnitCoords, variant int) UnitCoords {
+func FirstNeighbourFromTowards(xy0, xy1 UnitCoords, variant int) UnitCoords {
 	dx, dy := xy1.X-xy0.X, xy1.Y-xy0.Y
-	direction := 5*signInt(dy) + 3*signInt(dx-dy) + signInt(dx+dy)
-	neighbourIndex, ok := g.DirectionToNeighbourIndex[direction]
-	if !ok {
-		panic(fmt.Errorf("No neighbour index for direction %d", direction))
+	direction := directionIndex(dx, dy)
+	var neighbourInDirection int
+	if variant < 2 {
+		neighbourInDirection = ((direction + 3 + variant) % 12) / 2
+	} else if variant == 2 {
+		neighbourInDirection = ((direction + 1) % 12) / 2
+	} else { // variant == 3
+		neighbourInDirection = ((direction + 6) % 12) / 2
 	}
-	return g.IthNeighbour(xy0, g.Neighbours[variant][neighbourIndex])
+	return IthNeighbour(xy0, neighbourInDirection)
 }
 
-func (g Generic) IthNeighbour(xy UnitCoords, i int) UnitCoords {
-	dx, dy := g.Dx[i], g.Dy[i]
+func IthNeighbour(xy UnitCoords, i int) UnitCoords {
+	dx, dy := hexNeighbourOffset(i)
 	return UnitCoords{xy.X + dx, xy.Y + dy}
 }
 
-func (g Generic) SmallMapOffsets(i int) (dx int, dy int) {
-	offsetNum := g.smallMapOffsets[i]
-	if offsetNum >= 0 { /* dy >= 0 */
-		dy = (offsetNum + 13) / 16
-	} else { /* dy <= 0 */
-		dy = (offsetNum - 13) / 16
-	}
-	if (offsetNum+32)%16 < 8 { /* dx >= 0 */
-		dx = (offsetNum + 32) % 16
-	} else { /* dx <= 0 */
-		dx = (offsetNum+32)%16 - 16
-	}
-	return
+type offset struct {
+	dx, dy int
 }
-func (g Generic) TinyMapOffsets(i int) (dx int, dy int) {
-	offsetNum := g.tinyMapOffsets[i] / 2
-	if offsetNum >= 0 { /* dy >= 0 */
-		dy = (offsetNum + 1) / 4
-	} else { /* dy <= 0 */
-		dy = (offsetNum - 1) / 4
+
+// Offsets on square tiled map.
+var squareTilingOffsets = generateSquareTilingOffsets()
+
+func generateSquareTilingOffsets() []offset {
+	offsets := make([]offset, 0, 25)
+	for dx := -2; dx <= 2; dx++ {
+		for dy := -2; dy <= 2; dy++ {
+			offsets = append(offsets, offset{dx, dy})
+		}
 	}
-	if (offsetNum+8)%4 < 2 { /* dx >= 0 */
-		dx = (offsetNum + 8) % 4
-	} else { /* dx <= 0 */
-		dx = (offsetNum+8)%4 - 4
+	// Sort offsets first by distance from origin, than dy, than dx.
+	compareOffsets := func(i, j int) bool {
+		distI := offsets[i].dx*offsets[i].dx + offsets[i].dy*offsets[i].dy
+		distJ := offsets[j].dx*offsets[j].dx + offsets[j].dy*offsets[j].dy
+		if distI != distJ {
+			return distI < distJ
+		}
+		if offsets[i].dy != offsets[j].dy {
+			return offsets[i].dy < offsets[j].dy
+		}
+		return offsets[i].dx < offsets[j].dx
 	}
-	return
+	sort.Slice(offsets, compareOffsets)
+	return offsets
+}
+
+func squareTilingNeighbour(i int) (int, int) {
+	offset := squareTilingOffsets[i]
+	return offset.dx, offset.dy
+}
+func SmallMapOffsets(i int) (int, int) {
+	return squareTilingNeighbour(i)
+}
+func TinyMapOffsets(i int) (int, int) {
+	if i < 9 {
+		return squareTilingNeighbour(i)
+	}
+	panic(fmt.Errorf("Invalid tiny map offset index %d", i))
+}
+
+type offsetWithAngle struct {
+	dx, dy int
+	angle  float64
+}
+
+func HalfTileOffsetDistance(dx, dy int) int {
+	absDx, absDy := Abs(dx), Abs(dy)
+	if absDy > absDx/2 {
+		return absDy
+	}
+	return (absDx + absDy + 1) / 2
+}
+func generateHalfOffsetSquareTilingOffsets() []offsetWithAngle {
+	offsets := make([]offsetWithAngle, 0, 19)
+	for dx := -4; dx <= 4; dx++ {
+		for dy := -2; dy <= 4; dy++ {
+			// Pick only a correct offset on half tile offset tiling.
+			if Abs(dy)%2 != Abs(dx)%2 {
+				continue
+			}
+			distance := HalfTileOffsetDistance(dx, dy)
+			if distance > 2 {
+				continue
+			}
+			var angle float64
+			// Slightly different order of hexes further away and those closer
+			// to keep it faithful to the original ordering.
+			if distance == 2 {
+				angle = math.Atan2(-float64(dx), float64(dy))
+			} else if distance == 1 {
+				angle = math.Atan2(float64(dx), -float64(dy))
+			}
+			offsets = append(offsets, offsetWithAngle{dx, dy, angle})
+		}
+	}
+	// First put offsets further away from the origin, sort them according to the angle.
+	compareOffsets := func(i, j int) bool {
+		distI := HalfTileOffsetDistance(offsets[i].dx, offsets[i].dy)
+		distJ := HalfTileOffsetDistance(offsets[j].dx, offsets[j].dy)
+		if distI != distJ {
+			return distI > distJ
+		}
+		return offsets[i].angle < offsets[j].angle
+	}
+	sort.Slice(offsets, compareOffsets)
+	return offsets
+}
+
+var halfTileOffsets = generateHalfOffsetSquareTilingOffsets()
+
+func halfTileOffsetNeighbour(i int) (int, int) {
+	offset := halfTileOffsets[i]
+	return offset.dx, offset.dy
+}
+func LongRangeHexNeighbourOffset(i int) (int, int) {
+	return halfTileOffsetNeighbour(i)
+}
+func hexNeighbourOffset(i int) (int, int) {
+	if i < 7 {
+		return halfTileOffsetNeighbour(i + 12)
+	}
+	panic(fmt.Errorf("Invalid hex neighbour index %d", i))
 }
 
 func ReadGeneric(fsys fs.FS) (*Generic, error) {
@@ -114,22 +205,6 @@ func ParseGeneric(reader io.Reader) (*Generic, error) {
 	}
 
 	generic := &Generic{}
-	generic.DirectionToNeighbourIndex = make(map[int]int)
-	for i, offset := range data[0:19] {
-		generic.DirectionToNeighbourIndex[i-9] = int(offset)
-	}
-
-	for i, neighbour := range data[20:44] {
-		generic.Neighbours[i%2][i/2] = int(neighbour)
-	}
-
-	for i, d := range data[44:53] {
-		generic.tinyMapOffsets[i] = int(int8(d))
-	}
-
-	for i, offset := range data[53:60] {
-		generic.MapOffsets[i] = int(int8(offset))
-	}
 
 	for i, value := range data[60:64] {
 		generic.Data60[i] = int(value)
@@ -137,29 +212,6 @@ func ParseGeneric(reader io.Reader) (*Generic, error) {
 
 	for i, terrain := range data[64:128] {
 		generic.TerrainTypes[i] = int(terrain)
-	}
-
-	for i, neighbour := range data[128:152] {
-		generic.Neighbours[2+(i%2)][i/2] = int(neighbour)
-	}
-
-	for i, dxdy := range data[152:190] {
-		if i%2 == 0 {
-			generic.Dx152[i/2] = int(int8(dxdy))
-		} else {
-			generic.Dy153[i/2] = int(int8(dxdy))
-		}
-	}
-	for i, dxdy := range data[176:190] {
-		if i%2 == 0 {
-			generic.Dx[i/2] = int(int8(dxdy))
-		} else {
-			generic.Dy[i/2] = int(int8(dxdy))
-		}
-	}
-
-	for i, v := range data[189:214] {
-		generic.smallMapOffsets[i] = int(int8(v))
 	}
 
 	for i, v := range data[214:250] {
