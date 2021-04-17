@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,7 +19,7 @@ func listSaveFiles(scenario string) []string {
 	if err != nil {
 		return nil
 	}
-	files, err := ioutil.ReadDir(saveDir)
+	files, err := os.ReadDir(saveDir)
 	if err != nil {
 		return nil
 	}

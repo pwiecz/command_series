@@ -3,13 +3,13 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 )
 
 func main() {
 	reader := bufio.NewReader(os.Stdin)
-	buf, err := ioutil.ReadAll(reader)
+	buf, err := io.ReadAll(reader)
 	if err != nil {
 		panic(err)
 	}
@@ -25,7 +25,7 @@ func main() {
 		currentProgram = append(currentProgram, b)
 		if b == 0x0c {
 			fmt.Printf("%d\n", i+1-len(currentProgram)-startPosition)
-			ioutil.WriteFile(fmt.Sprintf("prg_%d.sid", progIdx), currentProgram, 0644)
+			os.WriteFile(fmt.Sprintf("prg_%d.sid", progIdx), currentProgram, 0644)
 			currentProgram = nil
 			progIdx++
 		}

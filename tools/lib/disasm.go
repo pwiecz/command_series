@@ -3,7 +3,6 @@ package lib
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 )
 
 type decoder struct {
@@ -223,7 +222,7 @@ func (d *decoder) Decode() (Opcode, bool) {
 }
 
 func ReadOpcodes(reader io.Reader) ([]Opcode, error) {
-	buf, err := ioutil.ReadAll(reader)
+	buf, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, err
 	}
