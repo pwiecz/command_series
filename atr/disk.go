@@ -40,6 +40,7 @@ func (a *atrFS) Open(name string) (fs.File, error) {
 			if err != nil {
 				return nil, err
 			}
+			file.size = len(contents)
 			return &atrFile{
 				Reader:   bytes.NewReader(contents),
 				fileInfo: file}, nil
@@ -115,6 +116,7 @@ func newAtrSectorReader(input io.ReadSeeker) (SectorReader, error) {
 	if sectorReader.sectorSize == 256 {
 		sectorReader.sectorCount = (sectorReader.sectorCount + 3) / 2
 	}
+
 	return sectorReader, nil
 }
 
@@ -182,7 +184,6 @@ func getDirectory(reader SectorReader) ([]*atrFileInfo, error) {
 			atrFile.name = string(name) + "." + string(extension)
 			atrFile.index = len(res)
 			atrFile.attrib = entryData[0]
-			atrFile.size = int(entryData[2])*256 + int(entryData[1])
 			atrFile.start = int(entryData[4])*256 + int(entryData[3])
 			res = append(res, atrFile)
 		}
@@ -218,9 +219,9 @@ func readFile(reader SectorReader, fileInfo *atrFileInfo) ([]byte, error) {
 		if dataLen > len(sector)-3 {
 			return nil, fmt.Errorf("Invalid data length of sector: %d", dataLen)
 		}
-		for i := 0; i < dataLen; i++ {
-			content = append(content, sector[i])
-		}
+
+		content = append(content, sector[:dataLen]...)
+
 		if sector[len(sector)-1]&0x80 != 0 {
 			return content, nil
 		}
