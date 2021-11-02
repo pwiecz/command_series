@@ -1,26 +1,26 @@
 package ui
 
 import (
-	"io"
 	"sync"
 
-	"github.com/hajimehoshi/oto"
+	"github.com/hajimehoshi/oto/v2"
 )
 
 // A trivial player generating strictly rectangular waves of given frequency on 4 channels.
 type AudioPlayer struct {
-	player      *oto.Player
+	player oto.Player
+	source *audioSource
+}
+
+type audioSource struct {
 	mutex       sync.Mutex
-	frequencies [4]byte
 	currentPos  int
+	frequencies [4]byte
 	origBuf     []byte
 	buf         []byte
 }
 
-func (p *AudioPlayer) Read(buf []byte) (int, error) {
-	if p.player == nil {
-		return len(buf), nil
-	}
+func (p *audioSource) Read(buf []byte) (int, error) {
 	if len(p.buf) == 0 {
 		p.buf = p.origBuf
 		p.mutex.Lock()
@@ -47,27 +47,32 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 	return n, nil
 }
 
+func (p *audioSource) SetFrequency(channel int, freq byte) {
+	p.frequencies[channel] = freq
+}
+
 func NewAudioPlayer(context *oto.Context) *AudioPlayer {
 	if context == nil {
 		return &AudioPlayer{}
 	}
+	s := &audioSource{
+		origBuf: make([]byte, 4096),
+	}
 	p := &AudioPlayer{
-		player:  context.NewPlayer(),
-		origBuf: make([]byte, 4096)}
-	go func() {
-		for {
-			io.Copy(p.player, p)
-		}
-	}()
+		source: s,
+		player: context.NewPlayer(s),
+	}
+	p.player.Play()
 	return p
 }
 
 func (p *AudioPlayer) SetFrequency(channel int, freq byte) {
-	p.frequencies[channel] = freq
+	p.source.SetFrequency(channel, freq)
 }
+
 func (p *AudioPlayer) Close() {
 	if p.player == nil {
 		return
 	}
-	p.player.Close()
+	p.player.Reset()
 }

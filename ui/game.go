@@ -6,7 +6,7 @@ import (
 	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/oto"
+	"github.com/hajimehoshi/oto/v2"
 	"github.com/pwiecz/command_series/lib"
 )
 
@@ -76,10 +76,12 @@ func (g *Game) onGameOver(result, balance, rank int) {
 func (g *Game) Update() error {
 	if g.otoContext == nil {
 		var err error
-		g.otoContext, err = oto.NewContext(44100, 2 /* num channels */, 1 /* num bytes per sample */, 4096 /* buffer size */)
+		var ready chan struct{}
+		g.otoContext, ready, err = oto.NewContext(44100, 2 /* num channels */, 1 /* num bytes per sample */)
 		if err != nil {
-			return fmt.Errorf("Cannot create Oto context (%v)", err)
+			return fmt.Errorf("cannot create Oto context (%v)", err)
 		}
+		<-ready
 		g.audioPlayer = NewAudioPlayer(g.otoContext)
 	}
 	if g.subGame != nil {
