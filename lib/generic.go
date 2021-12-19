@@ -12,12 +12,51 @@ import (
 // Representation of data parsed from GENERIC.DTA file.
 type Generic struct {
 	// Terrain colors on the overview map.
-	Data60       [4]int
-	TerrainTypes [64]int // Bytes [64:128]
+	Data60 [4]int
+	// Types of terrain 0-7 (0 is road, 7 is an impassable terrain, other vary from game to game).
+	TerrainTypes []int
 	// First two indices are positions on a 2x2 square, the third one is one of 9 neighbouring
 	// squares on 3x3 square tiling.
 	Data214 [2][2][9]int
 }
+
+// 0 - roads
+// 1 - cities, bridges
+// 2 - open fields
+// 3 - fortifications, fortified cities
+// 4 - rivers
+// 5 - forest, hedgerow, swamp
+// 6 - swamp
+var terrainTypesCrusade = []int{
+	2, 5, 1, 0, 1, 5, 1, 6, 7, 6, 7, 1, 7, 4, 4, 4,
+	4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	7, 7, 7, 7, 2, 2, 2, 2, 2, 2, 7, 7, 7, 5, 3, 3}
+
+// 0 - road, track, junction
+// 1 - airport
+// 2 - desert, coastal (land)
+// 3 - rough, pass, hills
+// 4 - escarpment
+// 5 - city, town
+// 6 - fortification
+// 7 - sea, coastal (sea)
+var terrainTypesDecision = []int{
+	2, 3, 5, 3, 6, 2, 3, 3, 0, 4, 7, 0, 7, 4, 4, 4,
+	4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	7, 7, 7, 7, 2, 2, 2, 2, 2, 0, 7, 7, 7, 3, 1, 5}
+
+// 0 - road, crossroad
+// 1 - clear, bridge
+// 2 - village, rice paddy, plantation, light forest
+// 3 - jungle, mountain, swamp
+// 4 - river
+// 5 - town, fort
+// 6 - coastal (land), ?
+// 7 - sea, coastal (sea)
+var terrainTypesConflict = []int{
+	1, 2, 5, 0, 1, 3, 1, 3, 7, 3, 6, 2, 7, 4, 4, 4,
+	4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	6, 6, 6, 6, 6, 6, 6, 7, 7, 3, 6, 6, 2, 2, 7, 5}
 
 // directionIndex assigns number 0..11 to a direction (dx, dy).
 // Numbers are assigned consecutively around the origin.
@@ -122,7 +161,7 @@ func TinyMapOffsets(i int) (int, int) {
 	if i < 9 {
 		return squareTilingNeighbour(i)
 	}
-	panic(fmt.Errorf("Invalid tiny map offset index %d", i))
+	panic(fmt.Errorf("invalid tiny map offset index %d", i))
 }
 
 type offsetWithAngle struct {
@@ -130,22 +169,22 @@ type offsetWithAngle struct {
 	angle  float64
 }
 
-func HalfTileOffsetDistance(dx, dy int) int {
+func hexDistance(dx, dy int) int {
 	absDx, absDy := Abs(dx), Abs(dy)
 	if absDy > absDx/2 {
 		return absDy
 	}
 	return (absDx + absDy + 1) / 2
 }
-func generateHalfOffsetSquareTilingOffsets() []offsetWithAngle {
+func generateHexTilingOffsets() []offsetWithAngle {
 	offsets := make([]offsetWithAngle, 0, 19)
 	for dx := -4; dx <= 4; dx++ {
 		for dy := -2; dy <= 4; dy++ {
-			// Pick only a correct offset on half tile offset tiling.
+			// Pick only a correct offset on hex tiling.
 			if Abs(dy)%2 != Abs(dx)%2 {
 				continue
 			}
-			distance := HalfTileOffsetDistance(dx, dy)
+			distance := hexDistance(dx, dy)
 			if distance > 2 {
 				continue
 			}
@@ -162,8 +201,8 @@ func generateHalfOffsetSquareTilingOffsets() []offsetWithAngle {
 	}
 	// First put offsets further away from the origin, sort them according to the angle.
 	compareOffsets := func(i, j int) bool {
-		distI := HalfTileOffsetDistance(offsets[i].dx, offsets[i].dy)
-		distJ := HalfTileOffsetDistance(offsets[j].dx, offsets[j].dy)
+		distI := hexDistance(offsets[i].dx, offsets[i].dy)
+		distJ := hexDistance(offsets[j].dx, offsets[j].dy)
 		if distI != distJ {
 			return distI > distJ
 		}
@@ -173,31 +212,31 @@ func generateHalfOffsetSquareTilingOffsets() []offsetWithAngle {
 	return offsets
 }
 
-var halfTileOffsets = generateHalfOffsetSquareTilingOffsets()
+var hexOffsets = generateHexTilingOffsets()
 
-func halfTileOffsetNeighbour(i int) (int, int) {
-	offset := halfTileOffsets[i]
+func hexNeighbour(i int) (int, int) {
+	offset := hexOffsets[i]
 	return offset.dx, offset.dy
 }
 func LongRangeHexNeighbourOffset(i int) (int, int) {
-	return halfTileOffsetNeighbour(i)
+	return hexNeighbour(i)
 }
 func hexNeighbourOffset(i int) (int, int) {
 	if i < 7 {
-		return halfTileOffsetNeighbour(i + 12)
+		return hexNeighbour(i + 12)
 	}
-	panic(fmt.Errorf("Invalid hex neighbour index %d", i))
+	panic(fmt.Errorf("invalid hex neighbour index %d", i))
 }
 
-func ReadGeneric(fsys fs.FS) (*Generic, error) {
+func ReadGeneric(fsys fs.FS, game Game) (*Generic, error) {
 	fileData, err := fs.ReadFile(fsys, "GENERIC.DTA")
 	if err != nil {
-		return nil, fmt.Errorf("Cannot read GENERIC.DTA file (%v)", err)
+		return nil, fmt.Errorf("cannot read GENERIC.DTA file (%v)", err)
 	}
-	return ParseGeneric(bytes.NewReader(fileData))
+	return ParseGeneric(bytes.NewReader(fileData), game)
 }
 
-func ParseGeneric(reader io.Reader) (*Generic, error) {
+func ParseGeneric(reader io.Reader, game Game) (*Generic, error) {
 	var data [250]byte
 	_, err := io.ReadFull(reader, data[:])
 	if err != nil {
@@ -210,12 +249,18 @@ func ParseGeneric(reader io.Reader) (*Generic, error) {
 		generic.Data60[i] = int(value)
 	}
 
-	for i, terrain := range data[64:128] {
-		generic.TerrainTypes[i] = int(terrain)
+	switch game {
+	case Crusade:
+		generic.TerrainTypes = terrainTypesCrusade
+	case Decision:
+		generic.TerrainTypes = terrainTypesDecision
+	case Conflict:
+		generic.TerrainTypes = terrainTypesConflict
 	}
 
 	for i, v := range data[214:250] {
 		generic.Data214[i/18][(i/9)%2][i%9] = int(v)
 	}
+
 	return generic, nil
 }

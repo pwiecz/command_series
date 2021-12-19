@@ -19,7 +19,7 @@ type Variant struct {
 func ReadVariants(fsys fs.FS, filename string) ([]Variant, error) {
 	variantsData, err := fs.ReadFile(fsys, filename)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot read variants file %s, %v", filename, err)
+		return nil, fmt.Errorf("cannot read variants file %s, %v", filename, err)
 	}
 	variants, err := ParseVariants(bytes.NewBuffer(variantsData))
 	if err != nil {

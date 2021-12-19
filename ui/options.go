@@ -28,6 +28,8 @@ type OptionSelection struct {
 	cursorRow   int
 
 	enterBounds image.Rectangle
+
+	pressedTouchIDs []ebiten.TouchID // store it here to avoid reallocating it for each Update
 }
 
 var crusadeSidesStrings = [2]string{"Allied", "German"}
@@ -193,9 +195,10 @@ func (s *OptionSelection) Update() error {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
 		s.onOptionsSelected(s.options)
 	}
-	for _, touchID := range inpututil.JustPressedTouchIDs() {
+	s.pressedTouchIDs = s.pressedTouchIDs[:0]
+	for _, touchID := range inpututil.AppendJustPressedTouchIDs(s.pressedTouchIDs) {
 		x, y := ebiten.TouchPosition(touchID)
-		if  image.Pt(x, y).In(s.enterBounds) {
+		if image.Pt(x, y).In(s.enterBounds) {
 			s.onOptionsSelected(s.options)
 		}
 	}

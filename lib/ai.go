@@ -268,7 +268,7 @@ func (s *AI) reinitSmallMapsAndSuch(currentSide int) {
 	for _, sideUnits := range s.units {
 		for _, unit := range sideUnits {
 			if !unit.IsInGame || s.scenarioData.UnitMask[unit.Type]&16 != 0 {
-				continue  // goto l23
+				continue // goto l23
 			}
 			sx, sy := unit.XY.X/8, unit.XY.Y/4
 			if !InRange(sx, 0, 16) || !InRange(sy, 0, 16) {
@@ -280,7 +280,7 @@ func (s *AI) reinitSmallMapsAndSuch(currentSide int) {
 			} else {
 				//v16 += unit.MenCount + unit.TankCount
 				if !s.commanderFlags.PlayerHasIntelligence[currentSide] && !unit.SeenByEnemy {
-					continue  // goto l23
+					continue // goto l23
 				}
 			}
 			v30 := unit.MenCount + unit.TankCount
@@ -359,16 +359,17 @@ func (s *AI) reinitSmallMapsAndSuch(currentSide int) {
 	// function18()
 }
 
-func (s *AI) function26(xy UnitCoords, index int) int {
+func (s *AI) function26(xy UnitCoords, neighbourIndex int) int {
 	// If not on the edge of a 4x4 square
 	if InRange((xy.X/2)%4, 1, 3) && InRange(xy.Y%4, 1, 3) {
-		return 9 - (((index + 3) / 2) & 6)
+		// 9 - 2*distance to the neighbour.
+		return 9 - ((neighbourIndex+3)/4)*2
 	}
-	return s.generic.Data214[(xy.Y/2)&1][(xy.X/4)&1][index]
+	return s.generic.Data214[(xy.Y/2)&1][(xy.X/4)&1][neighbourIndex]
 }
 
 // Find best order to be performed by the unit.
-// If both the objective and order is already specified return false meaning the unit
+// If both the objective and the order is already specified return false meaning the unit
 // doest not need its objective to be recalculated.
 func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 	var mode OrderType
@@ -957,7 +958,7 @@ func (s *AI) performUnitMovement(unit *Unit, message *MessageFromUnit, arg1 *int
 		unit.Fatigue = Clamp(unit.Fatigue+s.scenarioData.Data173, 0, 255)
 		if city, captured := s.function16(*unit); captured {
 			*message = WeHaveCaptured{*unit, *city}
-			return
+			return // goto l2
 		}
 		if unitMoveBudget > 0 {
 			if s.units.NeighbourUnitCount(unit.XY, 1-unit.Side) > 0 {
@@ -967,6 +968,7 @@ func (s *AI) performUnitMovement(unit *Unit, message *MessageFromUnit, arg1 *int
 				unit.InContactWithEnemy = false // &= 254
 			}
 			s.function29_showUnit(*unit)
+			// goto l22
 		}
 	}
 	// l2:

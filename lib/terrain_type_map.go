@@ -9,7 +9,7 @@ type TerrainTypeMap struct {
 func newTerrainTypeMap(terrainMap *Map, generic *Generic) *TerrainTypeMap {
 	return &TerrainTypeMap{
 		terrainMap: terrainMap,
-		units:      make([]bool, len(terrainMap.terrain)),
+		units:      make([]bool, terrainMap.Width*terrainMap.Height),
 		generic:    generic,
 	}
 }
@@ -18,24 +18,19 @@ func (m *TerrainTypeMap) terrainOrUnitTypeAt(xy UnitCoords) int {
 	if !m.AreCoordsValid(xy.ToMapCoords()) {
 		return 7
 	}
-	return m.terrainOrUnitTypeAtIndex(m.terrainMap.CoordsToIndex(xy.ToMapCoords()))
-}
-func (m *TerrainTypeMap) terrainOrUnitTypeAtIndex(ix int) int {
+	mapCoords := xy.ToMapCoords()
+	ix := m.terrainMap.CoordsToIndex(mapCoords)
 	if ix < 0 || ix >= len(m.units) || m.units[ix] {
 		return 7
 	}
-	return m.generic.TerrainTypes[m.terrainMap.getTileAtIndex(ix)&63]
+	return m.generic.TerrainTypes[m.terrainMap.GetTile(mapCoords)%64]
 }
+
 func (m *TerrainTypeMap) terrainTypeAt(xy UnitCoords) int {
-	return m.terrainTypeAtIndex(m.terrainMap.CoordsToIndex(xy.ToMapCoords()))
+	mapCoords := xy.ToMapCoords()
+	return m.generic.TerrainTypes[m.terrainMap.GetTile(mapCoords)%64]
 }
-func (m *TerrainTypeMap) terrainTypeAtIndex(ix int) int {
-	terrain := m.terrainMap.getTileAtIndex(ix)
-	if terrain&63 >= 48 {
-		panic(terrain)
-	}
-	return m.generic.TerrainTypes[terrain&63]
-}
+
 func (m *TerrainTypeMap) showUnit(unit Unit) {
 	m.ShowUnitAt(unit.XY)
 }

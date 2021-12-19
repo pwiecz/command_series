@@ -99,7 +99,7 @@ type DataUpdate struct {
 func ReadData(fsys fs.FS, filename string) (*Data, error) {
 	fileData, err := fs.ReadFile(fsys, filename)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot read data file %s (%v)", filename, err)
+		return nil, fmt.Errorf("cannot read data file %s (%v)", filename, err)
 	}
 	return ParseData(fileData)
 }
@@ -107,7 +107,7 @@ func ReadData(fsys fs.FS, filename string) (*Data, error) {
 // ParseData parses data from a {scenario.DTA file.
 func ParseData(data []byte) (*Data, error) {
 	if len(data) < 512 {
-		return nil, fmt.Errorf("Unexpected data file expecting >512, got %d", len(data))
+		return nil, fmt.Errorf("unexpected data file expecting >512, got %d", len(data))
 	}
 	scenario := &Data{}
 	for i, value := range data[0:383] {
@@ -142,7 +142,7 @@ func ParseData(data []byte) (*Data, error) {
 	}
 	for i := 0; i < 14; i++ {
 		if stringListOffsets[i+1] < stringListOffsets[i] {
-			return scenario, fmt.Errorf("Invalid scenario file. Non-monotonic string offsets num %d, %d (%d, %d)", i, i+1, stringListOffsets[i], stringListOffsets[i+1])
+			return scenario, fmt.Errorf("invalid scenario file. Non-monotonic string offsets num %d, %d (%d, %d)", i, i+1, stringListOffsets[i], stringListOffsets[i+1])
 		}
 		stringData := make([]byte, stringListOffsets[i+1]-stringListOffsets[i])
 		if _, err := io.ReadFull(reader, stringData); err != nil {
@@ -200,7 +200,7 @@ func ParseData(data []byte) (*Data, error) {
 
 func (s *Data) UpdateData(offset int, value byte) {
 	if offset >= 383 {
-		panic(fmt.Errorf("Invalid offset %d", offset))
+		panic(fmt.Errorf("invalid offset %d", offset))
 	}
 	switch {
 	case InRange(offset, 0, 16):

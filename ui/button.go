@@ -9,8 +9,9 @@ import (
 )
 
 type Button struct {
-	label *Label
-	rect  image.Rectangle
+	label           *Label
+	rect            image.Rectangle
+	pressedTouchIDs []ebiten.TouchID // store it here to avoid reallocating it for each Update
 }
 
 func NewButton(text string, x, y float64, width, height int, font *lib.Font) *Button {
@@ -37,7 +38,8 @@ func (b *Button) Update() bool {
 			return true
 		}
 	}
-	for _, touchID := range inpututil.JustPressedTouchIDs() {
+	b.pressedTouchIDs = b.pressedTouchIDs[:0]
+	for _, touchID := range inpututil.AppendJustPressedTouchIDs(b.pressedTouchIDs) {
 		x, y := ebiten.TouchPosition(touchID)
 		if image.Pt(x, y).In(b.rect) {
 			return true

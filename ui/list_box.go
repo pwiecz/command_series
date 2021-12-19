@@ -7,14 +7,14 @@ import (
 )
 
 type ListBox struct {
-	rows         []*Label
-	x, y         float64
-	width        int
-	height       int
-	items        []string
-	topItem      int
-	selectedItem int
-	onEnter      func(string)
+	rows            []*Label
+	width           int
+	height          int
+	items           []string
+	topItem         int
+	selectedItem    int
+	onEnter         func(string)
+	pressedTouchIDs []ebiten.TouchID // store it here to avoid reallocating it for each Update
 }
 
 func NewListBox(x, y float64, width, height int, items []string, font *lib.Font, onEnter func(string)) *ListBox {
@@ -79,8 +79,9 @@ func (l *ListBox) Update() {
 			}
 		}
 	} else {
+		l.pressedTouchIDs = l.pressedTouchIDs[:0]
 	outerLoop:
-		for _, touchID := range inpututil.JustPressedTouchIDs() {
+		for _, touchID := range inpututil.AppendJustPressedTouchIDs(l.pressedTouchIDs) {
 			touchX, touchY := ebiten.TouchPosition(touchID)
 			for i, row := range l.rows {
 				if row.ContainsPoint(touchX, touchY) {

@@ -12,7 +12,7 @@ type MapDrawer struct {
 	minX, minY, maxX, maxY int // map bounds to draw in map coordinates
 	images                 [2]*ebiten.Image
 	tileWidth, tileHeight  int
-	colors                 *colorSchemes
+	colors                 *ColorSchemes
 	tiles                  *[48]*image.Paletted
 	tileImages             [2][4][48]*ebiten.Image
 }
@@ -21,7 +21,7 @@ func NewMapDrawer(
 	terrainMap *lib.Map,
 	minX, minY, maxX, maxY int,
 	tiles *[48]*image.Paletted,
-	colors *colorSchemes) *MapDrawer {
+	colors *ColorSchemes) *MapDrawer {
 	tileBounds := tiles[0].Bounds()
 	return &MapDrawer{
 		terrainMap: terrainMap,

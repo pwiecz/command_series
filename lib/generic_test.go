@@ -54,12 +54,12 @@ func TestDirectionTowardsNeightbour(t *testing.T) {
 		// variants 1, 2 should go to a adjacent hex to the neighbour
 		neighbourToGoTo = FirstNeighbourFromTowards(initialCoords, neighbourCoords, 2)
 		dx, dy := neighbourToGoTo.X-initialCoords.X, neighbourToGoTo.Y-initialCoords.Y
-		if HalfTileOffsetDistance(dx, dy) != 1 {
+		if hexDistance(dx, dy) != 1 {
 			t.Errorf("Expecting neighbour at distance 1, for index %d variant 2", i)
 		}
 		neighbourToGoTo = FirstNeighbourFromTowards(initialCoords, neighbourCoords, 3)
 		dx, dy = neighbourToGoTo.X-initialCoords.X, neighbourToGoTo.Y-initialCoords.Y
-		if HalfTileOffsetDistance(dx, dy) != 1 {
+		if hexDistance(dx, dy) != 1 {
 			t.Errorf("Expecting neighbour at distance 1, for index %d variant 3", i)
 		}
 	}

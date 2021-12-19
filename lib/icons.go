@@ -68,7 +68,7 @@ type Icons struct {
 func ReadIcons(fsys fs.FS) (*Icons, error) {
 	iconsData, err := fs.ReadFile(fsys, "WAR.PIC")
 	if err != nil {
-		return nil, fmt.Errorf("Cannot read WAR.PIC file (%v)", err)
+		return nil, fmt.Errorf("cannot read WAR.PIC file (%v)", err)
 	}
 	return ParseIcons(bytes.NewReader(iconsData))
 }
@@ -79,7 +79,7 @@ func ParseIcons(iconsData io.Reader) (*Icons, error) {
 		return nil, err
 	}
 	if len(icons) != 24 {
-		return nil, fmt.Errorf("Unexpected number of icons %d, expected 24", len(icons))
+		return nil, fmt.Errorf("unexpected number of icons %d, expected 24", len(icons))
 	}
 	res := Icons{}
 	for i, icon := range icons {

@@ -6,19 +6,19 @@ import (
 	"github.com/pwiecz/command_series/lib"
 )
 
-type colorSchemes struct {
+type ColorSchemes struct {
 	daytimePalette      *[8]byte
 	nightPalette        *[8]byte
 	daytimeColorSchemes [4][]color.Color
 	nightColorSchemes   [4][]color.Color
 }
 
-func newColorSchemes(daytimePalette *[8]byte, nightPalette *[8]byte) *colorSchemes {
-	return &colorSchemes{
+func NewColorSchemes(daytimePalette *[8]byte, nightPalette *[8]byte) *ColorSchemes {
+	return &ColorSchemes{
 		daytimePalette: daytimePalette,
-		nightPalette: nightPalette}
+		nightPalette:   nightPalette}
 }
-func (c *colorSchemes) GetBackgroundForegroundColors(colorScheme byte, isNight bool) []color.Color {
+func (c *ColorSchemes) GetBackgroundForegroundColors(colorScheme byte, isNight bool) []color.Color {
 	if isNight {
 		return c.getColors(colorScheme, c.nightPalette, &c.nightColorSchemes)
 	} else {
@@ -26,7 +26,7 @@ func (c *colorSchemes) GetBackgroundForegroundColors(colorScheme byte, isNight b
 	}
 }
 
-func (c *colorSchemes) getColors(colorScheme byte, palette *[8]byte, colorSchemes *[4][]color.Color) []color.Color {
+func (c *ColorSchemes) getColors(colorScheme byte, palette *[8]byte, colorSchemes *[4][]color.Color) []color.Color {
 	colors := colorSchemes[colorScheme]
 	if colors == nil {
 		colors = make([]color.Color, 2)

@@ -25,15 +25,15 @@ type Scenario struct {
 func ReadScenarios(fsys fs.FS) ([]Scenario, error) {
 	file, err := fsys.Open(".")
 	if err != nil {
-		return nil, fmt.Errorf("Cannot list contents of the disk image (%v)", err)
+		return nil, fmt.Errorf("cannot list contents of the disk image (%v)", err)
 	}
 	dirFile, ok := file.(fs.ReadDirFile)
 	if !ok {
-		return nil, fmt.Errorf("Root directory is not a directory")
+		return nil, fmt.Errorf("root directory is not a directory")
 	}
 	files, err := dirFile.ReadDir(0)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot read contents of the disk image (%v)", err)
+		return nil, fmt.Errorf("cannot read contents of the disk image (%v)", err)
 	}
 
 	var scenarios []Scenario
@@ -48,7 +48,7 @@ func ReadScenarios(fsys fs.FS) ([]Scenario, error) {
 	}
 
 	if len(scenarios) == 0 {
-		return nil, fmt.Errorf("No scenarios found in the disk image")
+		return nil, fmt.Errorf("no scenarios found in the disk image")
 	}
 	return scenarios, nil
 }
@@ -56,11 +56,11 @@ func ReadScenarios(fsys fs.FS) ([]Scenario, error) {
 func ReadScenario(fsys fs.FS, filename string) (Scenario, error) {
 	data, err := fs.ReadFile(fsys, filename)
 	if err != nil {
-		return Scenario{}, fmt.Errorf("Cannot read scenario file %s (%v)", filename, err)
+		return Scenario{}, fmt.Errorf("cannot read scenario file %s (%v)", filename, err)
 	}
 	scenario, err := ParseScn(data)
 	if err != nil {
-		return Scenario{}, fmt.Errorf("Cannot parse scenario file %s (%v)\n", filename, err)
+		return Scenario{}, fmt.Errorf("cannot parse scenario file %s (%v)", filename, err)
 	}
 	return scenario, err
 }
@@ -68,44 +68,44 @@ func ReadScenario(fsys fs.FS, filename string) (Scenario, error) {
 func ParseScn(data []byte) (Scenario, error) {
 	segments := bytes.SplitN(data, []byte{0x9b}, 11)
 	if len(segments) != 11 {
-		return Scenario{}, fmt.Errorf("Expected 11 segments, got %d", len(segments))
+		return Scenario{}, fmt.Errorf("expected 11 segments, got %d", len(segments))
 	}
 	var result Scenario
 	result.Name = string(segments[0])
 	result.FilePrefix = string(segments[1])
 	if !strings.HasPrefix(result.FilePrefix, "D:") {
-		return Scenario{}, fmt.Errorf("Unexpected scenario file prefix: \"%s\"", result.FilePrefix)
+		return Scenario{}, fmt.Errorf("unexpected scenario file prefix: \"%s\"", result.FilePrefix)
 	}
 	result.FilePrefix = result.FilePrefix[2:]
 	var err error
 	result.StartMinute, err = strconv.Atoi(string(segments[2]))
 	if err != nil {
-		return result, fmt.Errorf("Cannot parse scenario start minute: \"%s\"", string(segments[2]))
+		return result, fmt.Errorf("cannot parse scenario start minute: \"%s\"", string(segments[2]))
 	}
 	result.StartHour, err = strconv.Atoi(string(segments[3]))
 	if err != nil {
-		return result, fmt.Errorf("Cannot parse scenario start hour: \"%s\"", string(segments[3]))
+		return result, fmt.Errorf("cannot parse scenario start hour: \"%s\"", string(segments[3]))
 	}
 	result.StartDay, err = strconv.Atoi(string(segments[4]))
 	if err != nil {
-		return result, fmt.Errorf("Cannot parse scenario start day: \"%s\"", string(segments[4]))
+		return result, fmt.Errorf("cannot parse scenario start day: \"%s\"", string(segments[4]))
 	}
 	result.StartMonth, err = strconv.Atoi(string(segments[5]))
 	if err != nil {
-		return result, fmt.Errorf("Cannot parse scenario start month: \"%s\"", string(segments[5]))
+		return result, fmt.Errorf("cannot parse scenario start month: \"%s\"", string(segments[5]))
 	}
 	result.StartYear, err = strconv.Atoi(string(segments[6]))
 	if err != nil {
-		return result, fmt.Errorf("Cannot parse scenario start year: \"%s\"", string(segments[6]))
+		return result, fmt.Errorf("cannot parse scenario start year: \"%s\"", string(segments[6]))
 	}
 	// segments[7] - start month string
 	// segments[8] - start weather string
 	result.StartWeather, err = strconv.Atoi(string(segments[9]))
 	if err != nil {
-		return result, fmt.Errorf("Cannot parse scenario start weather: \"%s\"", string(segments[9]))
+		return result, fmt.Errorf("cannot parse scenario start weather: \"%s\"", string(segments[9]))
 	}
 	if len(segments[10]) != 8 {
-		return result, fmt.Errorf("Expected length of binary data segment 8, got %d", len(segments[10]))
+		return result, fmt.Errorf("expected length of binary data segment 8, got %d", len(segments[10]))
 	}
 
 	result.StartSupplyLevels[0] = int(segments[10][0]) + 256*int(segments[10][1])

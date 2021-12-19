@@ -46,7 +46,7 @@ func (t Terrain) FindCityAt(xy UnitCoords) (*City, bool) {
 func ReadTerrain(fsys fs.FS, filename string, game Game) (*Terrain, error) {
 	fileData, err := fs.ReadFile(fsys, filename)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot open terrain file %s (%v)", filename, err)
+		return nil, fmt.Errorf("cannot open terrain file %s (%v)", filename, err)
 	}
 	var reader io.Reader
 	if game == Conflict {
@@ -60,7 +60,7 @@ func ReadTerrain(fsys fs.FS, filename string, game Game) (*Terrain, error) {
 	}
 	terrain, err := ParseTerrain(reader)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot parse terrain file %s (%v)", filename, err)
+		return nil, fmt.Errorf("cannot parse terrain file %s (%v)", filename, err)
 	}
 	return terrain, nil
 }
@@ -117,7 +117,7 @@ func (c *Cities) ReadOwnerAndVictoryPoints(data io.Reader) error {
 	}
 	numCities := int(buf[0])
 	if numCities != len(*c) {
-		return fmt.Errorf("Mismatched number of cities, %d vs %d", numCities, len(*c))
+		return fmt.Errorf("mismatched number of cities, %d vs %d", numCities, len(*c))
 	}
 	for i := 0; i < numCities; i++ {
 		if _, err := io.ReadFull(data, buf[:]); err != nil {
@@ -131,7 +131,7 @@ func (c *Cities) ReadOwnerAndVictoryPoints(data io.Reader) error {
 
 func (c Cities) WriteOwnerAndVictoryPoints(writer io.Writer) error {
 	if len(c) > 255 {
-		return fmt.Errorf("Too many cities to encode %d", len(c))
+		return fmt.Errorf("too many cities to encode %d", len(c))
 	}
 	if _, err := writer.Write([]byte{byte(len(c))}); err != nil {
 		return err

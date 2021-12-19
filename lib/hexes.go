@@ -18,7 +18,7 @@ type Hexes struct {
 func ReadHexes(fsys fs.FS) (*Hexes, error) {
 	fileData, err := fs.ReadFile(fsys, "HEXES.DTA")
 	if err != nil {
-		return nil, fmt.Errorf("Cannot read HEXES.DTA file (%v)", err)
+		return nil, fmt.Errorf("cannot read HEXES.DTA file (%v)", err)
 	}
 	return ParseHexes(bytes.NewReader(fileData))
 }

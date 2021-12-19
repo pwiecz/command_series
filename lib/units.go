@@ -129,13 +129,7 @@ func (u *Unit) ClearState() {
 	u.IsInGame = false
 }
 func (u Unit) Function15_distanceToObjective() int {
-	dx := Abs(u.Objective.X - u.XY.X)
-	dy := Abs(u.Objective.Y - u.XY.Y)
-	if dy > dx/2 {
-		return dy
-	} else {
-		return (dx + dy + 1) / 2
-	}
+	return hexDistance(u.Objective.X-u.XY.X, u.Objective.Y-u.XY.Y)
 }
 func (u Unit) IsVisible() bool {
 	return u.IsInGame && (u.InContactWithEnemy || u.SeenByEnemy)
@@ -152,7 +146,7 @@ type FlashbackHistory []FlashbackUnits
 func ReadUnits(fsys fs.FS, filename string, game Game, unitTypeNames []string, unitNames [2][]string, generals *Generals) (*Units, error) {
 	fileData, err := fs.ReadFile(fsys, filename)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot read units file %s (%v)", filename, err)
+		return nil, fmt.Errorf("cannot read units file %s (%v)", filename, err)
 	}
 	var reader io.Reader
 	if game == Conflict {
@@ -167,7 +161,7 @@ func ReadUnits(fsys fs.FS, filename string, game Game, unitTypeNames []string, u
 	}
 	units, err := ParseUnits(reader, unitTypeNames, unitNames, generals)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot parse units file %s (%v)", filename, err)
+		return nil, fmt.Errorf("cannot parse units file %s (%v)", filename, err)
 	}
 	return units, nil
 }
@@ -194,7 +188,7 @@ func ParseUnit(data [16]byte, unitTypeNames []string, unitNames []string, genera
 	unit.Fatigue = int(data[6])
 	unit.Type = int(data[7] & 15)
 	if unit.Type >= len(unitTypeNames) {
-		return unit, fmt.Errorf("Invalid unit type number: %d", unit.Type)
+		return unit, fmt.Errorf("invalid unit type number: %d", unit.Type)
 	}
 	unit.TypeName = unitTypeNames[unit.Type]
 	unit.ColorPalette = int(data[7] / 16)
@@ -245,17 +239,17 @@ func ParseUnits(data io.Reader, unitTypeNames []string, unitNames [2][]string, g
 	var units Units
 	for i := 0; i < 128; i++ {
 		var unitData [16]byte
-		numRead, err := io.ReadFull(data, unitData[:])
+		numRead, _ := io.ReadFull(data, unitData[:])
 		if numRead < 16 {
 			if i != 127 || numRead != 15 {
-				return nil, fmt.Errorf("Too short unit %d data, %d bytes", i, numRead)
+				return nil, fmt.Errorf("too short unit %d data, %d bytes", i, numRead)
 			}
 			unitData[15] = 100
 		}
 		side := i / 64
 		unit, err := ParseUnit(unitData, unitTypeNames, unitNames[side], generals[side])
 		if err != nil {
-			return nil, fmt.Errorf("Error parsing unit %d (%v)", i, err)
+			return nil, fmt.Errorf("error parsing unit %d (%v)", i, err)
 		}
 		unit.Side = side
 		unit.Index = len(units[i/64])

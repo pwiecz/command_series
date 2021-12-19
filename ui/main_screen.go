@@ -53,6 +53,8 @@ type MainScreen struct {
 	lastMessageFromUnit lib.MessageFromUnit
 
 	gameOver bool
+
+	pressedTouchIDs []ebiten.TouchID // store it here to avoid reallocating it for each Update
 }
 
 func NewMainScreen(g *Game, options *lib.Options, audioPlayer *AudioPlayer, rand *rand.Rand, onGameOver func(int, int, int)) *MainScreen {
@@ -335,7 +337,8 @@ func (s *MainScreen) Update() error {
 				s.pickOrder(xy)
 			}
 		}
-		for _, touchID := range inpututil.JustPressedTouchIDs() {
+		s.pressedTouchIDs = s.pressedTouchIDs[:0]
+		for _, touchID := range inpututil.AppendJustPressedTouchIDs(s.pressedTouchIDs) {
 			touchX, touchY := ebiten.TouchPosition(touchID)
 			xy := s.screenCoordsToUnitCoords(touchX, touchY)
 			if s.mapView.AreMapCoordsVisible(xy.ToMapCoords()) {
@@ -442,7 +445,7 @@ loop:
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 			}
 		default:
-			return fmt.Errorf("Unknown message: %v", message)
+			return fmt.Errorf("unknown message: %v", message)
 		}
 	}
 	return nil

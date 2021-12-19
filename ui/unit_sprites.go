@@ -8,12 +8,10 @@ import (
 )
 
 type unitSprites struct {
-	tileWidth, tileHeight int
-
 	isNight     int // 0 or 1
 	unitDisplay lib.UnitDisplay
 
-	colors *colorSchemes
+	colors *ColorSchemes
 
 	unitSymbols      *[16]*image.Paletted
 	unitIcons        *[16]*image.Paletted
@@ -21,7 +19,7 @@ type unitSprites struct {
 	unitIconImages   [2][4][16]*ebiten.Image
 }
 
-func newUnitSprites(unitSymbols *[16]*image.Paletted, unitIcons *[16]*image.Paletted, colors *colorSchemes) *unitSprites {
+func newUnitSprites(unitSymbols *[16]*image.Paletted, unitIcons *[16]*image.Paletted, colors *ColorSchemes) *unitSprites {
 	return &unitSprites{
 		unitSymbols: unitSymbols,
 		unitIcons:   unitIcons,

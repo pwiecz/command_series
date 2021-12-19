@@ -98,7 +98,6 @@ func (a *IconAnimation) Draw(screen *ebiten.Image) {
 
 type IconsAnimation struct {
 	mapView *MapView
-	sprite  *ebiten.Image
 	icons   []lib.IconType
 
 	xy      lib.MapCoords

@@ -236,5 +236,5 @@ func numToKey(n int) ebiten.Key {
 	case 9:
 		return ebiten.Key9
 	}
-	panic(fmt.Errorf("No key for num %d", n))
+	panic(fmt.Errorf("no key for num %d", n))
 }

@@ -16,7 +16,7 @@ func (i Intelligence) String() string {
 	case Limited:
 		return "LIMITED"
 	}
-	panic(fmt.Errorf("Unknown intelligence type: %d", i.i))
+	panic(fmt.Errorf("unknown intelligence type: %d", i.i))
 }
 func (i Intelligence) Other() Intelligence {
 	return Intelligence{1 - i.i}
@@ -35,7 +35,7 @@ func (c Commander) String() string {
 	case Computer:
 		return "COMPUTER"
 	}
-	panic(fmt.Errorf("Unknown commander type: %d", c.c))
+	panic(fmt.Errorf("unknown commander type: %d", c.c))
 }
 func (c Commander) Other() Commander {
 	return Commander{1 - c.c}
@@ -53,7 +53,7 @@ func (u UnitDisplay) String() string {
 	case ShowAsIcons:
 		return "ICONS"
 	}
-	panic(fmt.Errorf("Unknown unit display type: %d", int(u)))
+	panic(fmt.Errorf("unknown unit display type: %d", int(u)))
 }
 
 const (
@@ -72,7 +72,7 @@ func (s Speed) String() string {
 	case Slow:
 		return "SLOW"
 	}
-	panic(fmt.Errorf("Unknown speed: %d", int(s)))
+	panic(fmt.Errorf("unknown speed: %d", int(s)))
 }
 func (s Speed) DelayTicks() int {
 	return 60 * int(s)
@@ -86,7 +86,7 @@ func (s Speed) Faster() Speed {
 	case Slow:
 		return Medium
 	}
-	panic(fmt.Errorf("Unknown speed: %d", int(s)))
+	panic(fmt.Errorf("unknown speed: %d", int(s)))
 }
 func (s Speed) Slower() Speed {
 	switch s {
@@ -97,7 +97,7 @@ func (s Speed) Slower() Speed {
 	case Slow:
 		return Slow
 	}
-	panic(fmt.Errorf("Unknown speed: %d", int(s)))
+	panic(fmt.Errorf("unknown speed: %d", int(s)))
 }
 
 const (

@@ -26,31 +26,31 @@ type ScenarioData struct {
 func LoadGameData(fsys fs.FS) (*GameData, error) {
 	game, err := DetectGame(fsys)
 	if err != nil {
-		return nil, fmt.Errorf("Error detecting game, %v", err)
+		return nil, fmt.Errorf("error detecting game, %v", err)
 	}
 	scenarios, err := ReadScenarios(fsys)
 	if err != nil {
-		return nil, fmt.Errorf("Error loading scenarios, %v", err)
+		return nil, fmt.Errorf("error loading scenarios, %v", err)
 	}
 	sprites, err := ReadSprites(fsys)
 	if err != nil {
-		return nil, fmt.Errorf("Error loading sprites, %v", err)
+		return nil, fmt.Errorf("error loading sprites, %v", err)
 	}
 	icons, err := ReadIcons(fsys)
 	if err != nil {
-		return nil, fmt.Errorf("Error loading icons, %v", err)
+		return nil, fmt.Errorf("error loading icons, %v", err)
 	}
 	terrainMap, err := ReadMap(fsys, game)
 	if err != nil {
-		return nil, fmt.Errorf("Error loading map, %v", err)
+		return nil, fmt.Errorf("error loading map, %v", err)
 	}
-	generic, err := ReadGeneric(fsys)
+	generic, err := ReadGeneric(fsys, game)
 	if err != nil {
-		return nil, fmt.Errorf("Error loading generic, %v", err)
+		return nil, fmt.Errorf("error loading generic, %v", err)
 	}
 	hexes, err := ReadHexes(fsys)
 	if err != nil {
-		return nil, fmt.Errorf("Error loading hexes, %v", err)
+		return nil, fmt.Errorf("error loading hexes, %v", err)
 	}
 	gameData := &GameData{
 		Game:           game,

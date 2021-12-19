@@ -12,7 +12,7 @@ type MapView struct {
 	minMapX, minMapY, maxMapX, maxMapY int // map bounds to draw in map coordinates
 	cursorXY                           lib.MapCoords
 
-	colors         *colorSchemes
+	colors         *ColorSchemes
 	mapDrawer      *MapDrawer
 	terrainTypeMap *lib.TerrainTypeMap
 	units          *lib.Units
@@ -51,10 +51,10 @@ func NewMapView(
 	daytimePalette *[8]byte,
 	nightPalette *[8]byte) *MapView {
 
-	tileBounds := tiles[0].Bounds()
-	colors := newColorSchemes(daytimePalette, nightPalette)
+	colors := NewColorSchemes(daytimePalette, nightPalette)
 	mapDrawer := NewMapDrawer(terrainMap, minMapX, minMapY, maxMapX, maxMapY, tiles, colors)
 	unitSprites := newUnitSprites(unitSymbols, unitIcons, colors)
+	tileBounds := tiles[0].Bounds()
 	v := &MapView{
 		x:              x,
 		y:              y,
@@ -203,7 +203,6 @@ func (v *MapView) Draw(screen *ebiten.Image) {
 		v.drawSpriteAtCoords(icon, iconX+v.iconDx*v.zoomX, iconY+v.iconDy*v.zoomY, screen)
 		v.iconAnimationStep++
 	}
-	return
 }
 func (v *MapView) ShowIcon(icon lib.IconType, xy lib.MapCoords, dx, dy float64) {
 	v.shownIcons = append(v.shownIcons[:0], v.GetSpriteFromIcon(icon))
