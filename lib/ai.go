@@ -120,8 +120,6 @@ nextUnit:
 				if s.scenarioData.UnitCanMove[unit2.Type] {
 					unit.InContactWithEnemy = true
 					unit.SeenByEnemy = true // |= 65
-					if unit.Side == 0 {
-					}
 					if !wasInContactWithEnemy {
 						message = WeAreInContactWithEnemy{unit}
 					}
