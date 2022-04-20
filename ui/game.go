@@ -14,6 +14,7 @@ type SubGame interface {
 	Update() error
 	Draw(screen *ebiten.Image)
 }
+
 type Game struct {
 	subGame          SubGame
 	fsys             fs.FS
@@ -27,6 +28,7 @@ type Game struct {
 	otoContext  *oto.Context
 	audioPlayer *AudioPlayer
 }
+var _ ebiten.Game = (*Game)(nil)
 
 func NewGame(fsys fs.FS, rand *rand.Rand) (*Game, error) {
 	game := &Game{

@@ -61,8 +61,8 @@ func (d *MapDrawer) drawMapImage(isNight bool) *ebiten.Image {
 			if x >= d.terrainMap.Width-y%2 {
 				break
 			}
-			tileNum := d.terrainMap.GetTile(lib.MapCoords{x, y})
-			d.drawTileAt(tileNum, isNight, lib.MapCoords{x, y}, image)
+			tileNum := d.terrainMap.GetTile(lib.MapCoords{X: x, Y: y})
+			d.drawTileAt(tileNum, isNight, lib.MapCoords{X: x, Y: y}, image)
 		}
 	}
 	return image

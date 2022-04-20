@@ -30,7 +30,7 @@ func (m *OverviewMap) Draw(screen *ebiten.Image, opts *ebiten.DrawImageOptions) 
 		m.image.Fill(lib.RGBPalette[14])
 		for y := 0; y < m.terrainMap.Width; y++ {
 			for x := 0; x < m.terrainMap.Height; x++ {
-				xy := lib.MapCoords{x, y}
+				xy := lib.MapCoords{X: x, Y: y}
 				if !m.terrainMap.AreCoordsValid(xy) {
 					continue
 				}

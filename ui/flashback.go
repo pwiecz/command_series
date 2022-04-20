@@ -46,16 +46,16 @@ func (f *Flashback) Update() error {
 		return errors.New("Exit")
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyDown) {
 		curXY := f.mapView.GetCursorPosition()
-		f.mapView.SetCursorPosition(lib.MapCoords{curXY.X, curXY.Y + 1})
+		f.mapView.SetCursorPosition(lib.MapCoords{X: curXY.X, Y: curXY.Y + 1})
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyUp) {
 		curXY := f.mapView.GetCursorPosition()
-		f.mapView.SetCursorPosition(lib.MapCoords{curXY.X, curXY.Y - 1})
+		f.mapView.SetCursorPosition(lib.MapCoords{X: curXY.X, Y: curXY.Y - 1})
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyRight) {
 		curXY := f.mapView.GetCursorPosition()
-		f.mapView.SetCursorPosition(lib.MapCoords{curXY.X + 1, curXY.Y})
+		f.mapView.SetCursorPosition(lib.MapCoords{X: curXY.X + 1, Y: curXY.Y})
 	} else if inpututil.IsKeyJustPressed(ebiten.KeyLeft) {
 		curXY := f.mapView.GetCursorPosition()
-		f.mapView.SetCursorPosition(lib.MapCoords{curXY.X - 1, curXY.Y})
+		f.mapView.SetCursorPosition(lib.MapCoords{X: curXY.X - 1, Y: curXY.Y})
 	}
 	return nil
 }

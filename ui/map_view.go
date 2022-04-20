@@ -64,7 +64,7 @@ func NewMapView(
 		minMapY:        minMapY,
 		maxMapX:        maxMapX,
 		maxMapY:        maxMapY,
-		cursorXY:       lib.MapCoords{minMapX, minMapY},
+		cursorXY:       lib.MapCoords{X: minMapX, Y: minMapY},
 		icons:          icons,
 		tileWidth:      float64(tileBounds.Dx()),
 		tileHeight:     float64(tileBounds.Dy()),
@@ -124,7 +124,7 @@ func (v *MapView) ScreenCoordsToUnitCoords(screenX, screenY int) lib.UnitCoords 
 	// Cast to float64 to perform division rounding to floor instead of rounding to zero.
 	y := int(math.Floor(imageY/v.tileHeight)) + v.minMapY
 	x := int(math.Floor(imageX+float64(y%2)*v.tileWidth/2)/8)*2 - y%2 + v.minMapX*2
-	return lib.UnitCoords{x, y}
+	return lib.UnitCoords{X: x, Y: y}
 }
 func (v *MapView) MapCoordsToScreenCoords(mapXY lib.MapCoords) (x, y float64) {
 	imageX, imageY := v.mapDrawer.MapCoordsToImageCoords(mapXY)

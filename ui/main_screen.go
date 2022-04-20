@@ -57,15 +57,17 @@ type MainScreen struct {
 	pressedTouchIDs []ebiten.TouchID // store it here to avoid reallocating it for each Update
 }
 
+var _ SubGame = (*MainScreen)(nil)
+
 func NewMainScreen(g *Game, options *lib.Options, audioPlayer *AudioPlayer, rand *rand.Rand, onGameOver func(int, int, int)) *MainScreen {
 	scenario := &g.gameData.Scenarios[g.selectedScenario]
 	for x := scenario.MinX - 1; x <= scenario.MaxX+1; x++ {
-		g.gameData.Map.SetTile(lib.MapCoords{x, scenario.MinY - 1}, 12)
-		g.gameData.Map.SetTile(lib.MapCoords{x, scenario.MaxY + 1}, 12)
+		g.gameData.Map.SetTile(lib.MapCoords{X: x, Y: scenario.MinY - 1}, 12)
+		g.gameData.Map.SetTile(lib.MapCoords{X: x, Y: scenario.MaxY + 1}, 12)
 	}
 	for y := scenario.MinY; y <= scenario.MaxY; y++ {
-		g.gameData.Map.SetTile(lib.MapCoords{scenario.MinX - 1, y}, 10)
-		g.gameData.Map.SetTile(lib.MapCoords{scenario.MaxX + 1, y}, 12)
+		g.gameData.Map.SetTile(lib.MapCoords{X: scenario.MinX - 1, Y: y}, 10)
+		g.gameData.Map.SetTile(lib.MapCoords{X: scenario.MaxX + 1, Y: y}, 12)
 	}
 	s := &MainScreen{
 		selectedScenario: g.selectedScenario,
@@ -89,7 +91,7 @@ func NewMainScreen(g *Game, options *lib.Options, audioPlayer *AudioPlayer, rand
 		&g.gameData.Sprites.TerrainTiles,
 		&g.gameData.Sprites.UnitSymbolSprites, &g.gameData.Sprites.UnitIconSprites,
 		&g.gameData.Icons.Sprites, &g.scenarioData.Data.DaytimePalette, &g.scenarioData.Data.NightPalette)
-	s.mapView.SetCursorPosition(lib.MapCoords{scenario.MinX + 10, scenario.MinY + 9})
+	s.mapView.SetCursorPosition(lib.MapCoords{X: scenario.MinX + 10, Y: scenario.MinY + 9})
 	s.messageBox = NewMessageBox(0, 22, 336, 40, g.gameData.Sprites.GameFont)
 	s.messageBox.Print("PREPARE FOR BATTLE!", 12, 1)
 	s.statusBar = NewMessageBox(0, 62, 376, 8, g.gameData.Sprites.GameFont)
@@ -278,35 +280,35 @@ func (s *MainScreen) Update() error {
 			case ScrollDown:
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 				curXY := s.mapView.GetCursorPosition()
-				s.mapView.SetCursorPosition(lib.MapCoords{curXY.X, curXY.Y + 1})
+				s.mapView.SetCursorPosition(lib.MapCoords{X: curXY.X, Y: curXY.Y + 1})
 			case ScrollDownFast:
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 				curXY := s.mapView.GetCursorPosition()
-				s.mapView.SetCursorPosition(lib.MapCoords{curXY.X, curXY.Y + 2})
+				s.mapView.SetCursorPosition(lib.MapCoords{X: curXY.X, Y: curXY.Y + 2})
 			case ScrollUp:
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 				curXY := s.mapView.GetCursorPosition()
-				s.mapView.SetCursorPosition(lib.MapCoords{curXY.X, curXY.Y - 1})
+				s.mapView.SetCursorPosition(lib.MapCoords{X: curXY.X, Y: curXY.Y - 1})
 			case ScrollUpFast:
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 				curXY := s.mapView.GetCursorPosition()
-				s.mapView.SetCursorPosition(lib.MapCoords{curXY.X, curXY.Y - 2})
+				s.mapView.SetCursorPosition(lib.MapCoords{X: curXY.X, Y: curXY.Y - 2})
 			case ScrollRight:
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 				curXY := s.mapView.GetCursorPosition()
-				s.mapView.SetCursorPosition(lib.MapCoords{curXY.X + 1, curXY.Y})
+				s.mapView.SetCursorPosition(lib.MapCoords{X: curXY.X + 1, Y: curXY.Y})
 			case ScrollRightFast:
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 				curXY := s.mapView.GetCursorPosition()
-				s.mapView.SetCursorPosition(lib.MapCoords{curXY.X + 2, curXY.Y})
+				s.mapView.SetCursorPosition(lib.MapCoords{X: curXY.X + 2, Y: curXY.Y})
 			case ScrollLeft:
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 				curXY := s.mapView.GetCursorPosition()
-				s.mapView.SetCursorPosition(lib.MapCoords{curXY.X - 1, curXY.Y})
+				s.mapView.SetCursorPosition(lib.MapCoords{X: curXY.X - 1, Y: curXY.Y})
 			case ScrollLeftFast:
 				s.idleTicksLeft = s.options.Speed.DelayTicks()
 				curXY := s.mapView.GetCursorPosition()
-				s.mapView.SetCursorPosition(lib.MapCoords{curXY.X - 2, curXY.Y})
+				s.mapView.SetCursorPosition(lib.MapCoords{X: curXY.X - 2, Y: curXY.Y})
 			case Save:
 				if s.gameOver {
 					break
