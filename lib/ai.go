@@ -357,18 +357,39 @@ func (s *AI) reinitSmallMapsAndSuch(currentSide int) {
 	// function18()
 }
 
+// Multiplier related to closeness of unit to a unit in a neighbouring square.
+// neighbourIndex from [0, 8]
 func (s *AI) function26(xy UnitCoords, neighbourIndex int) int {
+	nx, ny := SmallMapOffsets(neighbourIndex)
 	// If not on the edge of a 4x4 square
 	if InRange((xy.X/2)%4, 1, 3) && InRange(xy.Y%4, 1, 3) {
-		// 9 - 2*distance to the neighbour.
-		return 9 - ((neighbourIndex+3)/4)*2
+		return 9 - 2*(Abs(nx)+Abs(ny))
 	}
-	return s.generic.Data214[(xy.Y/2)&1][(xy.X/4)&1][neighbourIndex]
+	if nx == 0 && ny == 0 {
+		return 9
+	}
+	// Which quadrant of a 4x4 square does it occupy [0,0],[0,1],[1,0],[1,1].
+	sx, sy := (xy.X/4)&1, (xy.Y/2)&1
+	// As the direction points around 4x4 square make the nx,ny point outside the square.
+	if nx > 0 {
+		nx++
+	}
+	if ny > 0 {
+		ny++
+	}
+	dx, dy := Abs(nx-sx), Abs(ny-sy)
+	if nx == 0 {
+		dx = 0
+	}
+	if ny == 0 {
+		dy = 0
+	}
+	return 10 - Min(dx, dy) - 2*Max(dx, dy)
 }
 
 // Find best order to be performed by the unit.
-// If both the objective and the order is already specified return false meaning the unit
-// doest not need its objective to be recalculated.
+// If both the objective and the order are already specified return false meaning the unit
+// does not need its objective to be recalculated.
 func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 	var mode OrderType
 	if s.commanderFlags.PlayerControlled[unit.Side] {
@@ -395,8 +416,8 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 		sx, sy := unit.XY.X/8, unit.XY.Y/4
 		// Num enemy troops nearby (neighbouring "small" map fields).
 		numEnemyTroops := 0
-		for i := 0; i < 9; i++ {
-			dx, dy := SmallMapOffsets(i)
+		for neighbourIx := 0; neighbourIx < 9; neighbourIx++ {
+			dx, dy := SmallMapOffsets(neighbourIx)
 			if InRange(sx+dx, 0, 16) && InRange(dy+sy, 0, 16) {
 				numEnemyTroops += s.map0[1-unit.Side][sx+dx][sy+dy]
 			}
@@ -407,29 +428,29 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 				(s.game == Conflict && s.scenarioData.UnitMask[unit.Type]&1 == 0)) {
 			tx, ty := unit.XY.X/32, unit.XY.Y/16
 			bestVal := -17536 // 48000
-			bestI := 0
+			bestNeighbourIx := 0
 			bestX, bestY := 0, 0
-			for i := 0; i < 9; i++ {
-				dx, dy := TinyMapOffsets(i)
+			for neighbourIx := 0; neighbourIx < 9; neighbourIx++ {
+				dx, dy := TinyMapOffsets(neighbourIx)
 				x, y := tx+dx, ty+dy
 				if !InRange(x, 0, 4) || !InRange(y, 0, 4) {
 					continue
 				}
 				// Coords are a good target if there are more high importance objects (supply units, air wings, cities with high vp), and less good target if there are already many friendly units.
 				val := (s.map2_1[unit.Side][x][y] + s.map2_1[1-unit.Side][x][y]) * 16 / Clamp(s.map2_0[unit.Side][x][y]-s.map2_0[1-unit.Side][x][y], 10, 9999)
-				val = val * s.function26(UnitCoords{unit.XY.X / 4, unit.XY.Y / 4}, i) / 8
-				if i == 0 {
+				val = val * s.function26(UnitCoords{unit.XY.X / 4, unit.XY.Y / 4}, neighbourIx) / 8
+				if neighbourIx == 0 {
 					// Prioritize staying withing the same square.
 					val *= 2
 				}
 				if val > bestVal {
 					bestVal = val
-					bestI = i
+					bestNeighbourIx = neighbourIx
 					bestX, bestY = x, y
 				}
 			}
 			// Set unit objective to the center of the target square.
-			if bestI > 0 {
+			if bestNeighbourIx > 0 {
 				unit.TargetFormation = 0
 				unit.OrderBit4 = false
 				unit.Order = Reserve
@@ -463,8 +484,8 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 			s.map3[unit.Side][sx][sy] = Clamp(s.map3[unit.Side][sx][sy]-v61, 0, 255)
 			// save a copy of the unit, as we're going to modify it.
 			unitCopy := *unit
-			for i := 1; i <= 9; i++ {
-				dx, dy := SmallMapOffsets(i - 1)
+			for neighbourIx := 0; neighbourIx <= 8; neighbourIx++ {
+				dx, dy := SmallMapOffsets(neighbourIx)
 				if !InRange(sx+dx, 0, 16) || !InRange(sy+dy, 0, 16) {
 					continue
 				}
@@ -477,13 +498,13 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 				v36 := (friendlyUnitsInArea + s.map3[unit.Side][sx+dx][sy+dy]) / 2
 				v52 := (enemyUnitsInArea + s.map3[1-unit.Side][sx+dx][sy+dy]) / 2
 				enemyUnitsAround := s.map0[1-unit.Side][sx+dx][sy+dy] / 2
-				for j := 0; j <= 7; j++ {
-					ddx, ddy := SmallMapOffsets(j + 1)
+				for j := 1; j <= 8; j++ {
+					ddx, ddy := SmallMapOffsets(j)
 					if !InRange(sx+dx+ddx, 0, 16) || !InRange(sy+dy+ddy, 0, 16) {
 						continue
 					}
 					v := s.map0[1-unit.Side][sx+dx+ddx][sy+dy+ddy] / 4
-					if j&4 > 0 { // diagonals(?)
+					if j >= 5 { // diagonals(?)
 						v /= 2
 					}
 					enemyUnitsAround += v
@@ -565,7 +586,7 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 							v50 += v
 						}
 						if v55+unit.General.Data2High+s.scenarioData.Data0Low[unit.Type] < -9 {
-							if j == i {
+							if j == neighbourIx+1 {
 								unit.Fatigue += 256
 							}
 						}
@@ -580,7 +601,7 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 					}
 				}
 				t := v54 + v53 + v49 + v50
-				if i == 1 {
+				if neighbourIx == 0 {
 					if _, ok := s.terrain.FindCityAt(unit.XY); ok {
 						if enemyUnitsInArea > 0 {
 							*numEnemyNeighbours = 2
@@ -597,8 +618,8 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 					temp = Reserve
 					unit.Fatigue &= 255
 				}
-				t = t * s.function26(unit.XY, i-1) / 8
-				if i == 1 {
+				t = t * s.function26(unit.XY, neighbourIx) / 8
+				if neighbourIx == 0 {
 					v63 = t
 					mode = temp
 				}
@@ -607,7 +628,7 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 					bestDx, bestDy = dx, dy
 					//bestI = i
 				}
-				if i+1 > Sign(int(mode))+*numEnemyNeighbours {
+				if neighbourIx+2 > Sign(int(mode))+*numEnemyNeighbours {
 					continue
 				}
 				break

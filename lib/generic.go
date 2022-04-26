@@ -15,9 +15,6 @@ type Generic struct {
 	Data60 [4]int
 	// Types of terrain 0-7 (0 is road, 7 is an impassable terrain, other vary from game to game).
 	TerrainTypes []int
-	// First two indices are positions on a 2x2 square, the third one is one of 9 neighbouring
-	// squares on 3x3 square tiling.
-	Data214 [2][2][9]int
 }
 
 // 0 - roads
@@ -256,10 +253,6 @@ func ParseGeneric(reader io.Reader, game Game) (*Generic, error) {
 		generic.TerrainTypes = terrainTypesDecision
 	case Conflict:
 		generic.TerrainTypes = terrainTypesConflict
-	}
-
-	for i, v := range data[214:250] {
-		generic.Data214[i/18][(i/9)%2][i%9] = int(v)
 	}
 
 	return generic, nil

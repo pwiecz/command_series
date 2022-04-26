@@ -9,8 +9,18 @@ func Abs(i int) int {
 	return -i
 }
 
+// Works only for positive arguments.
+func DivRoundUp(n, d int) int {
+	return (n + (d - 1)) / d
+}
 func Min(i0, i1 int) int {
 	if i0 <= i1 {
+		return i0
+	}
+	return i1
+}
+func Max(i0, i1 int) int {
+	if i0 >= i1 {
 		return i0
 	}
 	return i1

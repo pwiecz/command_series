@@ -13,7 +13,7 @@ func TestParseEncodeParseUnits(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := scenarioData.Units.Write(&buf); err != nil {
+	if err = scenarioData.Units.Write(&buf); err != nil {
 		t.Fatal("Error encoding units,", err)
 	}
 	units, err := ParseUnits(&buf, scenarioData.Data.UnitTypes, scenarioData.Data.UnitNames, scenarioData.Generals)
