@@ -15,6 +15,7 @@ type ScenarioSelection struct {
 	buttons            []*Button
 	onScenarioSelected func(int)
 }
+
 var _ SubGame = (*ScenarioSelection)(nil)
 
 func NewScenarioSelection(scenarios []lib.Scenario, font *lib.Font, onScenarioSelected func(int)) *ScenarioSelection {
@@ -63,6 +64,7 @@ type VariantSelection struct {
 	buttons           []*Button
 	onVariantSelected func(int)
 }
+
 var _ SubGame = (*VariantSelection)(nil)
 
 func NewVariantSelection(variants []lib.Variant, font *lib.Font, onVariantSelected func(int)) *VariantSelection {
@@ -115,6 +117,7 @@ type GameLoading struct {
 	turnsLoading int
 	loadingRect  *ebiten.Image
 }
+
 var _ SubGame = (*GameLoading)(nil)
 
 func NewGameLoading(fsys fs.FS, onGameLoaded func(*lib.GameData)) *GameLoading {
@@ -174,6 +177,7 @@ type ScenarioLoading struct {
 	scenarioData     *lib.ScenarioData
 	loadingText      *Label
 }
+
 var _ SubGame = (*ScenarioLoading)(nil)
 
 func NewScenarioLoading(fsys fs.FS, scenario lib.Scenario, font *lib.Font, onScenarioLoaded func(*lib.ScenarioData)) *ScenarioLoading {

@@ -9,7 +9,7 @@ import (
 )
 
 type MapView struct {
-	minMapX, minMapY, maxMapX, maxMapY int // map bounds to draw in map coordinates
+	minMapX, minMapY, maxMapX, maxMapY int // map bounds to draw (in map coordinates)
 	cursorXY                           lib.MapCoords
 
 	colors         *ColorSchemes
