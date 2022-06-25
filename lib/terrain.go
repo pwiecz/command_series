@@ -7,18 +7,27 @@ import (
 	"io/fs"
 )
 
-// Representation of data parsed from a {scenario}.TER file.
+// City contains information about a city on the map, as parsed from a {scenario}.TER file.
 type City struct {
-	Owner         int
+	// Owner signifies which player is owner of the given city. It may be either 0 or 1.
+	Owner int
+	// VictoryPoints tells how much points players gain by taking control of the city.
 	VictoryPoints int
-	XY            UnitCoords
+	// XY are coordinates of the city on the map.
+	XY UnitCoords
+	// Iff nth bit of the VariantBitmap is 0, the city should be used in nth variant
+	// of the scenario.
 	VariantBitmap byte
-	Name          string
+	// Name of the city
+	Name string
 }
 
+// Cities contains list of all the cities included in the scenario.
 type Cities []City
 
+// Terrain is a representation of data parsed from a {scenario}.TER file.
 type Terrain struct {
+	// Cities contains list of all the cities included in the scenario.
 	Cities Cities
 	// Coefficients for 4x4-tile squares on the map (a 16x16 map of coefficients).
 	// n-th (0-based) coefficient, if a coefficient for square with top left corner:
@@ -26,6 +35,8 @@ type Terrain struct {
 	Coeffs [16][16]int // Bytes [768-1024]
 }
 
+// IsCityAt returns true iff in the loaded scenario, in the selected variant there is 
+// a city at coordinates xy.
 func (t Terrain) IsCityAt(xy UnitCoords) bool {
 	for _, city := range t.Cities {
 		if city.VictoryPoints > 0 && city.XY == xy {
@@ -34,6 +45,8 @@ func (t Terrain) IsCityAt(xy UnitCoords) bool {
 	}
 	return false
 }
+// FindCityAt returns pair (pointer to a city, true) if there is a city in the loaded scenario,
+// in the selected variant. Otherwise returns pair (nil, false).
 func (t Terrain) FindCityAt(xy UnitCoords) (*City, bool) {
 	for i, city := range t.Cities {
 		if city.VictoryPoints > 0 && city.XY == xy {
@@ -43,6 +56,10 @@ func (t Terrain) FindCityAt(xy UnitCoords) (*City, bool) {
 	return nil, false
 }
 
+// ReadTerrain reads terrain information for a particular game from given file 
+// on the given file system.
+// If there is an error while loading returns pair (nil, error), otherwise returns pair
+// (terrain, nil).
 func ReadTerrain(fsys fs.FS, filename string, game Game) (*Terrain, error) {
 	fileData, err := fs.ReadFile(fsys, filename)
 	if err != nil {
