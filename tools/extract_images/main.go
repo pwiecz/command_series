@@ -8,11 +8,9 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"sort"
 
 	"github.com/pwiecz/command_series/atr"
 	"github.com/pwiecz/command_series/lib"
-	"github.com/pwiecz/command_series/ui"
 )
 
 func main() {
@@ -54,7 +52,7 @@ func main() {
 		daytime = scenarioData.Data.DaytimePalette
 		night = scenarioData.Data.NightPalette
 	}
-	colors := ui.NewColorSchemes(&daytime, &night)
+	colors := lib.NewColorSchemes(&daytime, &night)
 
 	basename := filepath.Base(filename)
 	prefix := basename[0 : len(basename)-len(filepath.Ext(basename))]
@@ -89,31 +87,7 @@ func main() {
 	}
 }
 
-func GetTileNumberMapping(terrainMap *lib.Map) map[byte]byte {
-	allTileMap := make(map[byte]struct{})
-	for y := 0; y < terrainMap.Height; y++ {
-		for x := 0; x < terrainMap.Width; x++ {
-			coords := lib.MapCoords{X: x, Y: y}
-			if !terrainMap.AreCoordsValid(coords) {
-				continue
-			}
-			tileNr := terrainMap.GetTile(coords)
-			allTileMap[tileNr] = struct{}{}
-		}
-	}
-	allTileArr := make([]int, 0, len(allTileMap))
-	for tileNr := range allTileMap {
-		allTileArr = append(allTileArr, int(tileNr))
-	}
-	sort.Ints(allTileArr)
-	tileNumberMapping := make(map[byte]byte)
-	for i, tileNr := range allTileArr {
-		tileNumberMapping[byte(tileNr)] = byte(i)
-	}
-	return tileNumberMapping
-}
-
-func CreateMergedImage(images []*image.Paletted, colors *ui.ColorSchemes) image.Image {
+func CreateMergedImage(images []*image.Paletted, colors *lib.ColorSchemes) image.Image {
 	width := images[0].Bounds().Dx()
 	height := images[0].Bounds().Dy()
 	mergedImage := image.NewNRGBA(image.Rect(0, 0, 8*width, height*len(images)))
@@ -130,7 +104,7 @@ func CreateMergedImage(images []*image.Paletted, colors *ui.ColorSchemes) image.
 	return mergedImage
 }
 
-func CreateMergedDaytimeImage(images []*image.Paletted, colors *ui.ColorSchemes, isNight bool) image.Image {
+func CreateMergedDaytimeImage(images []*image.Paletted, colors *lib.ColorSchemes, isNight bool) image.Image {
 	width := images[0].Bounds().Dx()
 	height := images[0].Bounds().Dy()
 	mergedImage := image.NewNRGBA(image.Rect(0, 0, 4*width, height*len(images)))

@@ -3,9 +3,9 @@ package lib
 import "fmt"
 
 type MessageFromUnit interface {
-	Unit() Unit
-	Icon() IconType
-	String() string
+	Unit() Unit     // Unit that's sending the message
+	Icon() IconType // Icon to be displyed on the map when the message is shown
+	String() string // Text of message to show
 }
 
 type WeAreAttacking struct { // MSG = 1

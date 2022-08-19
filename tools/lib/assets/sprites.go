@@ -9,7 +9,6 @@ import (
 	"io/fs"
 )
 
-
 type Font struct {
 	fallback   *image.Paletted
 	characters map[rune]*image.Paletted
@@ -36,29 +35,6 @@ type Sprites struct {
 }
 
 func ReadSprites(fsys fs.FS) (*Sprites, error) {
-	iconSpritesData, err := fs.ReadFile(fsys, "CRUSADEI.FNT")
-	if err != nil {
-		return nil, fmt.Errorf("Cannot read CRUSADEI.FNT file (%v)", err)
-	}
-	symbolSpritesData, err := fs.ReadFile(fsys, "CRUSADES.FNT")
-	if err != nil {
-		return nil, fmt.Errorf("Cannot read CRUSADES.FNT file (%v)", err)
-	}
-	introSpritesData, err := fs.ReadFile(fsys, "FLAG.FNT")
-	if err != nil {
-		return nil, fmt.Errorf("Cannot read FLAG.FNT file (%v)", err)
-	}
-	sprites, err := ParseSprites(
-		bytes.NewReader(iconSpritesData),
-		bytes.NewReader(symbolSpritesData),
-		bytes.NewReader(introSpritesData))
-	if err != nil {
-		return nil, err
-	}
-	return sprites, nil
-}
-
-func ReadSpritesFromImage(fsys fs.FS) (*Sprites, error) {
 	iconSpritesData, err := fs.ReadFile(fsys, "CRUSADEI.FNT")
 	if err != nil {
 		return nil, fmt.Errorf("Cannot read CRUSADEI.FNT file (%v)", err)

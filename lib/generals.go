@@ -9,13 +9,17 @@ import (
 
 // Represenation of data parsed from {scenario}.GEN files.
 type General struct {
-	Data0     int
+	// A bitmap of various flags of the general
+	Data0 int
+	// Attack bonus for the units commanded by the general from 0 to 15
 	Attack    int
 	Data1High int
+	// Defence bonus for the units commanded by the general from 0 to 15
 	Defence   int
 	Data2High int
-	Movement  int
-	Name      string
+	// Movement bonus for the units commanded by the general from 0 to 15
+	Movement int
+	Name     string
 }
 
 type Generals [2][]General

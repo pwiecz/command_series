@@ -8,6 +8,7 @@ import (
 	"io/fs"
 )
 
+// Order given to the unit: Reserve, Defend, Attack or Move
 type OrderType int
 
 func (o OrderType) String() string {
@@ -32,6 +33,7 @@ const (
 	Move    OrderType = 3
 )
 
+// Unit type desribes state of game unit.
 type Unit struct {
 	Side                int  // 0 or 1
 	InContactWithEnemy  bool // &1 != 0
@@ -44,27 +46,34 @@ type Unit struct {
 	IsInGame            bool // &128 != 0
 	XY                  UnitCoords
 	MenCount, TankCount int
-	Formation           int
-	SupplyUnit          int // Index of this unit's supply unit
-	LongRangeAttack     bool
-	Type                int
-	TypeName            string
-	ColorPalette        int
-	nameIndex           int
-	Name                string
-	TargetFormation     int
-	OrderBit4           bool
-	Order               OrderType
-	generalIndex        int
-	General             General
-	SupplyLevel         int
-	Morale              int
+	// Formation of the unit, a number from 0 to 7.
+	// Names of formations are read from {scenario}.DTA file into Data.Formations.
+	Formation       int
+	SupplyUnit      int // Index of this unit's supply unit
+	LongRangeAttack bool
+	Type            int
+	TypeName        string
+	ColorPalette    int
+	nameIndex       int
+	Name            string
+	// Formation the unit wants to have. It will gradually change the formation
+	// from Formation to TargetFormation with speed defined by Data.FormationChangeSpeed.
+	TargetFormation int
+	OrderBit4       bool
+	Order           OrderType
+	generalIndex    int
+	// Commanding general of the unit.
+	General     General
+	SupplyLevel int
+	Morale      int
 
+	// Iff nth bit of the VariantBitmap is 0, the unit should be used in nth variant
+	// of the scenario.
 	VariantBitmap        byte
 	HalfDaysUntilAppear  int
 	InvAppearProbability int
 
-	Fatigue   int
+	Fatigue   int // Value from 0 to 255
 	Objective UnitCoords
 
 	Index int

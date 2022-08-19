@@ -1,3 +1,4 @@
+// Package atr helps reading files from Atari disk images.
 package atr
 
 import (

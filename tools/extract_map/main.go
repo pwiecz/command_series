@@ -180,7 +180,7 @@ func main() {
 	tiledMap.Layers[0].Type = TileLayer
 	tiledMap.Layers[0].Visible = true
 	tiledMap.Layers[0].Data = mapArray
-	tiledMap.TileSets = make([]TileSet, 1)
+	tiledMap.TileSets = make([]TileSet, 2)
 	tiledMap.TileSets[0].Columns = 4
 	tiledMap.TileSets[0].FirstGID = 1
 	tiledMap.TileSets[0].ImageHeight = 384
@@ -190,6 +190,15 @@ func main() {
 	tiledMap.TileSets[0].TileCount = 192
 	tiledMap.TileSets[0].TileHeight = 8
 	tiledMap.TileSets[0].TileWidth = 8
+	tiledMap.TileSets[1].Columns = 4
+	tiledMap.TileSets[1].FirstGID = 193
+	tiledMap.TileSets[1].ImageHeight = 384
+	tiledMap.TileSets[1].ImageWidth = 32
+	tiledMap.TileSets[1].Image = fmt.Sprintf("%s_terrain_night.png", gameName)
+	tiledMap.TileSets[1].Name = "day"
+	tiledMap.TileSets[1].TileCount = 192
+	tiledMap.TileSets[1].TileHeight = 8
+	tiledMap.TileSets[1].TileWidth = 8
 	//b, err := json.Marshal(tiledMap)
 	b, err := json.MarshalIndent(tiledMap, "", "  ")
 	if err != nil {

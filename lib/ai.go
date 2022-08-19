@@ -282,7 +282,7 @@ func (s *AI) reinitSmallMapsAndSuch(currentSide int) {
 				}
 			}
 			v30 := unit.MenCount + unit.TankCount
-			v29 := v30 * Clamp(s.scenarioData.FormationMenDefence[unit.Formation], 8, 99) / 8
+			v29 := v30 * Max(s.scenarioData.FormationMenDefence[unit.Formation], 8) / 8
 			tt := s.terrainTypes.terrainTypeAt(unit.XY)
 			v29 = v29 * s.scenarioData.TerrainMenDefence[tt] / 8
 			if s.scenarioData.UnitScores[unit.Type] > 7 {
@@ -471,7 +471,7 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 			var bestDx, bestDy int
 			var v63 int
 			temp2 := (unit.MenCount + unit.TankCount + 4) / 8
-			v61 := temp2 * Clamp(s.scenarioData.FormationMenDefence[unit.Formation], 8, 99) / 8
+			v61 := temp2 * Max(s.scenarioData.FormationMenDefence[unit.Formation], 8) / 8
 			tt := s.terrainTypes.terrainTypeAt(unit.XY)
 			v61 = v61 * s.scenarioData.TerrainMenDefence[tt] / 8
 			if s.scenarioData.UnitScores[unit.Type] > 7 {
@@ -668,6 +668,7 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 				if mode == Reserve {
 					mode = Defend
 				}
+				// Revert previous values, if we're not moving the unit
 				s.map0[unit.Side][sx][sy] += temp2
 				s.map3[unit.Side][sx][sy] += v61
 				// update = 13
@@ -1041,7 +1042,7 @@ func (s *AI) performAttack(unit *Unit, sxy UnitCoords, weather int, message *Mes
 		if unit.LongRangeAttack && susceptibleToWeather {
 			// long range unit
 			if weather > 3 {
-				return //goto end
+				return // goto l3
 			}
 			tankCoeff = tankCoeff * (4 - weather) / 4
 		}
@@ -1300,9 +1301,10 @@ outerLoop:
 }
 
 // function6
-// Finds best position to move if you want to move from unitX0,unitY0 to unitX1, unitY1 with unit
+// Finds best position to move to if you want to move from unitX0,unitY0 to unitX1, unitY1 with unit
 // of type unitType. If variant == 0 consider only neighbour fields directly towards the goal,
-// if variant == 1 look at neighbour two fields "more to the side"
+// if variant == 1 look at neighbour two fields "more to the side".
+// Also return the speed the unit can move to the returned position.
 func (s *AI) findBestMoveFromTowards(unitXY0, unitXY1 UnitCoords, unitType, variant int) (UnitCoords, int) {
 	candXY1 := FirstNeighbourFromTowards(unitXY0, unitXY1, 2*variant)
 	var speed1 int
