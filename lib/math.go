@@ -1,9 +1,17 @@
 package lib
 
-import "math/rand"
+import (
+	"math/rand"
 
-func Abs(i int) int {
-	if i >= 0 {
+	"golang.org/x/exp/constraints"
+)
+
+type SignedNumber interface {
+	constraints.Signed | constraints.Float
+}
+
+func Abs[T SignedNumber](i T) T {
+	if i >= T(0) {
 		return i
 	}
 	return -i
@@ -13,19 +21,22 @@ func Abs(i int) int {
 func DivRoundUp(n, d int) int {
 	return (n + (d - 1)) / d
 }
-func Min(i0, i1 int) int {
+
+func Min[T constraints.Ordered](i0, i1 T) T {
 	if i0 <= i1 {
 		return i0
 	}
 	return i1
 }
-func Max(i0, i1 int) int {
+
+func Max[T constraints.Ordered](i0, i1 T) T {
 	if i0 >= i1 {
 		return i0
 	}
 	return i1
 }
-func Clamp(v, min, max int) int {
+
+func Clamp[T constraints.Ordered](v, min, max T) T {
 	if v <= min {
 		return min
 	}
@@ -35,22 +46,23 @@ func Clamp(v, min, max int) int {
 	return v
 }
 
-func Sign(v int) int {
-	if v > 0 {
+func Sign[T SignedNumber](v T) int {
+	if v > T(0) {
 		return 1
 	}
-	if v < 0 {
+	if v < T(0) {
 		return -1
 	}
 	return 0
 }
 
-func InRange(v, min, max int) bool {
+func InRange[T constraints.Ordered](v, min, max T) bool {
 	if v < min || v >= max {
 		return false
 	}
 	return true
 }
+
 func Rand(n int, rnd *rand.Rand) int {
 	if n == 0 {
 		return 0
