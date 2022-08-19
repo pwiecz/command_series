@@ -5,7 +5,7 @@ An engine for playing [Command Series](https://www.mobygames.com/game-group/micr
 Obtain an ATR image of Atari version of one of the games and run `$ command_series <diskimage.atr>`.
 
 # Missing features
-* Bug fixes, many bug-fixes
+* Bug fixes ~~, many bug-fixes~~
 * ~~Save/load~~
 * Music and sound
 * Intro and ending
