@@ -12,7 +12,7 @@ type MapView struct {
 	minMapX, minMapY, maxMapX, maxMapY int // map bounds to draw (in map coordinates)
 	cursorXY                           lib.MapCoords
 
-	colors         *ColorSchemes
+	colors         *lib.ColorSchemes
 	mapDrawer      *MapDrawer
 	terrainTypeMap *lib.TerrainTypeMap
 	units          *lib.Units
@@ -51,7 +51,7 @@ func NewMapView(
 	daytimePalette *[8]byte,
 	nightPalette *[8]byte) *MapView {
 
-	colors := NewColorSchemes(daytimePalette, nightPalette)
+	colors := lib.NewColorSchemes(daytimePalette, nightPalette)
 	mapDrawer := NewMapDrawer(terrainMap, minMapX, minMapY, maxMapX, maxMapY, tiles, colors)
 	unitSprites := newUnitSprites(unitSymbols, unitIcons, colors)
 	tileBounds := tiles[0].Bounds()

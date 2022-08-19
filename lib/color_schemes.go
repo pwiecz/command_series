@@ -1,9 +1,7 @@
-package ui
+package lib
 
 import (
 	"image/color"
-
-	"github.com/pwiecz/command_series/lib"
 )
 
 type ColorSchemes struct {
@@ -26,21 +24,29 @@ func (c *ColorSchemes) GetBackgroundForegroundColors(colorScheme byte, isNight b
 	}
 }
 
+func (c *ColorSchemes) GetMapBackgroundColor(isNight bool) color.Color {
+	if isNight {
+		return RGBPalette[c.nightPalette[2]]
+	} else {
+		return RGBPalette[c.daytimePalette[2]]
+	}
+}
+
 func (c *ColorSchemes) getColors(colorScheme byte, palette *[8]byte, colorSchemes *[4][]color.Color) []color.Color {
 	colors := colorSchemes[colorScheme]
 	if colors == nil {
 		colors = make([]color.Color, 2)
 		// just guessing here
-		colors[0] = &lib.RGBPalette[palette[2]]
+		colors[0] = &RGBPalette[palette[2]]
 		switch colorScheme {
 		case 0:
-			colors[1] = &lib.RGBPalette[palette[3]] // or 7
+			colors[1] = &RGBPalette[palette[3]] // or 7
 		case 1:
-			colors[1] = &lib.RGBPalette[palette[6]]
+			colors[1] = &RGBPalette[palette[6]]
 		case 2:
-			colors[1] = &lib.RGBPalette[palette[0]]
+			colors[1] = &RGBPalette[palette[0]]
 		case 3:
-			colors[1] = &lib.RGBPalette[palette[4]]
+			colors[1] = &RGBPalette[palette[4]]
 		}
 		colorSchemes[colorScheme] = colors
 	}

@@ -12,7 +12,7 @@ type MapDrawer struct {
 	minX, minY, maxX, maxY int // map bounds to draw in map coordinates
 	images                 [2]*ebiten.Image
 	tileWidth, tileHeight  int
-	colors                 *ColorSchemes
+	colors                 *lib.ColorSchemes
 	tiles                  *[48]*image.Paletted
 	tileImages             [2][4][48]*ebiten.Image
 }
@@ -21,7 +21,7 @@ func NewMapDrawer(
 	terrainMap *lib.Map,
 	minX, minY, maxX, maxY int,
 	tiles *[48]*image.Paletted,
-	colors *ColorSchemes) *MapDrawer {
+	colors *lib.ColorSchemes) *MapDrawer {
 	tileBounds := tiles[0].Bounds()
 	return &MapDrawer{
 		terrainMap: terrainMap,
@@ -48,11 +48,7 @@ func (d *MapDrawer) GetMapImage(isNight bool) *ebiten.Image {
 }
 func (d *MapDrawer) drawMapImage(isNight bool) *ebiten.Image {
 	image := ebiten.NewImage((d.maxX-d.minX+1)*d.tileWidth+d.tileWidth/2, (d.maxY-d.minY+1)*d.tileHeight)
-	if isNight {
-		image.Fill(lib.RGBPalette[d.colors.nightPalette[2]])
-	} else {
-		image.Fill(lib.RGBPalette[d.colors.daytimePalette[2]])
-	}
+	image.Fill(d.colors.GetMapBackgroundColor(isNight))
 	for y := d.minY; y <= d.maxY; y++ {
 		if y >= d.terrainMap.Height {
 			break
