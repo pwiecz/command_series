@@ -9,19 +9,30 @@ import (
 
 // Representation of data parsed from {scenario}.DTA files.
 type Data struct {
-	Data0Low   [16]int // Data[0:16] per unit type (lower 4 bits)
-	Data0High  [16]int // Data[0:16] per unit type (higher 4 bits)
-	Data16Low  [16]int // Data[16:32] per unit type (lower 4 bits)
-	Data16High [16]int // Data[16:32] per unit type (higher 4 bits)
-	Data32     [16]int // Data[32:48] per unit type (&31 attack range)
+	Data0Low   [16]int  // Data[0:16] per unit type (lower 4 bits)
+	Data0High  [16]int  // Data[0:16] per unit type (higher 4 bits)
+	Data16Low  [16]int  // Data[16:32] per unit type (lower 4 bits)
+	Data16High [16]int  // Data[16:32] per unit type (higher 4 bits)
+	Data32     [16]int  // Data[32:48] per unit type
+	Data32_8   [16]bool // Data32 & 8
+	Data32_32  [16]bool // Data32 & 32
+	Data32_64  [16]bool // Data32 & 64
+	Data32_128 [16]bool // Data32 & 128
+	Data32_31  [16]int  // Data32 & 31 (attack range)
 	// Score gained by destroying enemy unit of this type
 	// Units with score >= 4 are high importance units which are priority targets.
 	UnitScores   [16]int // Data[48:64]
 	RecoveryRate [16]int // Data[64:80]
-	// Various bits concerning unit types... not all clear yet (&4 weather has no impact?)
+	// Various bits concerning unit types... not all clear yet
 	UnitMask             [16]byte // Data[80:96] (per unit type)
+	UnitMask0            [16]bool // bit 0
+	UnitMask1            [16]bool // bit 1
+	UnitMask2            [16]bool // bit 2
 	UnitUsesSupplies     [16]bool // !bit 3(&8) of bytes Data[80:96]
+	UnitMask4            [16]bool // bit4 (weather has no impact?)
+	UnitMask5            [16]bool // bit5
 	UnitCanMove          [16]bool // !bit 6(&64) of bytes Data[80:96]
+	UnitMask7            [16]bool // bit7
 	TerrainMenAttack     [8]int   // Data[96:104]
 	TerrainTankAttack    [8]int   // Data[104:112]
 	TerrainMenDefence    [8]int   // Data[112:120]
@@ -210,15 +221,28 @@ func (s *Data) UpdateData(offset int, value byte) {
 		s.Data16Low[offset-16] = int(value & 15)
 		s.Data16High[offset-16] = int(value / 16)
 	case InRange(offset, 32, 48):
-		s.Data32[offset-32] = int(value)
+		unitType := offset - 32
+		s.Data32[unitType] = int(value)
+		s.Data32_8[unitType] = value&8 != 0
+		s.Data32_32[unitType] = value&32 != 0
+		s.Data32_64[unitType] = value&64 != 0
+		s.Data32_128[unitType] = value&128 != 0
+		s.Data32_31[unitType] = int(value & 31)
 	case InRange(offset, 48, 64):
 		s.UnitScores[offset-48] = int(value)
 	case InRange(offset, 64, 80):
 		s.RecoveryRate[offset-64] = int(value)
 	case InRange(offset, 80, 96):
-		s.UnitMask[offset-80] = value
-		s.UnitUsesSupplies[offset-80] = value&8 == 0
-		s.UnitCanMove[offset-80] = value&64 == 0
+		unitType := offset - 80
+		s.UnitMask[unitType] = value
+		s.UnitMask0[unitType] = value&1 != 0
+		s.UnitMask1[unitType] = value&2 != 0
+		s.UnitMask2[unitType] = value&4 != 0
+		s.UnitUsesSupplies[unitType] = value&8 == 0
+		s.UnitMask4[unitType] = value&16 != 0
+		s.UnitMask5[unitType] = value&32 != 0
+		s.UnitCanMove[unitType] = value&64 == 0
+		s.UnitMask7[unitType] = value&128 != 0
 	case InRange(offset, 96, 104):
 		s.TerrainMenAttack[offset-96] = int(value)
 	case InRange(offset, 104, 112):

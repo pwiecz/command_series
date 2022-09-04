@@ -114,7 +114,7 @@ nextUnit:
 				// in CiE one of supply units or an air wing.
 				// in DitD also minefield or artillery
 				// in CiV supply units or bombers (not fighters nor artillery)
-				if s.scenarioData.UnitMask[unit2.Type]&128 == 0 {
+				if !s.scenarioData.UnitMask7[unit2.Type] {
 					unit.State4 = true // |= 16
 				}
 				if s.scenarioData.UnitCanMove[unit2.Type] {
@@ -214,11 +214,10 @@ func (s *AI) updateUnitObjectiveAux(unit *Unit, weather int) int {
 	}
 	{
 		// long range attack
-		d32 := s.scenarioData.Data32[unit.Type]
-		attackRange := (d32 & 31) * 2
-		susceptibleToWeather := (d32 & 8) != 0
+		attackRange := s.scenarioData.Data32_31[unit.Type] * 2
+		susceptibleToWeather := s.scenarioData.Data32_8[unit.Type]
 		if s.game == Conflict {
-			susceptibleToWeather = (d32 & 32) != 0
+			susceptibleToWeather = s.scenarioData.Data32_32[unit.Type]
 		}
 		if attackRange > 0 && (!susceptibleToWeather || weather < 2) && unit.Fatigue/4 < 32 {
 			for i := 0; i <= 32-unit.Fatigue/4; i++ {
@@ -265,7 +264,7 @@ func (s *AI) reinitSmallMapsAndSuch(currentSide int) {
 	//v16 := 0
 	for _, sideUnits := range s.units {
 		for _, unit := range sideUnits {
-			if !unit.IsInGame || s.scenarioData.UnitMask[unit.Type]&16 != 0 {
+			if !unit.IsInGame || s.scenarioData.UnitMask4[unit.Type] {
 				continue // goto l23
 			}
 			sx, sy := unit.XY.X/8, unit.XY.Y/4
@@ -425,7 +424,7 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 		// If there are no enemy units in neaby "small" map and there is a supply line to unit and sth (not a special unit?) then look at the "tiny" map.
 		if numEnemyTroops == 0 && unit.HasSupplyLine &&
 			((s.game != Conflict && s.scenarioData.UnitScores[unit.Type]&248 == 0) ||
-				(s.game == Conflict && s.scenarioData.UnitMask[unit.Type]&1 == 0)) {
+				(s.game == Conflict && !s.scenarioData.UnitMask0[unit.Type])) {
 			tx, ty := unit.XY.X/32, unit.XY.Y/16
 			bestVal := -17536 // 48000
 			bestNeighbourIx := 0
@@ -655,7 +654,7 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 				unit.OrderBit4 = false
 				return 0, false //goto l21
 			}
-			if s.game == Conflict && s.scenarioData.UnitMask[unit.Type]&1 != 0 {
+			if s.game == Conflict && s.scenarioData.UnitMask0[unit.Type] {
 				bestDx, bestDy = 0, 0
 			}
 			if unit.Fatigue*4 > bestVal-v63 {
@@ -716,10 +715,10 @@ func (s *AI) bestAttackObjective(unit Unit, weather int, numEnemyNeighbours int)
 			tankCoeff := s.scenarioData.TerrainTankDefence[terrainType] * unit2.TankCount * s.scenarioData.Data16Low[unit2.Type] / 4
 			t := (menCoeff + tankCoeff) * s.scenarioData.FormationMenDefence[unit2.Formation] / 8
 			w := weather
-			if s.game != Conflict && s.scenarioData.UnitMask[unit.Type]&4 != 0 {
+			if s.game != Conflict && s.scenarioData.UnitMask2[unit.Type] {
 				w /= 2
 			}
-			if s.game == Conflict && s.scenarioData.UnitMask[unit.Type]&4 == 0 {
+			if s.game == Conflict && !s.scenarioData.UnitMask2[unit.Type] {
 				w *= 2
 			}
 			d := s.scenarioData.UnitScores[unit2.Type] + 14 - w
@@ -872,8 +871,7 @@ func (s *AI) performUnitMovement(unit *Unit, message *MessageFromUnit, arg1 *int
 			return
 		}
 		distance := unit.Function15_distanceToObjective()
-		d32 := s.scenarioData.Data32[unit.Type]
-		attackRange := (d32 & 31) * 2
+		attackRange := s.scenarioData.Data32_31[unit.Type] * 2
 		if distance > 0 && distance <= attackRange && unit.Order == Attack {
 			sxy = unit.Objective
 			unit.LongRangeAttack = true
@@ -895,14 +893,14 @@ func (s *AI) performUnitMovement(unit *Unit, message *MessageFromUnit, arg1 *int
 				}
 			}
 			sxy, moveSpeed = s.findBestMoveFromTowards(unit.XY, unit.Objective, unit.Type, mvAdd)
-			if d32&64 > 0 { // in CiV (some scenarios) artillery or mortars
+			if s.scenarioData.Data32_64[unit.Type] { // in CiV (some scenarios) artillery or mortars
 				if s.game != Conflict || unit.Formation == 0 {
 					sxy = unit.Objective
 					tt := s.terrainTypes.terrainOrUnitTypeAt(sxy)
 					moveSpeed = s.scenarioData.MoveSpeedPerTerrainTypeAndUnit[tt][unit.Type]
 					*arg1 = tt // shouldn't have any impact
 					mvAdd = 1
-				} else if s.scenarioData.UnitMask[unit.Type]&32 != 0 {
+				} else if s.scenarioData.UnitMask5[unit.Type] {
 					// Conflict && unit.Formation != 0
 					return // goto l2
 				}
@@ -940,7 +938,7 @@ func (s *AI) performUnitMovement(unit *Unit, message *MessageFromUnit, arg1 *int
 		if s.game == Conflict {
 			totalMoveCost = 1023
 		}
-		if s.scenarioData.UnitMask[unit.Type]&4 == 0 {
+		if !s.scenarioData.UnitMask2[unit.Type] {
 			if s.game != Conflict {
 				totalMoveCost += weather * 128
 			} else {
@@ -1009,7 +1007,7 @@ func (s *AI) performAttack(unit *Unit, sxy UnitCoords, weather int, message *Mes
 		}
 		// function14
 	} else {
-		susceptibleToWeather := s.scenarioData.Data32[unit.Type]&8 != 0
+		susceptibleToWeather := s.scenarioData.Data32_8[unit.Type]
 		if susceptibleToWeather && weather > 3 {
 			// [53767] = 0
 			return // goto end
@@ -1035,9 +1033,9 @@ func (s *AI) performAttack(unit *Unit, sxy UnitCoords, weather int, message *Mes
 			menCoeff = s.scenarioData.TerrainMenAttack[tt] * s.scenarioData.FormationMenAttack[unit.Formation] * unit.MenCount / 32
 		}
 		tankCoeff := s.scenarioData.TerrainTankAttack[tt] * s.scenarioData.FormationTankAttack[unit.Formation] * s.scenarioData.Data16High[unit.Type] / 2 * unit.TankCount / 64
-		susceptibleToWeather := (s.scenarioData.Data32[unit.Type] & 8) != 0
+		susceptibleToWeather := s.scenarioData.Data32_8[unit.Type]
 		if s.game == Conflict {
-			susceptibleToWeather = (s.scenarioData.Data32[unit.Type] & 32) != 0
+			susceptibleToWeather = s.scenarioData.Data32_32[unit.Type]
 		}
 		if unit.LongRangeAttack && susceptibleToWeather {
 			// long range unit
@@ -1070,11 +1068,11 @@ func (s *AI) performAttack(unit *Unit, sxy UnitCoords, weather int, message *Mes
 	}
 
 	arg1 := defenderScore * 16 / attackerScore
-	if s.scenarioData.UnitMask[unit.Type]&4 == 0 {
+	if !s.scenarioData.UnitMask2[unit.Type] {
 		arg1 += weather
 	}
 	arg1 = Clamp(arg1, 0, 63)
-	if !unit.LongRangeAttack || s.scenarioData.Data32[unit.Type]&128 == 0 {
+	if !unit.LongRangeAttack || !s.scenarioData.Data32_128[unit.Type] {
 		menLost := Clamp((Rand(unit.MenCount*arg1, s.rand)+255)/512, 0, unit.MenCount)
 		s.score.MenLost[unit.Side] += menLost
 		unit.MenCount -= menLost
@@ -1113,7 +1111,7 @@ func (s *AI) performAttack(unit *Unit, sxy UnitCoords, weather int, message *Mes
 	unit2.SupplyLevel = Clamp(unit2.SupplyLevel-s.scenarioData.Data163, 0, 255)
 	if s.scenarioData.UnitCanMove[unit2.Type] &&
 		((s.game != Conflict && !unit.LongRangeAttack) ||
-			(s.game == Conflict && s.scenarioData.UnitMask[unit2.Type]&2 == 0)) &&
+			(s.game == Conflict && !s.scenarioData.UnitMask1[unit2.Type])) &&
 		arg1-s.scenarioData.Data0Low[unit2.Type]*2+unit2.Fatigue/4 > 36 {
 		unit2.Morale = Abs(unit2.Morale - 1)
 		oldXY := unit2.XY
