@@ -2,6 +2,7 @@ package main
 
 import (
 	"image"
+	"image/color"
 	"image/draw"
 	"log"
 
@@ -11,6 +12,8 @@ import (
 	"github.com/pwiecz/go-fltk"
 )
 
+var purple = imgui.Packed(color.NRGBA{100, 50, 225, 255})
+
 type glTexture uint32
 type MapWindow struct {
 	*fltk.GlWindow
@@ -19,6 +22,7 @@ type MapWindow struct {
 	firstShow             bool
 	gameData              *lib.GameData
 	scenarioData          *lib.ScenarioData
+	selectedScenario      int
 	colorSchemes          *lib.ColorSchemes
 	zoom                  float32
 	dx, dy                float64
@@ -45,9 +49,10 @@ func (w *MapWindow) redraw() {
 	fltk.Awake(w.Redraw)
 }
 
-func (w *MapWindow) SetGameData(gameData *lib.GameData, scenarioData *lib.ScenarioData) {
+func (w *MapWindow) SetGameData(gameData *lib.GameData, scenarioData *lib.ScenarioData, selectedScenario int) {
 	w.gameData = gameData
 	w.scenarioData = scenarioData
+	w.selectedScenario = selectedScenario
 	tileBounds := w.gameData.Sprites.TerrainTiles[0].Bounds()
 	w.tileWidth, w.tileHeight = float32(tileBounds.Dx()), float32(tileBounds.Dy())
 	w.zoom = lib.Min(
@@ -66,6 +71,7 @@ func (w *MapWindow) SetGameData(gameData *lib.GameData, scenarioData *lib.Scenar
 			}
 		}
 	}
+
 	w.redraw()
 }
 
@@ -95,6 +101,7 @@ func (w *MapWindow) drawMap() {
 	gl.ClearColor(float32(r)/255, float32(g)/255, float32(b)/255, 1)
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 	dy := float32(0)
+	tileSize := imgui.Vec2{X: w.tileWidth * w.zoom, Y: w.tileWidth * w.zoom}
 	for y := 0; y < w.gameData.Map.Width; y++ {
 		dx := float32(y%2) * w.tileWidth / 2 * w.zoom
 		for x := 0; x < w.gameData.Map.Height; x++ {
@@ -109,12 +116,21 @@ func (w *MapWindow) drawMap() {
 					texture = newTexture(tile)
 					w.tileImages[isNightIx][colorScheme][tileIndex] = texture
 				}
-				drawList.AddImage(imgui.TextureID(texture), imgui.Vec2{X: dx, Y: dy}, imgui.Vec2{X: dx + w.tileWidth*w.zoom, Y: dy + w.tileWidth*w.zoom})
+				tilePos := imgui.Vec2{X: dx, Y: dy}
+				drawList.AddImage(imgui.TextureID(texture), tilePos, tilePos.Plus(tileSize))
 			}
 			dx += w.tileWidth * w.zoom
 		}
 		dy += w.tileHeight * w.zoom
 	}
+	scenario := w.gameData.Scenarios[w.selectedScenario]
+	rangeMin := imgui.Vec2{
+		X: (float32(scenario.MinX) + 0.5) * w.tileWidth * w.zoom,
+		Y: float32(scenario.MinY) * w.tileWidth * w.zoom}
+	rangeMax := imgui.Vec2{
+		X: (float32(scenario.MaxX) + 1.5) * w.tileWidth * w.zoom,
+		Y: float32(scenario.MaxY+1) * w.tileWidth * w.zoom}
+	drawList.AddRect(rangeMin, rangeMax, purple)
 	imgui.Render()
 	size := [2]float32{w.width, w.height}
 	w.renderer.Render(size, size, imgui.RenderedDrawData())

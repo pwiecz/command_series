@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"runtime"
 
 	"github.com/pwiecz/command_series/atr"
@@ -13,14 +14,17 @@ import (
 
 type MainWindow struct {
 	*fltk.Window
-	mapWindow    *MapWindow
-	infoTable    *InfoTable
-	gameData     *lib.GameData
-	scenarioData *lib.ScenarioData
+	mapWindow     *MapWindow
+	infoTable     *InfoTable
+	gameData      *lib.GameData
+	scenarioData  *lib.ScenarioData
+	configuration *Configuration
 }
 
 func NewMainWindow() *MainWindow {
-	w := &MainWindow{}
+	w := &MainWindow{
+		configuration: LoadConfiguration(),
+	}
 	w.Window = fltk.NewWindow(1600, 900)
 	w.Begin()
 
@@ -38,10 +42,10 @@ func NewMainWindow() *MainWindow {
 	rightPack := fltk.NewPack(0, 0, 700, 870)
 	rightPack.SetType(fltk.VERTICAL)
 
-	infoTablePack := fltk.NewPack(0, 0, 700, 590)
+	infoTablePack := fltk.NewPack(0, 0, 700, 870)
 	infoTablePack.SetType(fltk.HORIZONTAL)
-	w.infoTable = NewInfoTable(0, 0, 700, 590)
-	dummyGroup := fltk.NewGroup(0, 0, 0, 590)
+	w.infoTable = NewInfoTable(0, 0, 700, 870)
+	dummyGroup := fltk.NewGroup(0, 0, 0, 870)
 	infoTablePack.End()
 	infoTablePack.Resizable(dummyGroup)
 
@@ -67,7 +71,7 @@ func NewMainWindow() *MainWindow {
 }
 
 func (w *MainWindow) onLoadPressed() {
-	fileChooser := fltk.NewFileChooser("", "Atari images (*.atr)", fltk.FileChooser_SINGLE, "Select image file")
+	fileChooser := fltk.NewFileChooser(w.configuration.GameDirectory, "Atari images (*.atr)", fltk.FileChooser_SINGLE, "Select image file")
 	fileChooser.SetPreview(false)
 	defer fileChooser.Destroy()
 	fileChooser.Popup()
@@ -75,7 +79,12 @@ func (w *MainWindow) onLoadPressed() {
 	if len(selectedFilenames) != 1 {
 		return
 	}
+
 	filename := selectedFilenames[0]
+	gameDir, _ := filepath.Split(filename)
+	w.configuration.GameDirectory = gameDir
+	SaveConfiguration(w.configuration)
+
 	gameData, err := loadGameFromFileOrDir(filename)
 	if err != nil {
 		fltk.MessageBox("Error loading", err.Error())
@@ -122,7 +131,10 @@ func (w *MainWindow) onLoadPressed() {
 	}
 	w.scenarioData = scenarioData
 
-	w.mapWindow.SetGameData(gameData, scenarioData)
+	w.mapWindow.SetGameData(gameData, scenarioData, selectedScenario)
+	w.mapWindow.Redraw()
+	w.infoTable.SetGameData(gameData, scenarioData, selectedScenario)
+	w.infoTable.Redraw()
 }
 
 func loadGameFromFileOrDir(filename string) (*lib.GameData, error) {

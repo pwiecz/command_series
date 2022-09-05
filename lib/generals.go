@@ -10,7 +10,15 @@ import (
 // Represenation of data parsed from {scenario}.GEN files.
 type General struct {
 	// A bitmap of various flags of the general
-	Data0 int
+	Data0   byte
+	Data0_0 bool // bit 0
+	Data0_1 bool // bit 1
+	Data0_2 bool // bit 2
+	Data0_3 bool // bit 3
+	Data0_4 bool // bit 4
+	Data0_5 bool // bit 5
+	Data0_6 bool // bit 6
+	Data0_7 bool // bit 7
 	// Attack bonus for the units commanded by the general from 0 to 15
 	Attack    int
 	Data1High int
@@ -45,7 +53,15 @@ func ParseGenerals(data io.Reader) (*Generals, error) {
 		if err != nil && err != io.EOF {
 			return nil, err
 		}
-		general.Data0 = int(generalData[0])
+		general.Data0 = generalData[0]
+		general.Data0_0 = generalData[0]&1 != 0
+		general.Data0_1 = generalData[0]&2 != 0
+		general.Data0_2 = generalData[0]&4 != 0
+		general.Data0_3 = generalData[0]&8 != 0
+		general.Data0_4 = generalData[0]&16 != 0
+		general.Data0_5 = generalData[0]&32 != 0
+		general.Data0_6 = generalData[0]&64 != 0
+		general.Data0_7 = generalData[0]&128 != 0
 		general.Attack = int(generalData[1] & 15)
 		general.Data1High = int(int8(generalData[1]&240)) / 16
 		general.Defence = int(generalData[2] & 15)

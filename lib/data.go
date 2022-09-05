@@ -18,7 +18,7 @@ type Data struct {
 	Data32_32  [16]bool // Data32 & 32
 	Data32_64  [16]bool // Data32 & 64
 	Data32_128 [16]bool // Data32 & 128
-	Data32_31  [16]int  // Data32 & 31 (attack range)
+	AttackRange  [16]int  // Data32 & 31 (attack range)
 	// Score gained by destroying enemy unit of this type
 	// Units with score >= 4 are high importance units which are priority targets.
 	UnitScores   [16]int // Data[48:64]
@@ -227,7 +227,7 @@ func (s *Data) UpdateData(offset int, value byte) {
 		s.Data32_32[unitType] = value&32 != 0
 		s.Data32_64[unitType] = value&64 != 0
 		s.Data32_128[unitType] = value&128 != 0
-		s.Data32_31[unitType] = int(value & 31)
+		s.AttackRange[unitType] = int(value & 31)
 	case InRange(offset, 48, 64):
 		s.UnitScores[offset-48] = int(value)
 	case InRange(offset, 64, 80):

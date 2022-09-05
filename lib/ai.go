@@ -214,7 +214,7 @@ func (s *AI) updateUnitObjectiveAux(unit *Unit, weather int) int {
 	}
 	{
 		// long range attack
-		attackRange := s.scenarioData.Data32_31[unit.Type] * 2
+		attackRange := s.scenarioData.AttackRange[unit.Type] * 2
 		susceptibleToWeather := s.scenarioData.Data32_8[unit.Type]
 		if s.game == Conflict {
 			susceptibleToWeather = s.scenarioData.Data32_32[unit.Type]
@@ -464,7 +464,6 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 			}
 		}
 		{
-			generalMask := unit.General.Data0
 			bestVal := -17536 // 48000
 			//var bestI int
 			var bestDx, bestDy int
@@ -532,10 +531,10 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 						if unit.SeenByEnemy {
 							v /= 2 /* logical shift not the arithmetic one, actually) */
 						}
-						if generalMask&4 > 0 {
+						if unit.General.Data0_2 {
 							v *= 2
 						}
-						if generalMask&64 > 0 {
+						if unit.General.Data0_6 {
 							v /= 2
 						}
 						if j > 0 {
@@ -547,10 +546,10 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 						temp = Reserve
 						if enemyUnitsInArea > 0 {
 							v := s.map1[unit.Side][sx+dx][sy+dy] * v55
-							if generalMask&2 > 0 {
+							if unit.General.Data0_1 {
 								v *= 2
 							}
-							if generalMask&32 > 0 {
+							if unit.General.Data0_5 {
 								v /= 2
 							}
 							v53 += v
@@ -562,10 +561,10 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 						}
 						if enemyUnitsInArea > 0 {
 							v := v48
-							if generalMask&8 > 0 {
+							if unit.General.Data0_3 {
 								v *= 2
 							}
-							if generalMask&128 > 0 {
+							if unit.General.Data0_7 {
 								v /= 2
 							}
 							v *= enemyUnitsInArea
@@ -576,10 +575,10 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 						if friendlyUnitsInArea > 0 {
 							temp = Defend
 							v := friendlyUnitsInArea * v55
-							if generalMask&1 > 0 {
+							if unit.General.Data0_0 {
 								v *= 2
 							}
-							if generalMask&16 > 0 {
+							if unit.General.Data0_4 {
 								v /= 2
 							}
 							v50 += v
@@ -871,7 +870,7 @@ func (s *AI) performUnitMovement(unit *Unit, message *MessageFromUnit, arg1 *int
 			return
 		}
 		distance := unit.Function15_distanceToObjective()
-		attackRange := s.scenarioData.Data32_31[unit.Type] * 2
+		attackRange := s.scenarioData.AttackRange[unit.Type] * 2
 		if distance > 0 && distance <= attackRange && unit.Order == Attack {
 			sxy = unit.Objective
 			unit.LongRangeAttack = true
