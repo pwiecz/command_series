@@ -40,7 +40,7 @@ type Unit struct {
 	IsUnderAttack       bool // &2 != 0
 	State2              bool // &4 != 0
 	HasSupplyLine       bool // &8 == 0
-	State4              bool // &16 != 0
+	State4              bool // &16 != 0, is neighbouring enemy
 	HasLocalCommand     bool // &32 != 0
 	SeenByEnemy         bool // &64 != 0
 	IsInGame            bool // &128 != 0

@@ -222,9 +222,9 @@ func (s *AI) updateUnitObjectiveAux(unit *Unit, weather int) int {
 		if attackRange > 0 && (!susceptibleToWeather || weather < 2) && unit.Fatigue/4 < 32 {
 			for i := 0; i <= 32-unit.Fatigue/4; i++ {
 				unit2 := s.units[1-unit.Side][Rand(64, s.rand)]
-				if ((s.game != Conflict && (unit2.IsUnderAttack || unit2.State2)) ||
-					(s.game == Conflict && unit2.SeenByEnemy)) &&
-					Abs(unit.XY.X-unit2.XY.X)/2+Abs(unit.XY.Y-unit2.XY.Y) <= attackRange {
+				if Abs(unit.XY.X-unit2.XY.X)/2+Abs(unit.XY.Y-unit2.XY.Y) <= attackRange &&
+					((s.game != Conflict && (unit2.IsUnderAttack || unit2.State2)) ||
+						(s.game == Conflict && unit2.SeenByEnemy)) {
 					unit.Objective = unit2.XY
 					unit.Order = Attack
 					unit.Formation = s.scenarioData.Data176[0][2]
@@ -423,7 +423,7 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 		}
 		// If there are no enemy units in neaby "small" map and there is a supply line to unit and sth (not a special unit?) then look at the "tiny" map.
 		if numEnemyTroops == 0 && unit.HasSupplyLine &&
-			((s.game != Conflict && s.scenarioData.UnitScores[unit.Type]&248 == 0) ||
+			((s.game != Conflict && s.scenarioData.UnitScores[unit.Type] <= 7) ||
 				(s.game == Conflict && !s.scenarioData.UnitMask0[unit.Type])) {
 			tx, ty := unit.XY.X/32, unit.XY.Y/16
 			bestVal := -17536 // 48000
@@ -699,6 +699,7 @@ func (s *AI) bestAttackObjective(unit Unit, weather int, numEnemyNeighbours int)
 	temp2 := coeff * s.NeighbourScore(&s.hexes.Arr144, unit.XY, unit.Side) / 8
 	v := 0
 	if numEnemyNeighbours > 0 && s.scenarioData.Data200Low[unit.Type] < 3 {
+		// Only consider direct nighbours of the unit
 		v = 12
 	}
 	for i := v; i <= 18; i++ {
@@ -789,7 +790,7 @@ func (s *AI) bestDefenceObjective(unit Unit) (UnitCoords, int) {
 						v += city.VictoryPoints
 					}
 				}
-				if s.scenarioData.UnitScores[unit.Type]&248 > 0 ||
+				if s.scenarioData.UnitScores[unit.Type] > 7 ||
 					unit.Fatigue+unit.General.Data2High*4 > 96 {
 					v = r + s.NeighbourScore(&s.hexes.Arr96, nxy, unit.Side)*2
 				}
@@ -1051,7 +1052,7 @@ func (s *AI) performAttack(unit *Unit, sxy UnitCoords, weather int, message *Mes
 
 	var defenderScore int
 	{
-		if s.scenarioData.UnitScores[unit2.Type]&248 > 0 {
+		if s.scenarioData.UnitScores[unit2.Type] > 7 {
 			unit.State2 = true // |= 4
 		}
 		tt2 := s.terrainTypes.terrainTypeAt(unit2.XY)
