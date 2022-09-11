@@ -39,21 +39,12 @@ func NewMainWindow() *MainWindow {
 
 	w.mapWindow = NewMapWindow(0, 0, 900, 780)
 
-	rightPack := fltk.NewPack(0, 0, 700, 870)
-	rightPack.SetType(fltk.VERTICAL)
-
-	infoTablePack := fltk.NewPack(0, 0, 700, 870)
-	infoTablePack.SetType(fltk.HORIZONTAL)
-	w.infoTable = NewInfoTable(0, 0, 700, 870)
-	dummyGroup := fltk.NewGroup(0, 0, 0, 870)
-	infoTablePack.End()
-	infoTablePack.Resizable(dummyGroup)
-
-	rightPack.End()
-	rightPack.Resizable(infoTablePack)
+	infoTableScroll := fltk.NewScroll(0, 0, 700, 870)
+	w.infoTable = NewInfoTable(0, 0, 700, 1000)
+	infoTableScroll.End()
 
 	pack.End()
-	pack.Resizable(w.mapWindow)
+	pack.Resizable(infoTableScroll)
 
 	mainPack.End()
 	mainPack.Resizable(pack)

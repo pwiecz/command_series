@@ -38,7 +38,7 @@ func NewInfoTable(x, y, w, h int) *InfoTable {
 	t.perTerrainTable.SetDrawCellCallback(t.perTerrainDrawCallback)
 	t.perTerrainTable.EnableColumnHeaders()
 	t.Pack.Add(t.perTerrainTable)
-	t.perFormationTable = fltk.NewTableRow(0, 0, w, 136)
+	t.perFormationTable = fltk.NewTableRow(0, 0, w, 180)
 	t.perFormationTable.SetColumnCount(9)
 	t.perFormationTable.SetRowCount(len(perFormationFieldNames))
 	t.perFormationTable.SetDrawCellCallback(t.perFormationDrawCallback)
@@ -51,6 +51,7 @@ func NewInfoTable(x, y, w, h int) *InfoTable {
 	t.perGeneralTable.AllowColumnResizing()
 	t.Pack.Add(t.perGeneralTable)
 	t.Pack.End()
+	t.Pack.Resizable(t.perUnitTable)
 	return t
 }
 

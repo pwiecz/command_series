@@ -88,6 +88,8 @@ func (w *MapWindow) drawMap() {
 		w.context, w.renderer = context, renderer
 	}
 	if w.gameData == nil {
+		gl.ClearColor(1, 1, 1, 1)
+		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 		return
 	}
 	isNightIx := 0
@@ -158,6 +160,7 @@ func (w *MapWindow) onResize() {
 			w.width/((float32(w.gameData.Map.Width)+0.5)*w.tileWidth),
 			w.height/(float32(w.gameData.Map.Height)*w.tileHeight))
 	}
+	w.redraw()
 }
 
 func newTexture(img image.Image) glTexture {
