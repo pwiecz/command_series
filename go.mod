@@ -3,7 +3,7 @@ module github.com/pwiecz/command_series
 go 1.18
 
 require (
-	github.com/hajimehoshi/ebiten/v2 v2.4.13
+	github.com/hajimehoshi/ebiten/v2 v2.4.16
 	github.com/hajimehoshi/oto/v2 v2.3.1
 	golang.org/x/exp v0.0.0-20221126150942-6ab00d035af9
 	golang.org/x/image v0.1.0
