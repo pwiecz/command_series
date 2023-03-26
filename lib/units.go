@@ -54,7 +54,7 @@ type Unit struct {
 	Type            int
 	TypeName        string
 	ColorPalette    int
-	nameIndex       int
+	NameIndex       int
 	Name            string
 	// Formation the unit wants to have. It will gradually change the formation
 	// from Formation to TargetFormation with speed defined by Data.FormationChangeSpeed.
@@ -196,16 +196,18 @@ func ParseUnit(data [16]byte, unitTypeNames []string, unitNames []string, genera
 	unit.VariantBitmap = data[6]
 	unit.Fatigue = int(data[6])
 	unit.Type = int(data[7] & 15)
-	if unit.Type >= len(unitTypeNames) {
-		return unit, fmt.Errorf("invalid unit type number: %d", unit.Type)
+	if unitTypeNames != nil {
+		if unit.Type >= len(unitTypeNames) {
+			return unit, fmt.Errorf("invalid unit type number: %d", unit.Type)
+		}
+		unit.TypeName = unitTypeNames[unit.Type]
 	}
-	unit.TypeName = unitTypeNames[unit.Type]
 	unit.ColorPalette = int(data[7] / 16)
-	unit.nameIndex = int(data[8] & 127)
+	unit.NameIndex = int(data[8] & 127)
 	// E.g. one Sidi unit have name index equal to the number of names.
 	// It's a supply depot outside of map bounds, so maybe it's done on purpose.
-	if unit.nameIndex < len(unitNames) {
-		unit.Name = unitNames[unit.nameIndex]
+	if unitNames != nil && unit.NameIndex < len(unitNames) {
+		unit.Name = unitNames[unit.NameIndex]
 	}
 
 	unit.TargetFormation = int(data[9] & 7)
@@ -225,13 +227,15 @@ func ParseUnit(data [16]byte, unitTypeNames []string, unitNames []string, genera
 		panic(order)
 	}
 	unit.generalIndex = int(data[10])
-	if unit.generalIndex >= len(generals) {
-		// One of El-Alamein units have invalid general index set in available
-		// disk images.
-		fmt.Printf("Too large general index. Expected <%d, got %d\n", len(generals), unit.generalIndex)
-		unit.generalIndex = 0
+	if generals != nil {
+		if unit.generalIndex >= len(generals) {
+			// One of El-Alamein units have invalid general index set in available
+			// disk images.
+			fmt.Printf("Too large general index. Expected <%d, got %d\n", len(generals), unit.generalIndex)
+			unit.generalIndex = 0
+		}
+		unit.General = generals[unit.generalIndex]
 	}
-	unit.General = generals[unit.generalIndex]
 	if !unit.IsInGame {
 		unit.HalfDaysUntilAppear = int(data[11])
 		unit.InvAppearProbability = int(data[12])
@@ -287,32 +291,38 @@ func (u *Units) Write(writer io.Writer) error {
 	return nil
 }
 
-func (u *Unit) Write(writer io.Writer) error {
-	var data [16]byte
+func (u *Unit) StateByte() byte {
+	var state byte
 	if u.InContactWithEnemy {
-		data[0] |= 1
+		state |= 1
 	}
 	if u.IsUnderAttack {
-		data[0] |= 2
+		state |= 2
 	}
 	if u.State2 {
-		data[0] |= 4
+		state |= 4
 	}
 	if !u.HasSupplyLine {
-		data[0] |= 8
+		state |= 8
 	}
 	if u.State4 {
-		data[0] |= 16
+		state |= 16
 	}
 	if u.HasLocalCommand {
-		data[0] |= 32
+		state |= 32
 	}
 	if u.SeenByEnemy {
-		data[0] |= 64
+		state |= 64
 	}
 	if u.IsInGame {
-		data[0] |= 128
+		state |= 128
 	}
+	return state
+}
+
+func (u *Unit) Write(writer io.Writer) error {
+	var data [16]byte
+	data[0] = u.StateByte()
 	data[1] = byte(u.XY.X)
 	data[2] = byte(u.XY.Y)
 	data[3] = byte(u.MenCount)
@@ -323,7 +333,7 @@ func (u *Unit) Write(writer io.Writer) error {
 	}
 	data[6] = byte(u.Fatigue)
 	data[7] = byte(u.Type) + byte(u.ColorPalette<<4)
-	data[8] = byte(u.nameIndex)
+	data[8] = byte(u.NameIndex)
 	data[9] = byte(u.TargetFormation) + byte(u.Order<<4)
 	if u.OrderBit4 {
 		data[9] |= 8
@@ -439,5 +449,5 @@ Half-days until appear: %d
 Inv appear probability: %d
 Fatigue: %d
 ObjectiveX,ObjectiveY: %v`,
-		u.Side, u.InContactWithEnemy, u.IsUnderAttack, u.State2, u.HasSupplyLine, u.State4, u.HasLocalCommand, u.SeenByEnemy, u.IsInGame, u.XY, u.Formation, u.SupplyUnit, u.LongRangeAttack, u.TypeName, u.Type, u.ColorPalette, u.Name, u.nameIndex, u.TargetFormation, u.OrderBit4, u.Order, u.General.Name, u.generalIndex, u.SupplyLevel, u.Morale, u.VariantBitmap, u.HalfDaysUntilAppear, u.InvAppearProbability, u.Fatigue, u.Objective)
+		u.Side, u.InContactWithEnemy, u.IsUnderAttack, u.State2, u.HasSupplyLine, u.State4, u.HasLocalCommand, u.SeenByEnemy, u.IsInGame, u.XY, u.Formation, u.SupplyUnit, u.LongRangeAttack, u.TypeName, u.Type, u.ColorPalette, u.Name, u.NameIndex, u.TargetFormation, u.OrderBit4, u.Order, u.General.Name, u.generalIndex, u.SupplyLevel, u.Morale, u.VariantBitmap, u.HalfDaysUntilAppear, u.InvAppearProbability, u.Fatigue, u.Objective)
 }
