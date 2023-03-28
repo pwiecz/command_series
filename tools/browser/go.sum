@@ -12,10 +12,10 @@ github.com/inkyblackness/imgui-go/v4 v4.6.0 h1:ShcnXEYl80+xREGBY9OpGWePA6FfJChY9
 github.com/inkyblackness/imgui-go/v4 v4.6.0/go.mod h1:g8SAGtOYUP7rYaOB2AsVKCEHmPMDmJKgt4z6d+flhb0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/pwiecz/command_series v0.0.0-20221106220632-4c51ce240179 h1:fLX46QvNELUQIrL8esmxGnIWAQY3C1HExPurDhTdaNA=
-github.com/pwiecz/command_series v0.0.0-20221106220632-4c51ce240179/go.mod h1:73i8l0/eG8g3gcRiQDohKESdmphp6Fvs+G1A6A7tbkU=
-github.com/pwiecz/go-fltk v0.0.0-20221130051015-0c904a5e3a1c h1:ztbMmni7GFwk0JOPaoXJpidhePEZlw3EbV9y8NAKW+E=
-github.com/pwiecz/go-fltk v0.0.0-20221130051015-0c904a5e3a1c/go.mod h1:uMK5daOr9p+ba2BPs5QadbfaqqrHR5TGj13yWGsAsmw=
+github.com/pwiecz/command_series v0.0.0-20230328071614-f68d30d9469b h1:WQRwcdZulmhMWUaXgz9+i22pR1GLhYb36/Am6OaGgpE=
+github.com/pwiecz/command_series v0.0.0-20230328071614-f68d30d9469b/go.mod h1:kcIexCvm/NWJwtKaq2rhrJ4AQLmVVe+U8zbqSrB46ls=
+github.com/pwiecz/go-fltk v0.0.0-20230328095837-266ac2ca0714 h1:AkM4NHHMdsoBFHp2LKd8hFujeP6lZvwMeZGyDa/J/Hk=
+github.com/pwiecz/go-fltk v0.0.0-20230328095837-266ac2ca0714/go.mod h1:uMK5daOr9p+ba2BPs5QadbfaqqrHR5TGj13yWGsAsmw=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
 github.com/stretchr/testify v1.6.1 h1:hDPOHmpOpP40lSULcqw7IrRb/u7w6RpDC9399XyoNd0=
