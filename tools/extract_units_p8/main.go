@@ -41,13 +41,14 @@ func main() {
 				objX = unit.HalfDaysUntilAppear
 				objY = unit.InvAppearProbability
 			}
-			fmt.Printf("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",
+			fmt.Printf("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",
 				unit.StateByte(),
 				unit.XY.X,
 				unit.XY.Y,
 				unit.MenCount,
 				unit.TankCount,
 				unit.Formation,
+				unit.SupplyUnit,
 				unit.VariantBitmap,
 				unit.ColorPalette,
 				unit.Type,
