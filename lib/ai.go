@@ -390,23 +390,20 @@ func (s *AI) function26(xy UnitCoords, neighbourIndex int) int {
 // If both the objective and the order are already specified return false meaning the unit
 // does not need its objective to be recalculated.
 func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
-	var mode OrderType
 	if s.commanderFlags.PlayerControlled[unit.Side] {
-		s.update = unit.Side
 		// If not a local command and either objective is specified, or order is defend or move).
 		if !unit.HasLocalCommand && (unit.Order == Defend || unit.Order == Move || unit.Objective.X != 0) {
 			return 0, false // goto l21
 		} else {
-			mode = unit.Order
 			unit.HasLocalCommand = true // |= 32
-			return mode, true           // goto l24
+			return unit.Order, true     // goto l24
 		}
 	} else {
 		if unit.OrderBit4 {
 			return unit.Order, true // goto l24
 		}
 	}
-
+	var mode OrderType
 	if s.update != unit.Side {
 		s.reinitSmallMapsAndSuch(unit.Side)
 	}
