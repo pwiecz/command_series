@@ -454,7 +454,7 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 				unit.OrderBit4 = false
 				unit.Order = Reserve
 				count := (unit.MenCount + unit.TankCount + 8) / 16
-				s.map2_0[unit.Side][tx][ty] = Abs(s.map2_0[unit.Side][bestX][bestY] - count)
+				s.map2_0[unit.Side][tx][ty] = Abs(s.map2_0[unit.Side][tx][ty] - count)
 				s.map2_0[unit.Side][bestX][bestY] += count
 				unit.Objective = UnitCoords{bestX*32 + 16, bestY*16 + 8}
 				if s.game == Conflict {
