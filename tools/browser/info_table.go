@@ -117,14 +117,10 @@ var perFormationFieldNames []string = []string{
 	"ChangeSpeed1",
 }
 var perGeneralFieldNames []string = []string{
-	"Data0_0",
-	"Data0_1",
-	"Data0_2",
-	"Data0_3",
-	"Data0_4",
-	"Data0_5",
-	"Data0_6",
-	"Data0_7",
+	"Data0_26",
+	"Data0_15",
+	"Data0_37",
+	"Data0_04",
 	"Attack",
 	"Data1High",
 	"Defence",
@@ -279,7 +275,7 @@ func (t *InfoTable) perGeneralFieldValue(row, column int) string {
 	if row < 0 || row >= len(perGeneralFieldNames) {
 		return ""
 	}
-	if column < 0 || column >= t.side0GeneralCount + t.side1GeneralCount {
+	if column < 0 || column >= t.side0GeneralCount+t.side1GeneralCount {
 		return ""
 	}
 	var general *lib.General
@@ -289,22 +285,14 @@ func (t *InfoTable) perGeneralFieldValue(row, column int) string {
 		general = &t.scenarioData.Generals[1][column-t.side0GeneralCount]
 	}
 	switch perGeneralFieldNames[row] {
-	case "Data0_0":
-		return boolToString(general.Data0_0)
-	case "Data0_1":
-		return boolToString(general.Data0_1)
-	case "Data0_2":
-		return boolToString(general.Data0_2)
-	case "Data0_3":
-		return boolToString(general.Data0_3)
-	case "Data0_4":
-		return boolToString(general.Data0_4)
-	case "Data0_5":
-		return boolToString(general.Data0_5)
-	case "Data0_6":
-		return boolToString(general.Data0_6)
-	case "Data0_7":
-		return boolToString(general.Data0_7)
+	case "Data0_26":
+		return intToString(general.Data0_26)
+	case "Data0_15":
+		return intToString(general.Data0_15)
+	case "Data0_37":
+		return intToString(general.Data0_37)
+	case "Data0_04":
+		return intToString(general.Data0_04)
 	case "Attack":
 		return intToString(general.Attack)
 	case "Data1High":
@@ -427,7 +415,7 @@ func (t *InfoTable) perGeneralDrawCallback(context fltk.TableContext, row, colum
 	case fltk.ContextColHeader:
 		fltk.DrawBox(fltk.UP_BOX, x, y, w, h, 0x8f8f8fff)
 		fltk.SetDrawColor(fltk.BLACK)
-		if column <= 0 || column > t.side0GeneralCount + t.side1GeneralCount {
+		if column <= 0 || column > t.side0GeneralCount+t.side1GeneralCount {
 			return
 		}
 		fltk.PushClip(x, y, w, h)

@@ -528,12 +528,7 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 						if unit.SeenByEnemy {
 							v /= 2 /* logical shift not the arithmetic one, actually) */
 						}
-						if unit.General.Data0_2 {
-							v *= 2
-						}
-						if unit.General.Data0_6 {
-							v /= 2
-						}
+						v = v * unit.General.Data0_26 / 2
 						if j > 0 {
 							v += s.map1[unit.Side][sx+dx][sy+dy] * 8 / friendlyUnitsInArea
 						}
@@ -542,13 +537,7 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 					if v55 < 0 {
 						temp = Reserve
 						if enemyUnitsInArea > 0 {
-							v := s.map1[unit.Side][sx+dx][sy+dy] * v55
-							if unit.General.Data0_1 {
-								v *= 2
-							}
-							if unit.General.Data0_5 {
-								v /= 2
-							}
+							v := s.map1[unit.Side][sx+dx][sy+dy] * v55 * unit.General.Data0_15 / 2
 							v53 += v
 						}
 					}
@@ -557,13 +546,7 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 							temp = Attack
 						}
 						if enemyUnitsInArea > 0 {
-							v := v48
-							if unit.General.Data0_3 {
-								v *= 2
-							}
-							if unit.General.Data0_7 {
-								v /= 2
-							}
+							v := v48 * unit.General.Data0_37 / 2
 							v *= enemyUnitsInArea
 							v49 += v
 						}
@@ -571,13 +554,7 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 					if v55 < 0 {
 						if friendlyUnitsInArea > 0 {
 							temp = Defend
-							v := friendlyUnitsInArea * v55
-							if unit.General.Data0_0 {
-								v *= 2
-							}
-							if unit.General.Data0_4 {
-								v /= 2
-							}
+							v := friendlyUnitsInArea * v55 * unit.General.Data0_04 / 2
 							v50 += v
 						}
 						if v55+unit.General.Data2High+s.scenarioData.Data0Low[unit.Type] < -9 {
