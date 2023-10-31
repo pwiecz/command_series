@@ -37,7 +37,7 @@ func FilePrefixToGame(filePrefix string) (Game, error) {
 		filePrefix == "EASTER" {
 		return Conflict, nil
 	}
-	return Game(0), fmt.Errorf("Cannot infer game from the file prefix: %s", filePrefix)
+	return Game(0), fmt.Errorf("cannot infer game from the file prefix: %s", filePrefix)
 }
 func FilenameToGame(filename string) (Game, error) {
 	baseName := filepath.Base(filename)
@@ -62,13 +62,13 @@ func FilenameToGame(filename string) (Game, error) {
 		strings.HasPrefix(baseName, "EASTER.") {
 		return Conflict, nil
 	}
-	return Game(0), fmt.Errorf("Cannot infer game from the filename: %s", filename)
+	return Game(0), fmt.Errorf("cannot infer game from the filename: %s", filename)
 }
 
 func DetectGame(fsys fs.FS) (Game, error) {
 	files, err := fs.ReadDir(fsys, ".")
 	if err != nil {
-		return Game(0), fmt.Errorf("Cannot list contents of the disk image (%v)", err)
+		return Game(0), fmt.Errorf("cannot list contents of the disk image (%v)", err)
 	}
 
 	var game Game
@@ -80,14 +80,14 @@ func DetectGame(fsys fs.FS) (Game, error) {
 				return Game(0), err
 			}
 			if foundScenarioFiles && scenarioGame != game {
-				return Game(0), fmt.Errorf("Mismatched game files found %v and %v", game, scenarioGame)
+				return Game(0), fmt.Errorf("mismatched game files found %v and %v", game, scenarioGame)
 			}
 			game = scenarioGame
 			foundScenarioFiles = true
 		}
 	}
 	if !foundScenarioFiles {
-		return Game(0), fmt.Errorf("No game files found")
+		return Game(0), fmt.Errorf("no game files found")
 	}
 	return game, nil
 }

@@ -54,6 +54,7 @@ type MainScreen struct {
 
 	gameOver bool
 
+	touchIDs        []ebiten.TouchID // store it here to avoid reallocating it for each Update
 	pressedTouchIDs []ebiten.TouchID // store it here to avoid reallocating it for each Update
 }
 
@@ -348,7 +349,8 @@ func (s *MainScreen) Update() error {
 				break
 			}
 		}
-		for _, touchID := range ebiten.TouchIDs() {
+		s.touchIDs = s.touchIDs[:0]
+		for _, touchID := range ebiten.AppendTouchIDs(s.touchIDs) {
 			if inpututil.TouchPressDuration(touchID) > 30 {
 				touchX, touchY := ebiten.TouchPosition(touchID)
 				xy := s.screenCoordsToUnitCoords(touchX, touchY)

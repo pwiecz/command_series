@@ -103,10 +103,10 @@ type atrSectorReader struct {
 func newAtrSectorReader(input io.ReadSeeker) (SectorReader, error) {
 	var atrHeader [16]byte // 8 header bytes + 8 reserved bytes
 	if _, err := io.ReadFull(input, atrHeader[:]); err != nil {
-		return nil, fmt.Errorf("Cannot read atr file header, %v", err)
+		return nil, fmt.Errorf("cannot read atr file header, %v", err)
 	}
 	if atrHeader[0] != ATR_MAGIC1 || atrHeader[1] != ATR_MAGIC2 {
-		return nil, fmt.Errorf("Input is not an atr file")
+		return nil, fmt.Errorf("input is not an atr file")
 	}
 	sectorReader := &atrSectorReader{}
 	sectorReader.input = input
@@ -123,7 +123,7 @@ func newAtrSectorReader(input io.ReadSeeker) (SectorReader, error) {
 
 func (r *atrSectorReader) ReadSector(sector int) ([]byte, error) {
 	if sector < 1 || sector > r.sectorCount {
-		return nil, fmt.Errorf("Invalid sector number %d", sector)
+		return nil, fmt.Errorf("invalid sector number %d", sector)
 	}
 	offset := 16 /* size of the header */
 	if sector <= 4 {
@@ -132,7 +132,7 @@ func (r *atrSectorReader) ReadSector(sector int) ([]byte, error) {
 		offset += 3*128 + (sector-4)*r.sectorSize
 	}
 	if _, err := r.input.Seek(int64(offset), 0); err != nil {
-		return nil, fmt.Errorf("Cannot seek to position %d, %v", offset, err)
+		return nil, fmt.Errorf("cannot seek to position %d, %v", offset, err)
 	}
 	sectorSize := r.sectorSize
 	if sector <= 3 {
@@ -209,16 +209,16 @@ func readFile(reader SectorReader, fileInfo *atrFileInfo) ([]byte, error) {
 			return nil, err
 		}
 		if len(sector) < 3 {
-			return nil, fmt.Errorf("Unsupported sector size: %d", len(sector))
+			return nil, fmt.Errorf("unsupported sector size: %d", len(sector))
 		}
 		fileIndex := int(sector[len(sector)-3] >> 2)
 		if fileIndex != fileInfo.index {
-			return nil, fmt.Errorf("File# mismatch, %d != %d", fileIndex, fileInfo.index)
+			return nil, fmt.Errorf("file# mismatch, %d != %d", fileIndex, fileInfo.index)
 		}
 
 		dataLen := int(sector[len(sector)-1] & 0x7f)
 		if dataLen > len(sector)-3 {
-			return nil, fmt.Errorf("Invalid data length of sector: %d", dataLen)
+			return nil, fmt.Errorf("invalid data length of sector: %d", dataLen)
 		}
 
 		content = append(content, sector[:dataLen]...)

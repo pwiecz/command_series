@@ -531,9 +531,9 @@ func (s StoreStmt) AffectsExpressionValue(e Expression, stack []Expression) bool
 	return ok && e.ReadsFromMemoryAddress(addr)
 }
 func (s StoreStmt) String() string {
-	if s.location.Type() == REFERENCE {
-		//panic("Storing two-byte value in one-byte variable")
-	}
+	//if s.location.Type() == REFERENCE {
+	//        panic("Storing two-byte value in one-byte variable")
+	//}
 	return fmt.Sprintf("[%s:] = %s", s.location, s.value)
 }
 
@@ -859,7 +859,6 @@ func (f *FoldingDecoder) Apply(o Opcode) {
 	}
 
 	fmt.Println(o.String())
-	return
 }
 
 func (f *FoldingDecoder) printIndent() {
