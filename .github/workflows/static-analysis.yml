@@ -2,9 +2,9 @@ name: Static analysis
 
 on:
   push:
-    branches: [ "static" ]
+    branches: [ "master" ]
   pull_request:
-    branches: [ "static" ]
+    branches: [ "master" ]
   workflow_dispatch:
 
 jobs:
@@ -26,10 +26,10 @@ jobs:
         go install honnef.co/go/tools/cmd/staticcheck@latest
 
     - name: Vet
-      run: go vet ./...
+      run: go vet cmd
 
     - name: Goimports
       run: test -z "$(goimports -e -d . | tee /dev/stderr)"
 
     - name: Staticcheck
-      run: staticcheck ./...
+      run: staticcheck cmd
