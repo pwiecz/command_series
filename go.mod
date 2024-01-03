@@ -6,7 +6,7 @@ require (
 	github.com/hajimehoshi/ebiten/v2 v2.5.0
 	github.com/hajimehoshi/oto/v2 v2.4.0
 	golang.org/x/exp v0.0.0-20221126150942-6ab00d035af9
-	golang.org/x/image v0.6.0
+	golang.org/x/image v0.14.0
 )
 
 require (
