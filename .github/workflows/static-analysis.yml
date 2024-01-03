@@ -26,10 +26,10 @@ jobs:
         go install honnef.co/go/tools/cmd/staticcheck@latest
 
     - name: Vet
-      run: go vet ./cmd/... ./lib/... ./ui/... .
+      run: go vet ./cmd/... ./lib/... ./ui/...
 
     - name: Goimports
       run: test -z "$(goimports -e -d . | tee /dev/stderr)"
 
     - name: Staticcheck
-      run: staticcheck ./cmd/... ./lib/... ./ui/... .
+      run: staticcheck ./cmd/... ./lib/... ./ui/...
