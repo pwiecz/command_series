@@ -2,9 +2,10 @@ name: Static analysis
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "static" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "static" ]
+  workflow_dispatch:
 
 jobs:
 
