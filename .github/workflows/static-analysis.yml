@@ -18,7 +18,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
-        go-version: '1.20.x'
+        go-version: '1.21.x'
     
     - name: Install analysis tools
       run: |
@@ -26,10 +26,10 @@ jobs:
         go install honnef.co/go/tools/cmd/staticcheck@latest
 
     - name: Vet
-      run: go vet cmd
+      run: go vet ./cmd/... ./lib/... ./ui/... .
 
     - name: Goimports
       run: test -z "$(goimports -e -d . | tee /dev/stderr)"
 
     - name: Staticcheck
-      run: staticcheck cmd
+      run: staticcheck ./cmd/... ./lib/... ./ui/... .
