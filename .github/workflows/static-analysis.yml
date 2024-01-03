@@ -23,7 +23,7 @@ jobs:
     - name: Download deps
       run: |
          if [ "$RUNNER_OS" == "Linux" ]; then
-          sudo apt-get update && sudo apt-get install -y libasound2-dev libxrandr-dev
+          sudo apt-get update && sudo apt-get install -y libasound2-dev libxrandr-dev libglx-dev
          fi
       shell: bash
 
