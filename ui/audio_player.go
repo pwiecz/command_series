@@ -74,5 +74,5 @@ func (p *AudioPlayer) Close() {
 	if p.player == nil {
 		return
 	}
-	p.player.Reset()
+	p.player.Close()
 }
