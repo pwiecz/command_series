@@ -9,16 +9,16 @@ import (
 
 // Representation of data parsed from {scenario}.DTA files.
 type Data struct {
-	Data0Low   [16]int  // Data[0:16] per unit type (lower 4 bits)
-	Data0High  [16]int  // Data[0:16] per unit type (higher 4 bits)
-	Data16Low  [16]int  // Data[16:32] per unit type (lower 4 bits)
-	Data16High [16]int  // Data[16:32] per unit type (higher 4 bits)
-	Data32     [16]int  // Data[32:48] per unit type
-	Data32_8   [16]bool // Data32 & 8
-	Data32_32  [16]bool // Data32 & 32
-	Data32_64  [16]bool // Data32 & 64
-	Data32_128 [16]bool // Data32 & 128
-	AttackRange  [16]int  // Data32 & 31 (attack range)
+	Data0Low    [16]int  // Data[0:16] per unit type (lower 4 bits)
+	Data0High   [16]int  // Data[0:16] per unit type (higher 4 bits)
+	Data16Low   [16]int  // Data[16:32] per unit type (lower 4 bits)
+	Data16High  [16]int  // Data[16:32] per unit type (higher 4 bits)
+	Data32      [16]int  // Data[32:48] per unit type
+	Data32_8    [16]bool // Data32 & 8
+	Data32_32   [16]bool // Data32 & 32
+	Data32_64   [16]bool // Data32 & 64
+	Data32_128  [16]bool // Data32 & 128
+	AttackRange [16]int  // Data32 & 31 (attack range)
 	// Score gained by destroying enemy unit of this type
 	// Units with score >= 4 are high importance units which are priority targets.
 	UnitScores   [16]int // Data[48:64]
