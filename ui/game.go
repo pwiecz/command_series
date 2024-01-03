@@ -5,8 +5,8 @@ import (
 	"io/fs"
 	"math/rand"
 
+	"github.com/ebitengine/oto/v3"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/oto/v2"
 	"github.com/pwiecz/command_series/lib"
 )
 
@@ -80,7 +80,11 @@ func (g *Game) Update() error {
 	if g.otoContext == nil {
 		var err error
 		var ready chan struct{}
-		g.otoContext, ready, err = oto.NewContext(44100, 2 /* num channels */, 1 /* num bytes per sample */)
+		opts := &oto.NewContextOptions{}
+		opts.SampleRate = 44100
+		opts.ChannelCount = 2
+		opts.Format = oto.FormatUnsignedInt8
+		g.otoContext, ready, err = oto.NewContext(opts)
 		if err != nil {
 			return fmt.Errorf("cannot create Oto context (%v)", err)
 		}

@@ -3,12 +3,12 @@ package ui
 import (
 	"sync"
 
-	"github.com/hajimehoshi/oto/v2"
+	"github.com/ebitengine/oto/v3"
 )
 
 // A trivial player generating strictly rectangular waves of given frequency on 4 channels.
 type AudioPlayer struct {
-	player oto.Player
+	player *oto.Player
 	source *audioSource
 }
 
