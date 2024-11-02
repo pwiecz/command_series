@@ -61,7 +61,7 @@ type Unit struct {
 	TargetFormation int
 	OrderBit4       bool
 	Order           OrderType
-	generalIndex    int
+	GeneralIndex    int
 	// Commanding general of the unit.
 	General     General
 	SupplyLevel int
@@ -226,15 +226,15 @@ func ParseUnit(data [16]byte, unitTypeNames []string, unitNames []string, genera
 	if order&0b11000000 != 0 {
 		panic(order)
 	}
-	unit.generalIndex = int(data[10])
+	unit.GeneralIndex = int(data[10])
 	if generals != nil {
-		if unit.generalIndex >= len(generals) {
+		if unit.GeneralIndex >= len(generals) {
 			// One of El-Alamein units have invalid general index set in available
 			// disk images.
-			fmt.Printf("Too large general index. Expected <%d, got %d\n", len(generals), unit.generalIndex)
-			unit.generalIndex = 0
+			fmt.Printf("Too large general index. Expected <%d, got %d\n", len(generals), unit.GeneralIndex)
+			unit.GeneralIndex = 0
 		}
-		unit.General = generals[unit.generalIndex]
+		unit.General = generals[unit.GeneralIndex]
 	}
 	if !unit.IsInGame {
 		unit.HalfDaysUntilAppear = int(data[11])
@@ -338,7 +338,7 @@ func (u *Unit) Write(writer io.Writer) error {
 	if u.OrderBit4 {
 		data[9] |= 8
 	}
-	data[10] = byte(u.generalIndex)
+	data[10] = byte(u.GeneralIndex)
 	if u.IsInGame {
 		data[11] = byte(u.Objective.X)
 		data[12] = byte(u.Objective.Y)
@@ -449,5 +449,5 @@ Half-days until appear: %d
 Inv appear probability: %d
 Fatigue: %d
 ObjectiveX,ObjectiveY: %v`,
-		u.Side, u.InContactWithEnemy, u.IsUnderAttack, u.State2, u.HasSupplyLine, u.State4, u.HasLocalCommand, u.SeenByEnemy, u.IsInGame, u.XY, u.Formation, u.SupplyUnit, u.LongRangeAttack, u.TypeName, u.Type, u.ColorPalette, u.Name, u.NameIndex, u.TargetFormation, u.OrderBit4, u.Order, u.General.Name, u.generalIndex, u.SupplyLevel, u.Morale, u.VariantBitmap, u.HalfDaysUntilAppear, u.InvAppearProbability, u.Fatigue, u.Objective)
+		u.Side, u.InContactWithEnemy, u.IsUnderAttack, u.State2, u.HasSupplyLine, u.State4, u.HasLocalCommand, u.SeenByEnemy, u.IsInGame, u.XY, u.Formation, u.SupplyUnit, u.LongRangeAttack, u.TypeName, u.Type, u.ColorPalette, u.Name, u.NameIndex, u.TargetFormation, u.OrderBit4, u.Order, u.General.Name, u.GeneralIndex, u.SupplyLevel, u.Morale, u.VariantBitmap, u.HalfDaysUntilAppear, u.InvAppearProbability, u.Fatigue, u.Objective)
 }

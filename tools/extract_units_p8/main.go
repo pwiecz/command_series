@@ -41,7 +41,11 @@ func main() {
 				objX = unit.HalfDaysUntilAppear
 				objY = unit.InvAppearProbability
 			}
-			fmt.Printf("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",
+			ob4 := 0
+			if unit.OrderBit4 {
+				ob4 = 1
+			}
+			fmt.Printf("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",
 				unit.StateByte(),
 				unit.XY.X,
 				unit.XY.Y,
@@ -53,7 +57,10 @@ func main() {
 				unit.ColorPalette,
 				unit.Type,
 				unit.NameIndex,
+				unit.TargetFormation,
+				ob4,
 				unit.Order,
+				unit.GeneralIndex,
 				objX,
 				objY,
 				unit.SupplyLevel,
