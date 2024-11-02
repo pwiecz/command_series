@@ -1095,7 +1095,7 @@ func (s *AI) performAttack(unit *Unit, sxy UnitCoords, weather int, message *Mes
 			unit2SupplyUnit := s.units[unit2.Side][unit2.SupplyUnit]
 			if unit2SupplyUnit.IsInGame {
 				unit2.Morale = Abs(unit2.Morale - s.units.NeighbourUnitCount(unit2.XY, unit.Side)*4)
-				unit2.XY = unit2SupplyUnit.XY
+				unit2.XY = unit2SupplyUnit.XY // seems to be overwritten later nevertheless
 				unit2.ClearState()
 				unit2.HalfDaysUntilAppear = 6
 				unit2.InvAppearProbability = 6
@@ -1128,7 +1128,7 @@ func (s *AI) performAttack(unit *Unit, sxy UnitCoords, weather int, message *Mes
 				bestXY = nxy
 			}
 		}
-		unit2.XY = bestXY // moved this up comparing to the original code
+		unit2.XY = bestXY // moved this up comparing to the original code TODO: check
 		if _, ok := (*message).(WeHaveBeenOverrun); !ok {
 			if s.game != Conflict {
 				s.terrainTypes.showUnit(unit2)
