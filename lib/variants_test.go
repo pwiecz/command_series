@@ -6,7 +6,7 @@ import (
 )
 
 func TestParseEncodeParseVariant(t *testing.T) {
-	_, scenarioData, err := readTestData("crusade.atr", 0)
+	_, scenarioData, err := readTestData(t, "crusade.atr", 0)
 	if err != nil {
 		t.Fatal("Error reading game data,", err)
 	}

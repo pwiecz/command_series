@@ -92,7 +92,7 @@ func CreateMergedImage(images []*image.Paletted, colors *lib.ColorSchemes) image
 	height := images[0].Bounds().Dy()
 	mergedImage := image.NewNRGBA(image.Rect(0, 0, 8*width, height*len(images)))
 	for i, img := range images {
-		for j := range 4 {
+		for j := 0; j < 4; j++ {
 			img.Palette = colors.GetBackgroundForegroundColors(byte(j), false)
 			draw.Draw(mergedImage, image.Rect(2*j*width, i*height, (2*j+1)*width, (i+1)*height),
 				img, image.Pt(0, 0), draw.Over)
@@ -109,7 +109,7 @@ func CreateMergedDaytimeImage(images []*image.Paletted, colors *lib.ColorSchemes
 	height := images[0].Bounds().Dy()
 	mergedImage := image.NewNRGBA(image.Rect(0, 0, 4*width, height*len(images)))
 	for i, img := range images {
-		for j := range 4 {
+		for j := 0; j < 4; j++ {
 			img.Palette = colors.GetBackgroundForegroundColors(byte(j), isNight)
 			draw.Draw(mergedImage, image.Rect(j*width, i*height, (j+1)*width, (i+1)*height),
 				img, image.Pt(0, 0), draw.Over)

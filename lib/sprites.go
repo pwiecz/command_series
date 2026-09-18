@@ -64,7 +64,7 @@ func ParseSpriteData(data io.Reader, width, height, scaleX, scaleY, bits int) ([
 		return sprites, fmt.Errorf("unsupported scaleY %d", scaleY)
 	}
 	palette := make([]color.Color, 1<<bits)
-	for i := range len(palette) {
+	for i := 0; i < len(palette); i++ {
 		palette[len(palette)-1-i] = RGBPalette[i*15/(len(palette)-1)]
 	}
 	bytesPerSprite := (width*height*bits + 7) / 8

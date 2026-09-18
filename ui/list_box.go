@@ -24,13 +24,17 @@ func NewListBox(x, y float64, width, height int, items []string, font *lib.Font,
 		items:   items,
 		onEnter: onEnter}
 	fontSize := font.Size()
-	for i := range height {
-		l.rows = append(l.rows, NewLabel(items[i], x, y+float64(fontSize.Y*i), width*fontSize.X, fontSize.Y, font))
+	for i := 0; i < height; i++ {
+		text := ""
+		if i < len(items) {
+			text = items[i]
+		}
+		l.rows = append(l.rows, NewLabel(text, x, y+float64(fontSize.Y*i), width*fontSize.X, fontSize.Y, font))
 	}
 	if len(items) == 0 || height == 0 {
 		return l
 	}
-	for i := range width {
+	for i := 0; i < width; i++ {
 		l.rows[0].SetCharInverted(i, true)
 	}
 	return l
@@ -47,6 +51,12 @@ func (l *ListBox) SetBackgroundColor(backgroundColor int) {
 	}
 }
 func (l *ListBox) Update() {
+	if len(l.items) == 0 || l.height <= 0 {
+		if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+			l.onEnter("")
+		}
+		return
+	}
 	modified := false
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
 		l.onEnter(l.items[l.selectedItem])
@@ -71,7 +81,7 @@ func (l *ListBox) Update() {
 	} else if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		mouseX, mouseY := ebiten.CursorPosition()
 		for i, row := range l.rows {
-			if row.ContainsPoint(mouseX, mouseY) {
+			if i+l.topItem < len(l.items) && row.ContainsPoint(mouseX, mouseY) {
 				l.selectedItem = i + l.topItem
 				l.onEnter(l.items[l.selectedItem])
 				modified = true
@@ -84,7 +94,7 @@ func (l *ListBox) Update() {
 		for _, touchID := range inpututil.AppendJustPressedTouchIDs(l.pressedTouchIDs) {
 			touchX, touchY := ebiten.TouchPosition(touchID)
 			for i, row := range l.rows {
-				if row.ContainsPoint(touchX, touchY) {
+				if i+l.topItem < len(l.items) && row.ContainsPoint(touchX, touchY) {
 					l.selectedItem = i + l.topItem
 					l.onEnter(l.items[l.selectedItem])
 					modified = true

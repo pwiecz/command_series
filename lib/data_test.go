@@ -7,7 +7,7 @@ import (
 )
 
 func TestParseEncodeParseDataFirst255Bytes(t *testing.T) {
-	_, scenarioData, err := readTestData("crusade.atr", 0)
+	_, scenarioData, err := readTestData(t, "crusade.atr", 0)
 	if err != nil {
 		t.Fatal("Error reading game data,", err)
 	}
@@ -48,11 +48,11 @@ func TestParseEncodeParseDataFirst255Bytes(t *testing.T) {
 		t.Errorf("Reparsed data differ")
 		v1 := reflect.ValueOf(scenarioData.Data)
 		v2 := reflect.ValueOf(data)
-		for i := range v1.NumField() {
+		for i := 0; i < v1.NumField(); i++ {
 			f1 := v1.Field(i)
 			f2 := v2.Field(i)
 			if !reflect.DeepEqual(f1.Interface(), f2.Interface()) {
-				t.Errorf("%s field differs, %v vs %v", reflect.TypeFor[Data]().Field(i).Name, f1.Interface(), f2.Interface())
+				t.Errorf("%s field differs, %v vs %v", reflect.TypeOf(data).Field(i).Name, f1.Interface(), f2.Interface())
 			}
 		}
 	}

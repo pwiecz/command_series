@@ -1,7 +1,6 @@
 package lib
 
 import (
-	"cmp"
 	"math/rand"
 
 	"golang.org/x/exp/constraints"
@@ -23,21 +22,21 @@ func DivRoundUp(n, d int) int {
 	return (n + (d - 1)) / d
 }
 
-func Min[T cmp.Ordered](i0, i1 T) T {
+func Min[T constraints.Ordered](i0, i1 T) T {
 	if i0 <= i1 {
 		return i0
 	}
 	return i1
 }
 
-func Max[T cmp.Ordered](i0, i1 T) T {
+func Max[T constraints.Ordered](i0, i1 T) T {
 	if i0 >= i1 {
 		return i0
 	}
 	return i1
 }
 
-func Clamp[T cmp.Ordered](v, min, max T) T {
+func Clamp[T constraints.Ordered](v, min, max T) T {
 	if v <= min {
 		return min
 	}
@@ -57,7 +56,7 @@ func Sign[T SignedNumber](v T) int {
 	return 0
 }
 
-func InRange[T cmp.Ordered](v, min, max T) bool {
+func InRange[T constraints.Ordered](v, min, max T) bool {
 	if v < min || v >= max {
 		return false
 	}

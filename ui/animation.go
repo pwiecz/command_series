@@ -2,6 +2,7 @@ package ui
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/pwiecz/command_series/audio"
 	"github.com/pwiecz/command_series/lib"
 )
 
@@ -13,7 +14,7 @@ type Animation interface {
 
 type UnitAnimation struct {
 	mapView *MapView
-	player  *AudioPlayer
+	player  *audio.Player
 	sprite  *ebiten.Image
 	unit    lib.Unit
 
@@ -22,7 +23,7 @@ type UnitAnimation struct {
 	elapsed  int
 }
 
-func NewUnitAnimation(mapView *MapView, player *AudioPlayer, unit lib.Unit, xy0, xy1 lib.MapCoords, frames int) Animation {
+func NewUnitAnimation(mapView *MapView, player *audio.Player, unit lib.Unit, xy0, xy1 lib.MapCoords, frames int) Animation {
 	if frames <= 0 {
 		panic("frames must be positive")
 	}
@@ -38,15 +39,8 @@ func NewUnitAnimation(mapView *MapView, player *AudioPlayer, unit lib.Unit, xy0,
 
 func (a *UnitAnimation) Update() {
 	a.elapsed++
-	if a.player != nil {
-		if a.elapsed < a.frames {
-			a.player.SetFrequency(0, 70)
-			freq := byte(54 + 9*a.elapsed/a.frames)
-			a.player.SetFrequency(1, freq)
-		} else {
-			a.player.SetFrequency(0, 0)
-			a.player.SetFrequency(1, 0)
-		}
+	if a.elapsed == 1 {
+		a.player.Play(audio.Engine)
 	}
 }
 

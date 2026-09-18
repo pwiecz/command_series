@@ -4,7 +4,7 @@ import "testing"
 
 func TestTinyAndSmallMapOffsetsAreSane(t *testing.T) {
 	tinyOffsetsMap := make(map[int]struct{})
-	for i := range 9 {
+	for i := 0; i < 9; i++ {
 		dx, dy := TinyMapOffsets(i)
 		if dx < -1 || dx > 1 || dy < -1 || dy > 1 {
 			t.Errorf("Invalid tiny map offset for %d %d,%d", i, dx, dy)
@@ -17,7 +17,7 @@ func TestTinyAndSmallMapOffsetsAreSane(t *testing.T) {
 	}
 
 	smallOffsetsMap := make(map[int]struct{})
-	for i := range 9 {
+	for i := 0; i < 9; i++ {
 		dx, dy := SmallMapOffsets(i)
 		if dx < -1 || dx > 1 || dy < -1 || dy > 1 {
 			t.Errorf("Invalid small map offset for %d %d,%d", i, dx, dy)
@@ -40,7 +40,7 @@ func TestTinyAndSmallMapOffsetsAreSane(t *testing.T) {
 
 func TestDirectionTowardsNeightbour(t *testing.T) {
 	initialCoords := UnitCoords{2, 4} // "random" initial coords
-	for i := range 6 {
+	for i := 0; i < 6; i++ {
 		neighbourCoords := IthNeighbour(initialCoords, i)
 		// variants 0 and 1 should go directly towards the neighbour
 		neighbourToGoTo := FirstNeighbourFromTowards(initialCoords, neighbourCoords, 0)

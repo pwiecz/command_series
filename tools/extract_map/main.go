@@ -6,7 +6,6 @@ import (
 	"image/png"
 	"log"
 	"os"
-	"slices"
 
 	"image"
 
@@ -79,8 +78,8 @@ func main() {
 		if isNight {
 			daytimeName = "night"
 		}
-		for variant := range 4 {
-			for tileIx := range 48 {
+		for variant := 0; variant < 4; variant++ {
+			for tileIx := 0; tileIx < 48; tileIx++ {
 				baseImage := sprites.TerrainTiles[tileIx]
 				baseImage.Palette = colors.GetBackgroundForegroundColors(byte(variant), isNight)
 				coloredTile := image.NewNRGBA(baseImage.Bounds())
@@ -109,7 +108,13 @@ func main() {
 			tile := terrainMap.GetTile(assets.MapCoords{X: x, Y: y})
 			variant := tile / 64
 			if terVarMap[tile%64] != nil {
-				found := slices.Contains(terVarMap[tile%64], variant)
+				found := false
+				for _, existingVariant := range terVarMap[tile%64] {
+					if existingVariant == variant {
+						found = true
+						break
+					}
+				}
 				if !found {
 					terVarMap[tile%64] = append(terVarMap[tile%64], variant)
 				}

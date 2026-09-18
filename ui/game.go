@@ -5,8 +5,9 @@ import (
 	"io/fs"
 	"math/rand"
 
-	"github.com/ebitengine/oto/v3"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/oto/v2"
+	"github.com/pwiecz/command_series/audio"
 	"github.com/pwiecz/command_series/lib"
 )
 
@@ -26,7 +27,7 @@ type Game struct {
 	options          *lib.Options
 
 	otoContext  *oto.Context
-	audioPlayer *AudioPlayer
+	audioPlayer *audio.Player
 }
 
 var _ ebiten.Game = (*Game)(nil)
@@ -80,16 +81,15 @@ func (g *Game) Update() error {
 	if g.otoContext == nil {
 		var err error
 		var ready chan struct{}
-		opts := &oto.NewContextOptions{}
-		opts.SampleRate = 44100
-		opts.ChannelCount = 2
-		opts.Format = oto.FormatUnsignedInt8
-		g.otoContext, ready, err = oto.NewContext(opts)
+		g.otoContext, ready, err = oto.NewContext(44100, 2 /* num channels */, 2 /* num bytes per sample */)
 		if err != nil {
 			return fmt.Errorf("cannot create Oto context (%v)", err)
 		}
 		<-ready
-		g.audioPlayer = NewAudioPlayer(g.otoContext)
+		g.audioPlayer, err = audio.NewPlayer(g.otoContext)
+		if err != nil {
+			return fmt.Errorf("cannot load sound effects (%v)", err)
+		}
 	}
 	if g.subGame != nil {
 		return g.subGame.Update()

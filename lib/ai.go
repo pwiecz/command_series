@@ -96,7 +96,7 @@ nextUnit:
 		if s.game == Conflict && Rand(s.scenarioData.Data175, s.rand)/8 > 0 {
 			unit.SeenByEnemy = true // |= 64
 		}
-		for i := range 6 {
+		for i := 0; i < 6; i++ {
 			nxy := IthNeighbour(unit.XY, i)
 			if unit2, ok := s.units.FindUnitOfSideAt(nxy, 1-unit.Side); ok {
 				unit2.InContactWithEnemy = true
@@ -236,18 +236,18 @@ func (s *AI) updateUnitObjectiveAux(unit *Unit, weather int) int {
 }
 
 func (s *AI) resetMaps() {
-	for side := range 2 {
-		for sx := range 16 {
-			for sy := range 16 {
+	for side := 0; side < 2; side++ {
+		for sx := 0; sx < 16; sx++ {
+			for sy := 0; sy < 16; sy++ {
 				s.map0[side][sx][sy] = 0
 				s.map1[side][sx][sy] = 0
 				s.map3[side][sx][sy] = 0
 			}
 		}
 	}
-	for side := range 2 {
-		for tx := range 4 {
-			for ty := range 4 {
+	for side := 0; side < 2; side++ {
+		for tx := 0; tx < 4; tx++ {
+			for ty := 0; ty < 4; ty++ {
 				s.map2_0[side][tx][ty] = 0
 				s.map2_1[side][tx][ty] = 0
 			}
@@ -344,9 +344,9 @@ func (s *AI) reinitSmallMapsAndSuch(currentSide int) {
 		}
 	}
 	// function18()
-	for side := range 2 {
-		for x := range 16 {
-			for y := range 16 {
+	for side := 0; side < 2; side++ {
+		for x := 0; x < 16; x++ {
+			for y := 0; y < 16; y++ {
 				s.map1[side][x][y] = s.map1[side][x][y] * s.terrain.Coeffs[x][y] / 8
 				s.map2_0[side][x/4][y/4] += s.map0[side][x][y]
 				s.map2_1[side][x/4][y/4] += s.map1[side][x][y]
@@ -412,7 +412,7 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 		sx, sy := unit.XY.X/8, unit.XY.Y/4
 		// Num enemy troops nearby (neighbouring "small" map fields).
 		numEnemyTroops := 0
-		for neighbourIx := range 9 {
+		for neighbourIx := 0; neighbourIx < 9; neighbourIx++ {
 			dx, dy := SmallMapOffsets(neighbourIx)
 			if InRange(sx+dx, 0, 16) && InRange(dy+sy, 0, 16) {
 				numEnemyTroops += s.map0[1-unit.Side][sx+dx][sy+dy]
@@ -426,7 +426,7 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 			bestVal := -17536 // 48000
 			bestNeighbourIx := 0
 			bestX, bestY := 0, 0
-			for neighbourIx := range 9 {
+			for neighbourIx := 0; neighbourIx < 9; neighbourIx++ {
 				dx, dy := TinyMapOffsets(neighbourIx)
 				x, y := tx+dx, ty+dy
 				if !InRange(x, 0, 4) || !InRange(y, 0, 4) {
@@ -509,7 +509,7 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 					temp = Attack
 				}
 				// Two iterations: one not taking into consideration the current unit, and once taking it into consideration.
-				for j := range 2 {
+				for j := 0; j < 2; j++ {
 					var v48 int
 					if friendlyUnitsInArea > v52 {
 						v48 = Clamp((friendlyUnitsInArea+1)*8/(v52+1)-7, 0, 16)
@@ -528,7 +528,12 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 						if unit.SeenByEnemy {
 							v /= 2 /* logical shift not the arithmetic one, actually) */
 						}
-						v = v * unit.General.Data0_26 / 2
+						if unit.General.Data0_2 {
+							v *= 2
+						}
+						if unit.General.Data0_6 {
+							v /= 2
+						}
 						if j > 0 {
 							v += s.map1[unit.Side][sx+dx][sy+dy] * 8 / friendlyUnitsInArea
 						}
@@ -537,7 +542,13 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 					if v55 < 0 {
 						temp = Reserve
 						if enemyUnitsInArea > 0 {
-							v := s.map1[unit.Side][sx+dx][sy+dy] * v55 * unit.General.Data0_15 / 2
+							v := s.map1[unit.Side][sx+dx][sy+dy] * v55
+							if unit.General.Data0_1 {
+								v *= 2
+							}
+							if unit.General.Data0_5 {
+								v /= 2
+							}
 							v53 += v
 						}
 					}
@@ -546,7 +557,13 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 							temp = Attack
 						}
 						if enemyUnitsInArea > 0 {
-							v := v48 * unit.General.Data0_37 / 2
+							v := v48
+							if unit.General.Data0_3 {
+								v *= 2
+							}
+							if unit.General.Data0_7 {
+								v /= 2
+							}
 							v *= enemyUnitsInArea
 							v49 += v
 						}
@@ -554,7 +571,13 @@ func (s *AI) bestOrder(unit *Unit, numEnemyNeighbours *int) (OrderType, bool) {
 					if v55 < 0 {
 						if friendlyUnitsInArea > 0 {
 							temp = Defend
-							v := friendlyUnitsInArea * v55 * unit.General.Data0_04 / 2
+							v := friendlyUnitsInArea * v55
+							if unit.General.Data0_0 {
+								v *= 2
+							}
+							if unit.General.Data0_4 {
+								v /= 2
+							}
 							v50 += v
 						}
 						if v55+unit.General.Data2High+s.scenarioData.Data0Low[unit.Type] < -9 {
@@ -799,7 +822,7 @@ func (s *AI) areUnitCoordsValid(xy UnitCoords) bool {
 func (s *AI) NeighbourScore(arr *[6][8]int, xy UnitCoords, side int) int {
 	// Count of neighbour tiles with given type
 	var neighbourTypeCount [6]int
-	for i := range 6 {
+	for i := 0; i < 6; i++ {
 		nxy := IthNeighbour(xy, i)
 		var neighbourType int
 		if s.units.IsUnitOfSideAt(nxy, 1-side) {
@@ -824,7 +847,7 @@ func (s *AI) NeighbourScore(arr *[6][8]int, xy UnitCoords, side int) int {
 		neighbourTypeCount[neighbourType]++
 	}
 	neighbourScore := 0
-	for i := range 6 {
+	for i := 0; i < 6; i++ {
 		neighbourScore += arr[i][neighbourTypeCount[i]]
 	}
 	return neighbourScore
@@ -1074,7 +1097,7 @@ func (s *AI) performAttack(unit *Unit, sxy UnitCoords, weather int, message *Mes
 	}
 	// function13(sx, sy)
 	// function4(arg1)
-	sync.SendUpdate(UnitAttack{sxy, arg1})
+	sync.SendUpdate(UnitAttack{XY: sxy, Outcome: arg1, LongRange: unit.LongRangeAttack})
 
 	menLost2 := Clamp((Rand(unit2.MenCount*arg1, s.rand)+500)/512, 0, unit2.MenCount)
 	s.score.MenLost[1-unit.Side] += menLost2
@@ -1095,7 +1118,7 @@ func (s *AI) performAttack(unit *Unit, sxy UnitCoords, weather int, message *Mes
 			unit2SupplyUnit := s.units[unit2.Side][unit2.SupplyUnit]
 			if unit2SupplyUnit.IsInGame {
 				unit2.Morale = Abs(unit2.Morale - s.units.NeighbourUnitCount(unit2.XY, unit.Side)*4)
-				unit2.XY = unit2SupplyUnit.XY // seems to be overwritten later nevertheless
+				unit2.XY = unit2SupplyUnit.XY
 				unit2.ClearState()
 				unit2.HalfDaysUntilAppear = 6
 				unit2.InvAppearProbability = 6
@@ -1128,7 +1151,7 @@ func (s *AI) performAttack(unit *Unit, sxy UnitCoords, weather int, message *Mes
 				bestXY = nxy
 			}
 		}
-		unit2.XY = bestXY // moved this up comparing to the original code TODO: check
+		unit2.XY = bestXY // moved this up comparing to the original code
 		if _, ok := (*message).(WeHaveBeenOverrun); !ok {
 			if s.game != Conflict {
 				s.terrainTypes.showUnit(unit2)
@@ -1241,7 +1264,7 @@ outerLoop:
 				var speed int
 				var xy UnitCoords
 				// TODO: why changing variant < 2 to variant < 1 has no effect (cost never 0? at least in dday?)
-				for variant := range 2 {
+				for variant := 0; variant < 2; variant++ {
 					xy, speed = s.findBestMoveFromTowards(supplyXY, unit.XY, s.scenarioData.MinSupplyType, variant)
 					if speed != 0 {
 						break

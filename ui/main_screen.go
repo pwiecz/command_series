@@ -12,6 +12,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/pwiecz/command_series/audio"
 	"github.com/pwiecz/command_series/lib"
 )
 
@@ -20,7 +21,7 @@ type MainScreen struct {
 	scenarioData     *lib.ScenarioData
 	gameData         *lib.GameData
 	options          *lib.Options
-	audioPlayer      *AudioPlayer
+	audioPlayer      *audio.Player
 	onGameOver       func(int, int, int)
 
 	mapView                                  *MapView
@@ -54,13 +55,12 @@ type MainScreen struct {
 
 	gameOver bool
 
-	touchIDs        []ebiten.TouchID // store it here to avoid reallocating it for each Update
 	pressedTouchIDs []ebiten.TouchID // store it here to avoid reallocating it for each Update
 }
 
 var _ SubGame = (*MainScreen)(nil)
 
-func NewMainScreen(g *Game, options *lib.Options, audioPlayer *AudioPlayer, rand *rand.Rand, onGameOver func(int, int, int)) *MainScreen {
+func NewMainScreen(g *Game, options *lib.Options, audioPlayer *audio.Player, rand *rand.Rand, onGameOver func(int, int, int)) *MainScreen {
 	scenario := &g.gameData.Scenarios[g.selectedScenario]
 	for x := scenario.MinX - 1; x <= scenario.MaxX+1; x++ {
 		g.gameData.Map.SetTile(lib.MapCoords{X: x, Y: scenario.MinY - 1}, 12)
@@ -189,6 +189,7 @@ func (s *MainScreen) Update() error {
 				}
 			case StatusReport:
 				if !s.gameOver {
+					s.audioPlayer.Play(audio.Alert)
 					s.showStatusReport()
 					s.idleTicksLeft = s.options.Speed.DelayTicks()
 				} else {
@@ -349,8 +350,7 @@ func (s *MainScreen) Update() error {
 				break
 			}
 		}
-		s.touchIDs = s.touchIDs[:0]
-		for _, touchID := range ebiten.AppendTouchIDs(s.touchIDs) {
+		for _, touchID := range ebiten.TouchIDs() {
 			if inpututil.TouchPressDuration(touchID) > 30 {
 				touchX, touchY := ebiten.TouchPosition(touchID)
 				xy := s.screenCoordsToUnitCoords(touchX, touchY)
@@ -399,6 +399,11 @@ loop:
 			}
 		case lib.UnitAttack:
 			if !s.turboMode {
+				if message.LongRange {
+					s.audioPlayer.Play(audio.Explosion)
+				} else {
+					s.audioPlayer.Play(audio.Shooting)
+				}
 				s.animation = NewIconsAnimation(s.mapView, lib.CircleIcons, message.XY.ToMapCoords())
 				break loop
 			}
@@ -417,7 +422,7 @@ loop:
 			break loop
 		case lib.UnitMove:
 			if !s.turboMode && (s.mapView.AreMapCoordsVisible(message.XY0) || s.mapView.AreMapCoordsVisible(message.XY1)) {
-				s.animation = NewUnitAnimation(s.mapView /*s.audioPlayer*/, nil,
+				s.animation = NewUnitAnimation(s.mapView, s.audioPlayer,
 					message.Unit, message.XY0, message.XY1, 30)
 				break loop
 			}
@@ -456,6 +461,9 @@ loop:
 }
 
 func (s *MainScreen) showMessageFromUnit(message lib.MessageFromUnit) {
+	if !s.turboMode {
+		s.audioPlayer.Play(audio.Alert)
+	}
 	s.messageBox.Clear()
 	s.messageBox.Print("*MESSAGE FROM ...*", 2, 0)
 	messageUnit := message.Unit()
@@ -519,16 +527,15 @@ func (s *MainScreen) pickOrder(xy lib.UnitCoords) {
 }
 func (s *MainScreen) orderPicked(command string, unit lib.Unit) {
 	s.listBox = nil
-	switch command {
-	case "MOVE":
+	if command == "MOVE" {
 		s.giveOrder(unit, lib.Move)
-	case "ATTACK":
+	} else if command == "ATTACK" {
 		s.giveOrder(unit, lib.Attack)
-	case "DEFEND":
+	} else if command == "DEFEND" {
 		s.giveOrder(unit, lib.Defend)
-	case "RESERVE":
+	} else if command == "RESERVE" {
 		s.giveOrder(unit, lib.Reserve)
-	default:
+	} else {
 		return
 	}
 	s.orderedUnit = &unit
@@ -809,7 +816,10 @@ func (s *MainScreen) loadGame() {
 	}
 	s.messageBox.Print("(PRESS ESCAPE TO CANCEL)", 2, 1)
 	s.messageBox.Print("LOAD SCENARIO NAME: ?", 2, 2)
-	listLen := min(len(saveNames), 8)
+	listLen := len(saveNames)
+	if listLen > 8 {
+		listLen = 8
+	}
 	s.listBox = NewListBox(23*8., 22+2*8, 8, listLen, saveNames, s.gameData.Sprites.GameFont, func(filename string) { s.loadGameFromFile(filename) })
 	playerBaseColor := s.scenarioData.Data.SideColor[s.playerSide] * 16
 	s.listBox.SetTextColor(playerBaseColor)

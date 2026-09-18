@@ -182,16 +182,16 @@ func (s *GameState) Save(writer io.Writer) error {
 	saveData.LastUpdatedUnit = uint8(s.ai.lastUpdatedUnit)
 	saveData.Update = uint8(s.ai.update)
 
-	for i := range 2 {
-		for x := range 16 {
-			for y := range 16 {
+	for i := 0; i < 2; i++ {
+		for x := 0; x < 16; x++ {
+			for y := 0; y < 16; y++ {
 				saveData.Map0[i][x][y] = int16(s.ai.map0[i][x][y])
 				saveData.Map1[i][x][y] = int16(s.ai.map1[i][x][y])
 				saveData.Map3[i][x][y] = int16(s.ai.map3[i][x][y])
 			}
 		}
-		for x := range 4 {
-			for y := range 4 {
+		for x := 0; x < 4; x++ {
+			for y := 0; y < 4; y++ {
 				saveData.Map2_0[i][x][y] = int16(s.ai.map2_0[i][x][y])
 				saveData.Map2_1[i][x][y] = int16(s.ai.map2_1[i][x][y])
 			}
@@ -265,16 +265,16 @@ func (s *GameState) Load(reader io.Reader) error {
 	s.ai.lastUpdatedUnit = int(saveData.LastUpdatedUnit)
 	s.ai.update = int(saveData.Update)
 
-	for i := range 2 {
-		for x := range 16 {
-			for y := range 16 {
+	for i := 0; i < 2; i++ {
+		for x := 0; x < 16; x++ {
+			for y := 0; y < 16; y++ {
 				s.ai.map0[i][x][y] = int(saveData.Map0[i][x][y])
 				s.ai.map1[i][x][y] = int(saveData.Map1[i][x][y])
 				s.ai.map3[i][x][y] = int(saveData.Map3[i][x][y])
 			}
 		}
-		for x := range 4 {
-			for y := range 4 {
+		for x := 0; x < 4; x++ {
+			for y := 0; y < 4; y++ {
 				s.ai.map2_0[i][x][y] = int(saveData.Map2_0[i][x][y])
 				s.ai.map2_1[i][x][y] = int(saveData.Map2_1[i][x][y])
 			}

@@ -7,7 +7,7 @@ import (
 
 func createTestGameState(filename string, scenarioNum, variantNum int, options Options, messageSync *MessageSync, t *testing.T) *GameState {
 	rand := rand.New(rand.NewSource(1))
-	gameData, scenarioData, err := readTestData(filename, scenarioNum)
+	gameData, scenarioData, err := readTestData(t, filename, scenarioNum)
 	if err != nil {
 		t.Fatal("Error reading game data,", err)
 	}

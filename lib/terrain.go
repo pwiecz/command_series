@@ -35,7 +35,7 @@ type Terrain struct {
 	Coeffs [16][16]int // Bytes [768-1024]
 }
 
-// IsCityAt returns true iff in the loaded scenario, in the selected variant there is
+// IsCityAt returns true iff in the loaded scenario, in the selected variant there is 
 // a city at coordinates xy.
 func (t Terrain) IsCityAt(xy UnitCoords) bool {
 	for _, city := range t.Cities {
@@ -45,7 +45,6 @@ func (t Terrain) IsCityAt(xy UnitCoords) bool {
 	}
 	return false
 }
-
 // FindCityAt returns pair (pointer to a city, true) if there is a city in the loaded scenario,
 // in the selected variant. Otherwise returns pair (nil, false).
 func (t Terrain) FindCityAt(xy UnitCoords) (*City, bool) {
@@ -57,7 +56,7 @@ func (t Terrain) FindCityAt(xy UnitCoords) (*City, bool) {
 	return nil, false
 }
 
-// ReadTerrain reads terrain information for a particular game from given file
+// ReadTerrain reads terrain information for a particular game from given file 
 // on the given file system.
 // If there is an error while loading returns pair (nil, error), otherwise returns pair
 // (terrain, nil).
@@ -107,7 +106,7 @@ func ParseCity(data io.Reader) (City, error) {
 
 func ParseTerrain(data io.Reader) (*Terrain, error) {
 	terrain := &Terrain{}
-	for range 48 {
+	for i := 0; i < 48; i++ {
 		city, err := ParseCity(data)
 		if err != nil {
 			return nil, err
@@ -137,7 +136,7 @@ func (c *Cities) ReadOwnerAndVictoryPoints(data io.Reader) error {
 	if numCities != len(*c) {
 		return fmt.Errorf("mismatched number of cities, %d vs %d", numCities, len(*c))
 	}
-	for i := range numCities {
+	for i := 0; i < numCities; i++ {
 		if _, err := io.ReadFull(data, buf[:]); err != nil {
 			return err
 		}

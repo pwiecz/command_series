@@ -64,7 +64,7 @@ func (a *atrFSDirFile) Size() int64                { return 0 }
 func (a *atrFSDirFile) Mode() fs.FileMode          { return fs.ModeDir | 0555 }
 func (a *atrFSDirFile) ModTime() time.Time         { return time.Time{} }
 func (a *atrFSDirFile) IsDir() bool                { return true }
-func (a *atrFSDirFile) Sys() any                   { return nil }
+func (a *atrFSDirFile) Sys() interface{}           { return nil }
 func (a *atrFSDirFile) ReadDir(n int) ([]fs.DirEntry, error) {
 	ret := []fs.DirEntry{}
 	if n <= 0 {
@@ -73,7 +73,7 @@ func (a *atrFSDirFile) ReadDir(n int) ([]fs.DirEntry, error) {
 			a.position++
 		}
 	} else {
-		for i := range n {
+		for i := 0; i < n; i++ {
 			if a.position >= len(a.files) {
 				return ret, io.EOF
 			}
@@ -103,27 +103,30 @@ type atrSectorReader struct {
 func newAtrSectorReader(input io.ReadSeeker) (SectorReader, error) {
 	var atrHeader [16]byte // 8 header bytes + 8 reserved bytes
 	if _, err := io.ReadFull(input, atrHeader[:]); err != nil {
-		return nil, fmt.Errorf("cannot read atr file header, %v", err)
+		return nil, fmt.Errorf("Cannot read atr file header, %v", err)
 	}
 	if atrHeader[0] != ATR_MAGIC1 || atrHeader[1] != ATR_MAGIC2 {
-		return nil, fmt.Errorf("input is not an atr file")
+		return nil, fmt.Errorf("Input is not an atr file")
 	}
 	sectorReader := &atrSectorReader{}
 	sectorReader.input = input
 	sectorReader.sectorSize = int(atrHeader[4]) + (int(atrHeader[5]) << 8)
 	imageSize := (int(atrHeader[2]) + (int(atrHeader[3]) << 8) +
 		(int(atrHeader[6]) << 16) + (int(atrHeader[7]) << 24)) * 16
-	sectorReader.sectorCount = 3 + (imageSize-3*128)/sectorReader.sectorSize
-	if sectorReader.sectorSize == 256 {
-		sectorReader.sectorCount = (sectorReader.sectorCount + 3) / 2
+	if sectorReader.sectorSize != 128 && sectorReader.sectorSize != 256 {
+		return nil, fmt.Errorf("Unsupported sector size: %d", sectorReader.sectorSize)
 	}
+	if imageSize < 3*128 || (imageSize-3*128)%sectorReader.sectorSize != 0 {
+		return nil, fmt.Errorf("Invalid ATR image size: %d", imageSize)
+	}
+	sectorReader.sectorCount = 3 + (imageSize-3*128)/sectorReader.sectorSize
 
 	return sectorReader, nil
 }
 
 func (r *atrSectorReader) ReadSector(sector int) ([]byte, error) {
 	if sector < 1 || sector > r.sectorCount {
-		return nil, fmt.Errorf("invalid sector number %d", sector)
+		return nil, fmt.Errorf("Invalid sector number %d", sector)
 	}
 	offset := 16 /* size of the header */
 	if sector <= 4 {
@@ -132,7 +135,7 @@ func (r *atrSectorReader) ReadSector(sector int) ([]byte, error) {
 		offset += 3*128 + (sector-4)*r.sectorSize
 	}
 	if _, err := r.input.Seek(int64(offset), 0); err != nil {
-		return nil, fmt.Errorf("cannot seek to position %d, %v", offset, err)
+		return nil, fmt.Errorf("Cannot seek to position %d, %v", offset, err)
 	}
 	sectorSize := r.sectorSize
 	if sector <= 3 {
@@ -155,12 +158,12 @@ type atrFileInfo struct {
 
 func (a *atrFileInfo) Name() string               { return a.name }
 func (a *atrFileInfo) IsDir() bool                { return false }
-func (a *atrFileInfo) Type() fs.FileMode          { return fs.FileMode(0444) }
+func (a *atrFileInfo) Type() fs.FileMode          { return 0 }
 func (a *atrFileInfo) Mode() fs.FileMode          { return fs.FileMode(0444) }
 func (a *atrFileInfo) Info() (fs.FileInfo, error) { return a, nil }
 func (a *atrFileInfo) Size() int64                { return int64(a.size) }
 func (a *atrFileInfo) ModTime() time.Time         { return time.Time{} }
-func (a *atrFileInfo) Sys() any                   { return nil }
+func (a *atrFileInfo) Sys() interface{}           { return nil }
 
 const (
 	DELETED = 0x80
@@ -174,7 +177,7 @@ func getDirectory(reader SectorReader) ([]*atrFileInfo, error) {
 			return nil, err
 		}
 
-		for entryStart := 0; entryStart+16 <= len(sectorData); entryStart += 16 {
+		for entryStart := 0; entryStart+16 <= len(sectorData) && entryStart < 128; entryStart += 16 {
 			entryData := sectorData[entryStart : entryStart+16]
 			if entryData[0] == 0 || entryData[0]&DELETED != 0 || entryData[0]&0x40 == 0 {
 				continue
@@ -203,22 +206,27 @@ func (a *atrFile) Close() error               { return nil }
 func readFile(reader SectorReader, fileInfo *atrFileInfo) ([]byte, error) {
 	var content []byte
 	sectorNum := fileInfo.start
+	visited := make(map[int]bool)
 	for {
+		if visited[sectorNum] {
+			return nil, fmt.Errorf("Cyclic sector chain at sector %d", sectorNum)
+		}
+		visited[sectorNum] = true
 		sector, err := reader.ReadSector(sectorNum)
 		if err != nil {
 			return nil, err
 		}
 		if len(sector) < 3 {
-			return nil, fmt.Errorf("unsupported sector size: %d", len(sector))
+			return nil, fmt.Errorf("Unsupported sector size: %d", len(sector))
 		}
 		fileIndex := int(sector[len(sector)-3] >> 2)
 		if fileIndex != fileInfo.index {
-			return nil, fmt.Errorf("file# mismatch, %d != %d", fileIndex, fileInfo.index)
+			return nil, fmt.Errorf("File# mismatch, %d != %d", fileIndex, fileInfo.index)
 		}
 
 		dataLen := int(sector[len(sector)-1] & 0x7f)
 		if dataLen > len(sector)-3 {
-			return nil, fmt.Errorf("invalid data length of sector: %d", dataLen)
+			return nil, fmt.Errorf("Invalid data length of sector: %d", dataLen)
 		}
 
 		content = append(content, sector[:dataLen]...)

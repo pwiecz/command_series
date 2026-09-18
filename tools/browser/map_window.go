@@ -60,9 +60,9 @@ func (w *MapWindow) SetGameData(gameData *lib.GameData, scenarioData *lib.Scenar
 		w.height/(float32(w.gameData.Map.Height)*w.tileHeight))
 	w.colorSchemes = lib.NewColorSchemes(
 		&scenarioData.Data.DaytimePalette, &scenarioData.Data.NightPalette)
-	for isNight := range 2 {
-		for colorScheme := range 4 {
-			for tileIndex := range 48 {
+	for isNight := 0; isNight < 2; isNight++ {
+		for colorScheme := 0; colorScheme < 4; colorScheme++ {
+			for tileIndex := 0; tileIndex < 48; tileIndex++ {
 				texture := w.tileImages[isNight][colorScheme][tileIndex]
 				if texture > 0 {
 					deleteTexture(texture)

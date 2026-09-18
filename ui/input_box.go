@@ -71,7 +71,7 @@ func (i *InputBox) Update() {
 			i.insertStringAtCursor("-")
 			modified = true
 		} else {
-			for k := range ebiten.KeyMax {
+			for k := ebiten.Key(0); k < ebiten.KeyMax; k++ {
 				// hacky...
 				if inpututil.IsKeyJustPressed(k) && len(k.String()) == 1 {
 					i.insertStringAtCursor(k.String())

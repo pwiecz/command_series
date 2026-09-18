@@ -3,6 +3,7 @@ package assets
 import (
 	"bytes"
 	"fmt"
+	"image"
 	"image/color"
 	"io"
 	"io/fs"
@@ -12,6 +13,7 @@ import (
 type Map struct {
 	Width, Height int
 	terrain       []byte
+	mapImage      *image.NRGBA
 }
 
 func GetPalette(n int, palette *[8]byte) []color.Color {
@@ -83,7 +85,7 @@ func ParseMap(data io.Reader, width, height int) (*Map, error) {
 func ReadMap(fsys fs.FS, game Game) (*Map, error) {
 	fileData, err := fs.ReadFile(fsys, "CRUSADE.MAP")
 	if err != nil {
-		return nil, fmt.Errorf("cannot read CRUSADE.MAP file (%v)", err)
+		return nil, fmt.Errorf("Cannot read CRUSADE.MAP file (%v)", err)
 	}
 	var reader io.Reader
 	if game == Conflict {
@@ -98,7 +100,7 @@ func ReadMap(fsys fs.FS, game Game) (*Map, error) {
 	}
 	terrainMap, err := ParseMap(reader, 64, 64)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse CRUSADE.MAP file (%v)", err)
+		return nil, fmt.Errorf("Cannot parse CRUSADE.MAP file (%v)", err)
 	}
 	return terrainMap, nil
 }

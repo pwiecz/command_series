@@ -16,7 +16,7 @@ const (
 )
 
 func printIndent(indent int) {
-	for range indent {
+	for i := 0; i < indent; i++ {
 		fmt.Print("  ")
 	}
 }
