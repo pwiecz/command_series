@@ -2,6 +2,7 @@ package lib
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 )
 
@@ -13,6 +14,9 @@ func UnpackFile(data io.Reader) ([]byte, error) {
 	// TODO: understand what's this number. It's some kind of an upper bound
 	// of the decoded size.
 	expectedSize := 256*int(header[4]) + int(header[3]) - 256*int(header[2]) + int(header[1]) + 1
+	if expectedSize < 0 {
+		return nil, fmt.Errorf("invalid packed file size: %d", expectedSize)
+	}
 	reader := bufio.NewReader(data)
 	decodedData := make([]byte, 0, expectedSize)
 	for {

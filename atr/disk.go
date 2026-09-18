@@ -113,10 +113,13 @@ func newAtrSectorReader(input io.ReadSeeker) (SectorReader, error) {
 	sectorReader.sectorSize = int(atrHeader[4]) + (int(atrHeader[5]) << 8)
 	imageSize := (int(atrHeader[2]) + (int(atrHeader[3]) << 8) +
 		(int(atrHeader[6]) << 16) + (int(atrHeader[7]) << 24)) * 16
-	sectorReader.sectorCount = 3 + (imageSize-3*128)/sectorReader.sectorSize
-	if sectorReader.sectorSize == 256 {
-		sectorReader.sectorCount = (sectorReader.sectorCount + 3) / 2
+	if sectorReader.sectorSize != 128 && sectorReader.sectorSize != 256 {
+		return nil, fmt.Errorf("unsupported sector size: %d", sectorReader.sectorSize)
 	}
+	if imageSize < 3*128 || (imageSize-3*128)%sectorReader.sectorSize != 0 {
+		return nil, fmt.Errorf("invalid ATR image size: %d", imageSize)
+	}
+	sectorReader.sectorCount = 3 + (imageSize-3*128)/sectorReader.sectorSize
 
 	return sectorReader, nil
 }
@@ -155,7 +158,7 @@ type atrFileInfo struct {
 
 func (a *atrFileInfo) Name() string               { return a.name }
 func (a *atrFileInfo) IsDir() bool                { return false }
-func (a *atrFileInfo) Type() fs.FileMode          { return fs.FileMode(0444) }
+func (a *atrFileInfo) Type() fs.FileMode          { return 0 }
 func (a *atrFileInfo) Mode() fs.FileMode          { return fs.FileMode(0444) }
 func (a *atrFileInfo) Info() (fs.FileInfo, error) { return a, nil }
 func (a *atrFileInfo) Size() int64                { return int64(a.size) }
@@ -174,7 +177,7 @@ func getDirectory(reader SectorReader) ([]*atrFileInfo, error) {
 			return nil, err
 		}
 
-		for entryStart := 0; entryStart+16 <= len(sectorData); entryStart += 16 {
+		for entryStart := 0; entryStart+16 <= len(sectorData) && entryStart < 128; entryStart += 16 {
 			entryData := sectorData[entryStart : entryStart+16]
 			if entryData[0] == 0 || entryData[0]&DELETED != 0 || entryData[0]&0x40 == 0 {
 				continue
@@ -203,7 +206,12 @@ func (a *atrFile) Close() error               { return nil }
 func readFile(reader SectorReader, fileInfo *atrFileInfo) ([]byte, error) {
 	var content []byte
 	sectorNum := fileInfo.start
+	visited := make(map[int]bool)
 	for {
+		if visited[sectorNum] {
+			return nil, fmt.Errorf("cyclic sector chain at sector %d", sectorNum)
+		}
+		visited[sectorNum] = true
 		sector, err := reader.ReadSector(sectorNum)
 		if err != nil {
 			return nil, err

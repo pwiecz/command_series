@@ -123,8 +123,9 @@ type Reinforcements struct{ Sides [2]bool }
 type GameOver struct{ Results string }
 
 type UnitAttack struct {
-	XY      UnitCoords
-	Outcome int
+	XY        UnitCoords
+	Outcome   int
+	LongRange bool // Air and artillery strikes use the long-range combat path.
 }
 
 type UnitMove struct {

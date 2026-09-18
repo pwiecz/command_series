@@ -12,6 +12,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/pwiecz/command_series/audio"
 	"github.com/pwiecz/command_series/lib"
 )
 
@@ -20,7 +21,7 @@ type MainScreen struct {
 	scenarioData     *lib.ScenarioData
 	gameData         *lib.GameData
 	options          *lib.Options
-	audioPlayer      *AudioPlayer
+	audioPlayer      *audio.Player
 	onGameOver       func(int, int, int)
 
 	mapView                                  *MapView
@@ -60,7 +61,7 @@ type MainScreen struct {
 
 var _ SubGame = (*MainScreen)(nil)
 
-func NewMainScreen(g *Game, options *lib.Options, audioPlayer *AudioPlayer, rand *rand.Rand, onGameOver func(int, int, int)) *MainScreen {
+func NewMainScreen(g *Game, options *lib.Options, audioPlayer *audio.Player, rand *rand.Rand, onGameOver func(int, int, int)) *MainScreen {
 	scenario := &g.gameData.Scenarios[g.selectedScenario]
 	for x := scenario.MinX - 1; x <= scenario.MaxX+1; x++ {
 		g.gameData.Map.SetTile(lib.MapCoords{X: x, Y: scenario.MinY - 1}, 12)
@@ -399,6 +400,11 @@ loop:
 			}
 		case lib.UnitAttack:
 			if !s.turboMode {
+				if message.LongRange {
+					s.audioPlayer.Play(audio.Explosion)
+				} else {
+					s.audioPlayer.Play(audio.Shooting)
+				}
 				s.animation = NewIconsAnimation(s.mapView, lib.CircleIcons, message.XY.ToMapCoords())
 				break loop
 			}
@@ -417,7 +423,7 @@ loop:
 			break loop
 		case lib.UnitMove:
 			if !s.turboMode && (s.mapView.AreMapCoordsVisible(message.XY0) || s.mapView.AreMapCoordsVisible(message.XY1)) {
-				s.animation = NewUnitAnimation(s.mapView /*s.audioPlayer*/, nil,
+				s.animation = NewUnitAnimation(s.mapView, s.audioPlayer,
 					message.Unit, message.XY0, message.XY1, 30)
 				break loop
 			}

@@ -1074,7 +1074,7 @@ func (s *AI) performAttack(unit *Unit, sxy UnitCoords, weather int, message *Mes
 	}
 	// function13(sx, sy)
 	// function4(arg1)
-	sync.SendUpdate(UnitAttack{sxy, arg1})
+	sync.SendUpdate(UnitAttack{XY: sxy, Outcome: arg1, LongRange: unit.LongRangeAttack})
 
 	menLost2 := Clamp((Rand(unit2.MenCount*arg1, s.rand)+500)/512, 0, unit2.MenCount)
 	s.score.MenLost[1-unit.Side] += menLost2

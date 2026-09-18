@@ -4,9 +4,12 @@ An engine for playing [Command Series](https://www.mobygames.com/game-group/micr
 # Using
 Obtain an ATR image of Atari version of one of the games and run `$ command_series <diskimage.atr>`.
 
+Sound effects for unit movement, normal attacks, and long-range attacks are
+embedded in the executable from `audio/assets/`.
+
 # Missing features
 * Bug fixes ~~, many bug-fixes~~
 * ~~Save/load~~
-* Music and sound
+* Music
 * Intro and ending
 * Color cycling of cursor/icons, etc.
