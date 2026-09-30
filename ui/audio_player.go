@@ -69,4 +69,3 @@ func NewAudioPlayer(context *oto.Context) *AudioPlayer {
 func (p *AudioPlayer) SetFrequency(channel int, freq byte) {
 	p.source.SetFrequency(channel, freq)
 }
-
